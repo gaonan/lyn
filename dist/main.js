@@ -1,23 +1,23 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r31';
-import { buildBotanicals } from './botanicals.js?v=20261113-r31';
-import { createHearts } from './hearts.js?v=20261113-r31';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r31';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r31';
-import { setupMusic } from './music.js?v=20261113-r31';
-import { setupCollection } from './collection.js?v=20261113-r31';
-import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r31';
-import { prepareOffline } from './offline.js?v=20261113-r31';
-import { buildMagazines } from './magazines.js?v=20261113-r31';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r31';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r31';
-import { buildRolePortraits } from './roles.js?v=20261113-r31';
-import { buildRecord } from './record.js?v=20261113-r31';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r31';
-import { createArtworkQueue } from './artwork.js?v=20261113-r31';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r31';
-import { setupKeepsake } from './keepsake.js?v=20261113-r31';
-const VERSION = '20261113-r31';
+import { buildArchitecture } from './architecture.js?v=20261113-r32';
+import { buildBotanicals } from './botanicals.js?v=20261113-r32';
+import { createHearts } from './hearts.js?v=20261113-r32';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r32';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r32';
+import { setupMusic } from './music.js?v=20261113-r32';
+import { setupCollection } from './collection.js?v=20261113-r32';
+import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r32';
+import { prepareOffline } from './offline.js?v=20261113-r32';
+import { buildMagazines } from './magazines.js?v=20261113-r32';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r32';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r32';
+import { buildRolePortraits } from './roles.js?v=20261113-r32';
+import { buildRecord } from './record.js?v=20261113-r32';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r32';
+import { createArtworkQueue } from './artwork.js?v=20261113-r32';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r32';
+import { setupKeepsake } from './keepsake.js?v=20261113-r32';
+const VERSION = '20261113-r32';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const mobile = matchMedia('(any-pointer: coarse)').matches;
@@ -175,7 +175,17 @@ const destinations = [
   { x: 7.60, y: 4.8, z: -5.76, yaw: Math.PI / 2, pitch: 0 },
   { x: -7.60, y: 7.2, z: .95, yaw: -Math.PI / 2, pitch: 0 },
 ];
-function setSpot(n){const s=destinations[n];p=spawnPlayer({x:s.x,y:s.y,z:s.z});yaw=s.yaw;pitch=s.pitch;eye=s.y+1.65;resetInput();updateLocation();}
+function setSpot(index) {
+  const { x, y, z, yaw: heading, pitch: tilt } = destinations[index];
+  p = spawnPlayer({ x, y, z });
+  yaw = heading;
+  pitch = tilt;
+  eye = y + 1.65;
+  camera.position.set(x, eye, z);
+  camera.rotation.set(pitch, yaw, 0);
+  resetInput();
+  updateLocation();
+}
 function updateLocation() {
   const label = p.y > 6.7 ? '四层 · 顶部书廊' : p.y > 4.2 ? '三层 · 花藤走廊' :
     p.y > 2.8 ? '夹层 · 窗边花园' : p.y > 1.8 ? '下层 · 书墙回廊' : '一层 · 花海舞台';
@@ -199,6 +209,23 @@ function enter() {
 }
 $('#enter').onclick=enter;$('.brand').onclick=e=>{e.preventDefault();if(entered)setSpot(0)};
 document.querySelectorAll('[data-spot]').forEach(b=>b.onclick=()=>setSpot(Number(b.dataset.spot)));
+const testCorner = $('#test-corner');
+let testTaps = 0, lastTestTap = 0;
+document.addEventListener('pointerdown', event => {
+  if (event.target !== testCorner) testTaps = 0;
+}, true);
+testCorner.addEventListener('click', () => {
+  if (!canMove()) return;
+  const now = performance.now();
+  testTaps = now - lastTestTap <= 1050 ? testTaps + 1 : 1;
+  lastTestTap = now;
+  if (testTaps !== 10) return;
+  testTaps = 0;
+  collection.completeForTesting();
+  magazineQuest.completeForTesting();
+  toast(record.claimed ? '前置任务已完成' : '前置任务已完成 · 唱片在一楼背墙');
+});
+
 const dialog=$('#help-dialog');$('#help').onclick=()=>{resetInput();dialog.showModal()};$('.close').onclick=()=>dialog.close();$('.close-help').onclick=()=>{dialog.close();enter()};dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});
 lightButton.onclick = () => {
   night = !night;

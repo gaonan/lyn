@@ -9,7 +9,7 @@ export function setupCollection(hearts, getPlayer, rewardSounds) {
   window.addEventListener('blur',cancel);document.addEventListener('visibilitychange',cancel);
   const sky=document.getElementById('petal-sky'),ctx=sky.getContext('2d');let sw=0,sh=0;const sparks=Array.from({length:150},(_,i)=>({x:Math.random(),y:Math.random(),size:1+Math.random()*4,phase:Math.random()*6.28,speed:.05+Math.random()*.13,color:i%3?'#e8c588':'#eeb0b7'}));
   function resize(){sw=innerWidth;sh=innerHeight;sky.width=sw*Math.min(devicePixelRatio,1.5);sky.height=sh*Math.min(devicePixelRatio,1.5);ctx.setTransform(sky.width/sw,0,0,sky.height/sh,0,0)}window.addEventListener('resize',resize);
-  function finish(){shown=true;celebrating=true;finale.hidden=false;finaleStart=performance.now();resize();document.getElementById('continue-walk').focus();document.body.classList.add('celebrating');}
+  function finish(){if(shown)return;shown=true;celebrating=true;finale.hidden=false;finaleStart=performance.now();resize();document.getElementById('continue-walk').focus();document.body.classList.add('celebrating');}
   document.getElementById('continue-walk').onclick=()=>{celebrating=false;finale.hidden=true;document.body.classList.remove('celebrating')};
   function celebrate(now){const t=(now-finaleStart)/1000;ctx.clearRect(0,0,sw,sh);ctx.globalCompositeOperation='lighter';
     for(const s of sparks){const orbit=t*.28+s.phase;const spread=Math.min(1,t*.6);const x=sw*.5+Math.cos(orbit)*(s.x*sw*.52)*spread,y=sh*.48+Math.sin(orbit*.7)*(s.y*sh*.7)*spread;ctx.globalAlpha=.2+.65*(.5+.5*Math.sin(t+s.phase));ctx.fillStyle=s.color;ctx.shadowColor=s.color;ctx.shadowBlur=s.size*3;ctx.save();ctx.translate(x,y);ctx.rotate(orbit);ctx.beginPath();ctx.ellipse(0,0,s.size*(s.size>3?2:1),s.size*.65,0,0,6.28);ctx.fill();ctx.restore();}
@@ -19,5 +19,13 @@ export function setupCollection(hearts, getPlayer, rewardSounds) {
     button.hidden=!near;if(holding&&(!near||holding.id!==near.id))cancel();
     if(holding){const progress=Math.min(1,(now-holding.start)/2000);ring.style.strokeDashoffset=length*(1-progress);if(progress===1){const id=holding.id;cancel();if(hearts.collect(id)){rewardSounds?.play('heart');count++;counter.textContent=count;message.classList.add('show');setTimeout(()=>message.classList.remove('show'),1600);button.hidden=true;if(navigator.vibrate)navigator.vibrate([30,25,60]);if(count===5)setTimeout(finish,850);}}}
   }
-  return {update,get count(){return count},get holding(){return !!holding},get celebrating(){return celebrating},get complete(){return shown&&!celebrating}};
+  function completeForTesting() {
+    cancel();
+    for (const heart of hearts.items) hearts.collect(heart.id);
+    count = hearts.items.length;
+    counter.textContent = count;
+    shown = true;
+    button.hidden = true;
+  }
+  return {update,completeForTesting,get count(){return count},get holding(){return !!holding},get celebrating(){return celebrating},get complete(){return shown&&!celebrating}};
 }
