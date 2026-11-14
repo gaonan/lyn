@@ -1,4 +1,4 @@
-import { shareImage } from './keepsake.js?v=20261113-r36';
+import { loadFilmFont, paintFilmPhoto, shareImage } from './keepsake.js?v=20261113-r37';
 
 // All player image data stays in this dialog's memory until it is closed.
 const OUTPUT_WIDTH = 1600;
@@ -280,20 +280,12 @@ export function setupGroupPhoto(dialog, render, version, prepareStage) {
         if (attempt === revision) status.textContent = '呆米的素材暂未加载成功，请重新加载花房后再试。';
         return;
       }
+      await loadFilmFont();
       if (attempt !== revision || !dialog.open) return;
       const image = canvas(OUTPUT_WIDTH, OUTPUT_HEIGHT);
-      const ctx = image.getContext('2d');
-      render(ctx, 0, 0, image.width, image.height, makePortrait(template, source, crop, layer), pose);
-      const shade = ctx.createLinearGradient(0, image.height - 142, 0, image.height);
-      shade.addColorStop(0, '#0f171100');
-      shade.addColorStop(1, '#0f1711bc');
-      ctx.fillStyle = shade;
-      ctx.fillRect(0, image.height - 142, image.width, 142);
-      ctx.strokeStyle = '#ffe4b191';
-      ctx.strokeRect(25.5, 25.5, image.width - 51, image.height - 51);
-      ctx.fillStyle = '#ffebca';
-      ctx.font = '500 30px "Songti SC", "Noto Serif CJK SC", serif';
-      ctx.fillText(pose === 'duet' ? '康乃馨 7.0 · 花海对唱' : '康乃馨 7.0 · 花海合影', 51, image.height - 51);
+      const portrait = makePortrait(template, source, crop, layer);
+      paintFilmPhoto(image, (ctx, x, y, width, height) => render(ctx, x, y, width, height, portrait, pose),
+        { label: pose === 'duet' ? '花海对唱' : '花海合影' });
       const blob = await new Promise(resolve => image.toBlob(resolve, 'image/jpeg', .94));
       if (!blob) throw new Error('Cannot encode image');
       if (attempt !== revision || !dialog.open) return;
