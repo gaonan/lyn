@@ -29,6 +29,14 @@ export function textLines(ctx, text, maxWidth) {
 const FILM_TITLE = '康乃馨 7.0';
 const FILM_LINES = ['如果我拥有一座花园', '邀请你常来停歇'];
 const FILM_FONT = '"Noto Serif SC Film", "Songti SC", "Noto Serif CJK SC", serif';
+const FILM_SCALE = 2;
+
+export function createFilmCanvas(hasAlbum = false) {
+  const out = document.createElement('canvas');
+  out.width = 1600 * FILM_SCALE;
+  out.height = (hasAlbum ? 1220 : 900) * FILM_SCALE;
+  return out;
+}
 
 export async function loadFilmFont() {
   await document.fonts?.load(
@@ -71,16 +79,24 @@ function paintFilmStrip(ctx, y, width) {
 
 export function paintFilmPhoto(out, render, { label, album, text, date = new Date() }) {
   const ctx = out.getContext('2d');
-  const { width, height } = out;
+  const width = out.width / FILM_SCALE, height = out.height / FILM_SCALE;
   const x = 48, y = 54, right = width - x;
   const frameWidth = width - x * 2;
   const frameHeight = album ? 704 : 593;
   const footerY = y + frameHeight + 1;
   const footerBottom = height - 43;
 
+  ctx.save();
+  ctx.scale(FILM_SCALE, FILM_SCALE);
   ctx.fillStyle = '#121511';
   ctx.fillRect(0, 0, width, height);
-  render(ctx, x, y, frameWidth, frameHeight);
+  render(ctx, x, y, frameWidth, frameHeight, FILM_SCALE);
+  const vignette = ctx.createRadialGradient(width / 2, y + frameHeight * .45, frameWidth * .24,
+    width / 2, y + frameHeight * .45, frameWidth * .55);
+  vignette.addColorStop(0, 'rgba(12, 11, 15, 0)');
+  vignette.addColorStop(1, 'rgba(12, 11, 15, .32)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(x, y, frameWidth, frameHeight);
   ctx.strokeStyle = '#d6b275';
   ctx.lineWidth = 1;
   ctx.strokeRect(x - .5, y - .5, frameWidth + 1, frameHeight + 1);
@@ -151,6 +167,7 @@ export function paintFilmPhoto(out, render, { label, album, text, date = new Dat
 
   paintFilmStrip(ctx, 0, width);
   paintFilmStrip(ctx, footerBottom, width);
+  ctx.restore();
 }
 
 export async function shareImage(file, title) {
@@ -225,11 +242,9 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
     try {
       await Promise.all([loadFilmFont(), album.complete && album.naturalWidth ? undefined : album.decode()]);
       if (attempt !== generation || !dialog.open) return;
-      const out = document.createElement('canvas');
-      out.width = 1600;
-      out.height = 1220;
+      const out = createFilmCanvas(true);
       paintFilmPhoto(out, render, { label: '唱片留影', album, text });
-      const blob = await new Promise(resolve => out.toBlob(resolve, 'image/jpeg', .94));
+      const blob = await new Promise(resolve => out.toBlob(resolve, 'image/jpeg', .96));
       if (!blob) throw new Error('No image was encoded');
       if (attempt !== generation || !dialog.open) return;
       file = new File([blob], '康乃馨7.0-花房留影.jpg', { type: 'image/jpeg' });

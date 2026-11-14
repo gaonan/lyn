@@ -1,8 +1,7 @@
-import { loadFilmFont, paintFilmPhoto, shareImage } from './keepsake.js?v=20261113-r37';
+import { createFilmCanvas, loadFilmFont, paintFilmPhoto, shareImage } from './keepsake.js?v=20261113-r38';
+import { cheekColors, matchFaceLighting } from './portrait-color.js?v=20261113-r38';
 
 // All player image data stays in this dialog's memory until it is closed.
-const OUTPUT_WIDTH = 1600;
-const OUTPUT_HEIGHT = 900;
 const GUIDE_SIZE = 300;
 const FIT = { x: .5, y: .42, zoom: 1.38, angle: 0 };
 
@@ -14,6 +13,7 @@ const POSES = {
     contour: 'M151 30 C181 31 204 52 221 86 C225 100 227 111 234 125 C242 158 219 196 199 225 C180 249 164 263 148 264 C125 262 101 245 83 223 C61 196 43 159 51 128 C51 111 64 99 69 81 C87 51 112 33 151 30 Z',
     eyes: [[88, 105], [198, 105]],
     mouth: [[113, 216], [190, 216]],
+    cheeks: [[.303, .51, .060, .058], [.70, .51, .060, .058]],
     instruction: '选一张清晰的正脸照。',
   },
   duet: {
@@ -22,6 +22,8 @@ const POSES = {
     contour: 'M103 82 Q120 73 133 68 Q145 68 154 78 Q167 72 177 59 Q190 49 204 45 C221 51 239 74 251 94 C264 113 269 127 265 144 C258 161 257 183 255 202 C251 224 250 234 234 247 C220 260 204 275 186 276 C165 276 140 263 119 244 C95 223 76 202 65 178 C59 160 65 143 78 126 C92 110 92 97 103 82 Z',
     eyes: [[146, 106], [229, 77]],
     mouth: [[179, 207], [243, 189]],
+    cheeks: [[.454, .52, .067, .065], [.83, .431, .038, .056]],
+    keep: 'M217 291 C218 278 226 271 240 265 C254 258 267 263 275 275 L300 300 H210 Z',
     instruction: '选一张脸朝照片右侧约 25–35° 的照片，最好双眼都能看到。朝左的照片可用「左右翻转」。',
   },
 };
@@ -45,10 +47,12 @@ async function resizeLocalPhoto(file) {
   const url = URL.createObjectURL(file);
   try {
     const image = await decodeImage(url);
-    const ratio = Math.min(1, 1440 / Math.max(image.naturalWidth, image.naturalHeight));
+    const ratio = Math.min(1, 2304 / Math.max(image.naturalWidth, image.naturalHeight));
     const photo = canvas(Math.max(1, Math.round(image.naturalWidth * ratio)),
       Math.max(1, Math.round(image.naturalHeight * ratio)));
-    photo.getContext('2d').drawImage(image, 0, 0, photo.width, photo.height);
+    const ctx = photo.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(image, 0, 0, photo.width, photo.height);
     return photo;
   } finally {
     URL.revokeObjectURL(url);
@@ -64,35 +68,59 @@ function drawCrop(ctx, photo, fit, size) {
     photo.width * scale, photo.height * scale);
 }
 
-function createFaceLayer(size, pose) {
-  const contour = new Path2D(pose.contour);
-  const mask = canvas(size, size);
-  const alpha = mask.getContext('2d');
-  alpha.scale(size / GUIDE_SIZE, size / GUIDE_SIZE);
-  alpha.fillStyle = '#fff';
-  // Layer progressively tighter contours for a soft edge that never spills outside the guide.
-  for (const [scale, strength] of [[1, .06], [.98, .19], [.955, .37], [.932, .62], [.91, 1]]) {
-    alpha.save();
-    alpha.translate(150, 148);
-    alpha.scale(scale, scale);
-    alpha.translate(-150, -148);
-    alpha.globalAlpha = strength;
-    alpha.fill(contour);
-    alpha.restore();
+function featherInside(image, size) {
+  // Measure distance to the contour. The cubic falloff stays entirely inside the guide.
+  const data = image.data;
+  const distance = new Uint16Array(size * size);
+  for (let p = 0; p < distance.length; p++) distance[p] = data[p * 4 + 3] < 128 ? 0 : 32767;
+  for (let y = 1; y < size - 1; y++) {
+    for (let p = y * size + 1; p < (y + 1) * size - 1; p++) {
+      distance[p] = Math.min(distance[p], distance[p - 1] + 3, distance[p - size] + 3,
+        distance[p - size - 1] + 4, distance[p - size + 1] + 4);
+    }
   }
+  for (let y = size - 2; y > 0; y--) {
+    for (let p = (y + 1) * size - 2; p > y * size; p--) {
+      distance[p] = Math.min(distance[p], distance[p + 1] + 3, distance[p + size] + 3,
+        distance[p + size - 1] + 4, distance[p + size + 1] + 4);
+      const t = Math.min(1, distance[p] / (18 * size / GUIDE_SIZE * 3));
+      data[p * 4 + 3] *= t * t * (3 - 2 * t);
+    }
+  }
+  return image;
+}
+
+function createFaceLayer(size, pose, template) {
+  const contour = new Path2D(pose.contour);
   const patch = canvas(size, size);
-  const skin = patch.getContext('2d');
+  const skin = patch.getContext('2d', { willReadFrequently: true });
+  skin.scale(size / GUIDE_SIZE, size / GUIDE_SIZE);
+  skin.fill(contour);
+  if (pose.keep) {
+    skin.globalCompositeOperation = 'destination-out';
+    skin.fill(new Path2D(pose.keep));
+    skin.globalCompositeOperation = 'source-over';
+  }
+  skin.resetTransform();
+  const mask = featherInside(skin.getImageData(0, 0, size, size), size).data;
+  skin.clearRect(0, 0, size, size);
+  skin.drawImage(template, ...headBox(template, pose), 0, 0, size, size);
+  const reference = cheekColors(skin.getImageData(0, 0, size, size).data, size, pose.cheeks);
+  skin.imageSmoothingQuality = 'high';
+
   return {
     contour, pose,
     draw(photo, fit) {
       skin.clearRect(0, 0, size, size);
       skin.save();
-      skin.filter = 'brightness(.96) saturate(.94)';
       drawCrop(skin, photo, fit, size);
       skin.restore();
-      skin.globalCompositeOperation = 'destination-in';
-      skin.drawImage(mask, 0, 0);
-      skin.globalCompositeOperation = 'source-over';
+      const image = skin.getImageData(0, 0, size, size);
+      const pixels = image.data;
+      const source = cheekColors(pixels, size, pose.cheeks);
+      for (let i = 3; i < pixels.length; i += 4) pixels[i] *= mask[i] / 255;
+      matchFaceLighting(pixels, size, source, reference);
+      skin.putImageData(image, 0, 0);
       return patch;
     },
   };
@@ -148,11 +176,13 @@ function drawEditor(editor, template, photo, fit, layer, showSource) {
 }
 
 function makePortrait(template, photo, fit, layer) {
-  const result = canvas(template.naturalWidth, template.naturalHeight);
+  const scale = 2;
+  const result = canvas(template.naturalWidth * scale, template.naturalHeight * scale);
   const ctx = result.getContext('2d');
-  ctx.drawImage(template, 0, 0);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(template, 0, 0, result.width, result.height);
   ctx.globalCompositeOperation = 'source-atop';
-  ctx.drawImage(layer.draw(photo, fit), ...headBox(template, layer.pose));
+  ctx.drawImage(layer.draw(photo, fit), ...headBox(template, layer.pose).map(value => value * scale));
   return result;
 }
 
@@ -205,7 +235,7 @@ export function setupGroupPhoto(dialog, render, version, prepareStage) {
       templates.set(pose, image);
       if (attempt !== revision || !dialog.open) return;
       template = image;
-      layer = createFaceLayer(384, pose);
+      layer = createFaceLayer(300, pose, image);
       fit = { ...FIT };
       zoom.value = FIT.zoom;
       rotate.value = FIT.angle;
@@ -282,11 +312,11 @@ export function setupGroupPhoto(dialog, render, version, prepareStage) {
       }
       await loadFilmFont();
       if (attempt !== revision || !dialog.open) return;
-      const image = canvas(OUTPUT_WIDTH, OUTPUT_HEIGHT);
-      const portrait = makePortrait(template, source, crop, layer);
-      paintFilmPhoto(image, (ctx, x, y, width, height) => render(ctx, x, y, width, height, portrait, pose),
+      const image = createFilmCanvas();
+      const portrait = makePortrait(template, source, crop, createFaceLayer(512, layer.pose, template));
+      paintFilmPhoto(image, (ctx, x, y, width, height, pixelScale) => render(ctx, x, y, width, height, pixelScale, portrait, pose),
         { label: pose === 'duet' ? '花海对唱' : '花海合影' });
-      const blob = await new Promise(resolve => image.toBlob(resolve, 'image/jpeg', .94));
+      const blob = await new Promise(resolve => image.toBlob(resolve, 'image/jpeg', .96));
       if (!blob) throw new Error('Cannot encode image');
       if (attempt !== revision || !dialog.open) return;
       clearOutput();
