@@ -59,7 +59,17 @@ export function paintKeepsake(out, render, album, text) {
   lines.forEach((line, index) => ctx.fillText(line, 465, 1035 + index * lineHeight));
 }
 
-export function setupKeepsake(dialog, record, render) {
+export async function shareImage(file, title) {
+  if (!navigator.canShare?.({ files: [file] })) return false;
+  try {
+    await navigator.share({ files: [file], title });
+    return true;
+  } catch (error) {
+    return error.name === 'AbortError';
+  }
+}
+
+export function setupKeepsake(dialog, record, render, openGroupPhoto) {
   const key = 'carnation7-wall-note';
   const input = dialog.querySelector('textarea');
   const counter = dialog.querySelector('.keepsake-count');
@@ -68,6 +78,8 @@ export function setupKeepsake(dialog, record, render) {
   const generate = dialog.querySelector('#make-keepsake');
   const save = dialog.querySelector('#save-keepsake');
   const download = dialog.querySelector('#download-keepsake');
+  const groupPhoto = dialog.querySelector('#open-group-photo');
+  groupPhoto.addEventListener('click', openGroupPhoto);
   const status = dialog.querySelector('.keepsake-status');
   let savedText = '';
   try { savedText = keepsakeText(localStorage.getItem(key) || ''); } catch {}
@@ -130,7 +142,7 @@ export function setupKeepsake(dialog, record, render) {
       preview.src = url;
       preview.hidden = false;
       album.hidden = true;
-      save.hidden = download.hidden = false;
+      save.hidden = download.hidden = groupPhoto.hidden = false;
       download.href = url;
       status.textContent = '可分享、下载，也可长按图片保存。';
     } catch {
@@ -142,14 +154,7 @@ export function setupKeepsake(dialog, record, render) {
 
   save.addEventListener('click', async () => {
     if (!file) return;
-    if (navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: '康乃馨 7.0 · 花房留影' });
-        return;
-      } catch (error) {
-        if (error.name === 'AbortError') return;
-      }
-    }
+    if (await shareImage(file, '康乃馨 7.0 · 花房留影')) return;
     status.textContent = '请长按图片保存，或点「下载图片」。';
   });
   return () => {

@@ -4,6 +4,6 @@
   "type": "module",
   "scripts": {
     "start": "python3 -m http.server 4173 --directory dist",
-    "check": "node --check dist/main.js && node --check dist/architecture.js && node --check dist/atrium-light.js && node --check dist/surface-maps.js && node --check dist/botanicals.js && node --check dist/performer-photo.js && node --check dist/performer-views.js && node --check dist/keepsake.js && node --check dist/navigation.js && node --check dist/offline.js && node --check dist/sw.js && node --test tests/*.test.js"
+    "check": "node --check dist/main.js && node --check dist/architecture.js && node --check dist/atrium-light.js && node --check dist/surface-maps.js && node --check dist/botanicals.js && node --check dist/performer-photo.js && node --check dist/performer-views.js && node --check dist/keepsake.js && node --check dist/group-photo.js && node --check dist/navigation.js && node --check dist/offline.js && node --check dist/sw.js && node --test tests/*.test.js"
   }
 }

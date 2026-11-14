@@ -1,23 +1,24 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r32';
-import { buildBotanicals } from './botanicals.js?v=20261113-r32';
-import { createHearts } from './hearts.js?v=20261113-r32';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r32';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r32';
-import { setupMusic } from './music.js?v=20261113-r32';
-import { setupCollection } from './collection.js?v=20261113-r32';
-import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r32';
-import { prepareOffline } from './offline.js?v=20261113-r32';
-import { buildMagazines } from './magazines.js?v=20261113-r32';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r32';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r32';
-import { buildRolePortraits } from './roles.js?v=20261113-r32';
-import { buildRecord } from './record.js?v=20261113-r32';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r32';
-import { createArtworkQueue } from './artwork.js?v=20261113-r32';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r32';
-import { setupKeepsake } from './keepsake.js?v=20261113-r32';
-const VERSION = '20261113-r32';
+import { buildArchitecture } from './architecture.js?v=20261113-r33';
+import { buildBotanicals } from './botanicals.js?v=20261113-r33';
+import { createHearts } from './hearts.js?v=20261113-r33';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r33';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r33';
+import { setupMusic } from './music.js?v=20261113-r33';
+import { setupCollection } from './collection.js?v=20261113-r33';
+import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r33';
+import { prepareOffline } from './offline.js?v=20261113-r33';
+import { buildMagazines } from './magazines.js?v=20261113-r33';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r33';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r33';
+import { buildRolePortraits } from './roles.js?v=20261113-r33';
+import { buildRecord } from './record.js?v=20261113-r33';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r33';
+import { createArtworkQueue } from './artwork.js?v=20261113-r33';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r33';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r33';
+import { setupKeepsake } from './keepsake.js?v=20261113-r33';
+const VERSION = '20261113-r33';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const mobile = matchMedia('(any-pointer: coarse)').matches;
@@ -123,15 +124,32 @@ let entered=false,modelReady=false,p=spawnPlayer({x:0,y:0,z:6.8}),yaw=0,pitch=.0
 const rewardSounds = createRewardSounds(VERSION);
 const hearts=createHearts(THREE,scene);
 const collection=setupCollection(hearts,()=>p,rewardSounds);
-const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake);
-function renderKeepsake(ctx, x, y, width, height) {
+const openGroupPhoto = setupGroupPhoto($('#group-photo-dialog'), renderKeepsake, VERSION);
+const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, openGroupPhoto);
+function renderKeepsake(ctx, x, y, width, height, guestPortrait) {
   const photoCamera = new THREE.PerspectiveCamera(52, width / height, .07, 65);
   photoCamera.position.set(.12, 1.51, 3.05);
-  photoCamera.lookAt(-.06, 1.18, -1.5);
+  photoCamera.lookAt(guestPortrait ? -.40 : -.06, 1.18, -1.5);
   const props = [...hearts.items.map(heart => heart.object), daimi.object, daimiShadow];
   const visible = props.map(object => object.visible);
   props.forEach(object => { object.visible = false; });
+  let guest, guestShadow;
   try {
+    if (guestPortrait) {
+      const height = 1.82;
+      const texture = new THREE.CanvasTexture(guestPortrait);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      guest = new THREE.Mesh(
+        new THREE.PlaneGeometry(height * guestPortrait.width / guestPortrait.height, height),
+        new THREE.MeshBasicMaterial({ map: texture, color: '#f2eeeb', transparent: true, alphaTest: .025, toneMapped: false }),
+      );
+      guest.position.set(-.78, height / 2 + .005, -.81);
+      guest.rotation.y = Math.atan2(photoCamera.position.x - guest.position.x, photoCamera.position.z - guest.position.z);
+      guestShadow = new THREE.Mesh(new THREE.PlaneGeometry(.61, .39), shadowMaterial);
+      guestShadow.rotation.x = -Math.PI / 2;
+      guestShadow.position.set(guest.position.x, .019, guest.position.z);
+      scene.add(guest, guestShadow);
+    }
     lighting.setNight(true);
     performer.setNight(true);
     performer.update(performance.now() / 1000, photoCamera);
@@ -140,6 +158,13 @@ function renderKeepsake(ctx, x, y, width, height) {
     renderer.render(scene, photoCamera);
     ctx.drawImage(canvas, x, y, width, height);
   } finally {
+    if (guest) {
+      scene.remove(guest, guestShadow);
+      guest.geometry.dispose();
+      guest.material.map.dispose();
+      guest.material.dispose();
+      guestShadow.geometry.dispose();
+    }
     props.forEach((object, i) => { object.visible = visible[i]; });
     lighting.setNight(night);
     performer.setNight(night);
