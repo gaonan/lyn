@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r33") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r34") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -483,7 +483,7 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
 }
 .keepsake-count { display: block; color: #c7b694; font-size: 11px; text-align: right; }
 .keepsake-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-#record-finale .keepsake-actions > *, #continue-record {
+#record-finale .keepsake-actions > *, #continue-record, #confirm-keepsake-saved, #open-group-photo {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -502,6 +502,18 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
 #record-finale #make-keepsake { background: #f0e3c8; color: #292920; }
 #record-finale .keepsake-status { min-height: 15px; margin: 7px 0; font-size: 11px; line-height: 1.4; }
 #continue-record { gap: 8px; }
+#record-finale .photo-step, #group-photo-dialog .photo-step {
+  margin: 0 0 5px;
+  color: #cfb783;
+  font-size: 11px;
+  letter-spacing: .09em;
+}
+#open-group-photo {
+  background: #f0e3c8;
+  color: #292920;
+  margin-right: 5px;
+}
+#confirm-keepsake-saved { margin-right: 5px; }
 
 #group-photo-dialog {
   width: min(780px, calc(100% - 30px));

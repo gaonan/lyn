@@ -1,24 +1,24 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r33';
-import { buildBotanicals } from './botanicals.js?v=20261113-r33';
-import { createHearts } from './hearts.js?v=20261113-r33';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r33';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r33';
-import { setupMusic } from './music.js?v=20261113-r33';
-import { setupCollection } from './collection.js?v=20261113-r33';
-import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r33';
-import { prepareOffline } from './offline.js?v=20261113-r33';
-import { buildMagazines } from './magazines.js?v=20261113-r33';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r33';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r33';
-import { buildRolePortraits } from './roles.js?v=20261113-r33';
-import { buildRecord } from './record.js?v=20261113-r33';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r33';
-import { createArtworkQueue } from './artwork.js?v=20261113-r33';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r33';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r33';
-import { setupKeepsake } from './keepsake.js?v=20261113-r33';
-const VERSION = '20261113-r33';
+import { buildArchitecture } from './architecture.js?v=20261113-r34';
+import { buildBotanicals } from './botanicals.js?v=20261113-r34';
+import { createHearts } from './hearts.js?v=20261113-r34';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r34';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r34';
+import { setupMusic } from './music.js?v=20261113-r34';
+import { setupCollection } from './collection.js?v=20261113-r34';
+import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r34';
+import { prepareOffline } from './offline.js?v=20261113-r34';
+import { buildMagazines } from './magazines.js?v=20261113-r34';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r34';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r34';
+import { buildRolePortraits } from './roles.js?v=20261113-r34';
+import { buildRecord } from './record.js?v=20261113-r34';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r34';
+import { createArtworkQueue } from './artwork.js?v=20261113-r34';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r34';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r34';
+import { setupKeepsake } from './keepsake.js?v=20261113-r34';
+const VERSION = '20261113-r34';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const mobile = matchMedia('(any-pointer: coarse)').matches;
@@ -130,20 +130,37 @@ function renderKeepsake(ctx, x, y, width, height, guestPortrait) {
   const photoCamera = new THREE.PerspectiveCamera(52, width / height, .07, 65);
   photoCamera.position.set(.12, 1.51, 3.05);
   photoCamera.lookAt(guestPortrait ? -.40 : -.06, 1.18, -1.5);
+  photoCamera.updateMatrixWorld();
   const props = [...hearts.items.map(heart => heart.object), daimi.object, daimiShadow];
   const visible = props.map(object => object.visible);
   props.forEach(object => { object.visible = false; });
   let guest, guestShadow;
   try {
     if (guestPortrait) {
-      const height = 1.82;
+      const templateHeight = 1.82;
+      const guestHeight = performer.object.userData.height - .25;
+      const geometry = new THREE.PlaneGeometry(
+        templateHeight * guestPortrait.width / guestPortrait.height, guestHeight, 1, 2,
+      );
+      // Keep the upper body at its existing scale and absorb the adjustment below the waist.
+      const waistUV = .64;
+      const waistHeight = guestHeight - templateHeight * (1 - waistUV);
+      const position = geometry.getAttribute('position');
+      const uv = geometry.getAttribute('uv');
+      for (let i = 0; i < uv.count; i++) {
+        if (uv.getY(i) !== .5) continue;
+        uv.setY(i, waistUV);
+        position.setY(i, waistHeight - guestHeight / 2);
+      }
       const texture = new THREE.CanvasTexture(guestPortrait);
       texture.colorSpace = THREE.SRGBColorSpace;
-      guest = new THREE.Mesh(
-        new THREE.PlaneGeometry(height * guestPortrait.width / guestPortrait.height, height),
+      guest = new THREE.Mesh(geometry,
         new THREE.MeshBasicMaterial({ map: texture, color: '#f2eeeb', transparent: true, alphaTest: .025, toneMapped: false }),
       );
-      guest.position.set(-.78, height / 2 + .005, -.81);
+      // Offset along the camera's horizontal axis so both stand at the same depth.
+      const across = new THREE.Vector3().setFromMatrixColumn(photoCamera.matrixWorld, 0);
+      guest.position.copy(performer.object.position).addScaledVector(across, -.78);
+      guest.position.y += guestHeight / 2;
       guest.rotation.y = Math.atan2(photoCamera.position.x - guest.position.x, photoCamera.position.z - guest.position.z);
       guestShadow = new THREE.Mesh(new THREE.PlaneGeometry(.61, .39), shadowMaterial);
       guestShadow.rotation.x = -Math.PI / 2;
