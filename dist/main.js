@@ -1,23 +1,23 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r30';
-import { buildBotanicals } from './botanicals.js?v=20261113-r30';
-import { createHearts } from './hearts.js?v=20261113-r30';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r30';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r30';
-import { setupMusic } from './music.js?v=20261113-r30';
-import { setupCollection } from './collection.js?v=20261113-r30';
-import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r30';
-import { prepareOffline } from './offline.js?v=20261113-r30';
-import { buildMagazines } from './magazines.js?v=20261113-r30';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r30';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r30';
-import { buildRolePortraits } from './roles.js?v=20261113-r30';
-import { buildRecord } from './record.js?v=20261113-r30';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r30';
-import { createArtworkQueue } from './artwork.js?v=20261113-r30';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r30';
-import { setupKeepsake } from './keepsake.js?v=20261113-r30';
-const VERSION = '20261113-r30';
+import { buildArchitecture } from './architecture.js?v=20261113-r31';
+import { buildBotanicals } from './botanicals.js?v=20261113-r31';
+import { createHearts } from './hearts.js?v=20261113-r31';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r31';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r31';
+import { setupMusic } from './music.js?v=20261113-r31';
+import { setupCollection } from './collection.js?v=20261113-r31';
+import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r31';
+import { prepareOffline } from './offline.js?v=20261113-r31';
+import { buildMagazines } from './magazines.js?v=20261113-r31';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r31';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r31';
+import { buildRolePortraits } from './roles.js?v=20261113-r31';
+import { buildRecord } from './record.js?v=20261113-r31';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r31';
+import { createArtworkQueue } from './artwork.js?v=20261113-r31';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r31';
+import { setupKeepsake } from './keepsake.js?v=20261113-r31';
+const VERSION = '20261113-r31';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const mobile = matchMedia('(any-pointer: coarse)').matches;
@@ -229,22 +229,11 @@ const movementKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'A
 function canMove() {
   return entered && !document.querySelector('dialog[open]') && !collection.celebrating;
 }
-function requestJump() {
-  if (canMove()) jumpRequested = true;
-}
-$('#jump').addEventListener('pointerdown', event => {
-  if (event.button !== 0) return;
-  event.preventDefault();
-  requestJump();
-});
-$('#jump').addEventListener('click', event => {
-  if (event.detail === 0) requestJump();
-});
 window.addEventListener('keydown', event => {
   if (event.defaultPrevented || !canMove() || event.target.closest?.('input,textarea,[contenteditable]')) return;
   if (event.code === 'Space') {
     event.preventDefault();
-    if (!event.repeat) requestJump();
+    if (!event.repeat) jumpRequested = true;
   } else if (movementKeys.includes(event.code)) {
     event.preventDefault();
     keys.add(event.code);
