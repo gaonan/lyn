@@ -1,4 +1,4 @@
-import { shareImage } from './keepsake.js?v=20261113-r33';
+import { shareImage } from './keepsake.js?v=20261113-r34';
 
 // All player image data stays in this dialog's memory until it is closed.
 const TEMPLATE_URL = './assets/performer/white-dress-guest.webp';
@@ -230,7 +230,7 @@ export function setupGroupPhoto(dialog, render, version) {
   });
   save.addEventListener('click', async () => {
     if (!outputFile) return;
-    if (await shareImage(outputFile, '康乃馨 7.0 · 花海合影')) return;
+    if (await shareImage(outputFile, '康乃馨 7.0 · 花海合影') !== 'unavailable') return;
     status.textContent = '可长按合影保存，或点「下载图片」。';
   });
   dialog.querySelector('#back-from-group-photo').onclick = () => dialog.close();

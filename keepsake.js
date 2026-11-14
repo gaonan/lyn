@@ -60,12 +60,12 @@ export function paintKeepsake(out, render, album, text) {
 }
 
 export async function shareImage(file, title) {
-  if (!navigator.canShare?.({ files: [file] })) return false;
+  if (!navigator.canShare?.({ files: [file] })) return 'unavailable';
   try {
     await navigator.share({ files: [file], title });
-    return true;
+    return 'shared';
   } catch (error) {
-    return error.name === 'AbortError';
+    return error.name === 'AbortError' ? 'cancelled' : 'unavailable';
   }
 }
 
@@ -79,6 +79,7 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
   const save = dialog.querySelector('#save-keepsake');
   const download = dialog.querySelector('#download-keepsake');
   const groupPhoto = dialog.querySelector('#open-group-photo');
+  const confirmSaved = dialog.querySelector('#confirm-keepsake-saved');
   groupPhoto.addEventListener('click', openGroupPhoto);
   const status = dialog.querySelector('.keepsake-status');
   let savedText = '';
@@ -93,7 +94,7 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
     file = undefined;
     preview.hidden = true;
     preview.removeAttribute('src');
-    save.hidden = download.hidden = true;
+    save.hidden = download.hidden = groupPhoto.hidden = confirmSaved.hidden = true;
     download.removeAttribute('href');
   }
 
@@ -142,7 +143,7 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
       preview.src = url;
       preview.hidden = false;
       album.hidden = true;
-      save.hidden = download.hidden = groupPhoto.hidden = false;
+      save.hidden = download.hidden = confirmSaved.hidden = false;
       download.href = url;
       status.textContent = '可分享、下载，也可长按图片保存。';
     } catch {
@@ -152,10 +153,27 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
     }
   });
 
+  function showGroupPhotoStep(message) {
+    groupPhoto.hidden = false;
+    confirmSaved.hidden = true;
+    status.textContent = message;
+  }
+
+  download.addEventListener('click', () => {
+    if (file) showGroupPhotoStep('已发起留影下载，可以继续合影。');
+  });
+  confirmSaved.addEventListener('click', () => {
+    if (file) showGroupPhotoStep('可以继续合影。');
+  });
   save.addEventListener('click', async () => {
     if (!file) return;
-    if (await shareImage(file, '康乃馨 7.0 · 花房留影')) return;
-    status.textContent = '请长按图片保存，或点「下载图片」。';
+    const attempt = generation;
+    const result = await shareImage(file, '康乃馨 7.0 · 花房留影');
+    if (attempt !== generation || !dialog.open) return;
+    if (result === 'shared') showGroupPhotoStep('可以继续合影。');
+    if (result === 'unavailable') {
+      status.textContent = '可长按图片保存，保存后点「我已保存」，也可以下载图片。';
+    }
   });
   return () => {
     album.src = record.url;
