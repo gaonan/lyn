@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><meta property="og:title" content="康乃馨 7.0"><meta property="og:description" content="如果我拥有一座花园，邀请你常来停歇。"><meta name="demo-build" content="20261113-r35"><meta name="theme-color" content="#222d26"><meta name="description" content="走进鲜花与书页之间。一个可以上下楼、自由探索的花园咖啡厅。"><title>康乃馨 7.0</title><link rel="manifest" href="manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/svg+xml" href="assets/icon.svg"><link rel="stylesheet" href="style.css?v=20261113-r35"></head><body>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><meta property="og:title" content="康乃馨 7.0"><meta property="og:description" content="如果我拥有一座花园，邀请你常来停歇。"><meta name="demo-build" content="20261113-r36"><meta name="theme-color" content="#222d26"><meta name="description" content="走进鲜花与书页之间。一个可以上下楼、自由探索的花园咖啡厅。"><title>康乃馨 7.0</title><link rel="manifest" href="manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/svg+xml" href="assets/icon.svg"><link rel="stylesheet" href="style.css?v=20261113-r36"></head><body>
 <canvas id="world" aria-label="可以自由走动的多层花园咖啡厅"></canvas><div class="vignette"></div>
 <header><a class="brand" href="#" aria-label="康乃馨 7.0 首页"><span class="brand-mark">✳</span><span>康乃馨 7.0</span></a><div class="tools"><button id="music" title="背景音乐"><span class="music-label">播放音乐</span><span class="music-icon" aria-hidden="true">♪</span></button><button id="light" aria-label="切换日光" title="切换灯光">☾<span>夜色</span></button><button id="quality" aria-label="画质：超清，点击切换" title="切换画质"><span>超清</span></button><button id="reload" title="重新加载" onclick="location.reload()"><span aria-hidden="true">↻</span>重新加载</button><button id="help" aria-label="操作说明">?</button></div></header>
 <section id="intro" aria-label="康乃馨 7.0"><div class="intro-copy"><div class="eyebrow"><i></i> A LITTLE JOURNEY TO OUR ENCOUNTER</div><h1>康乃馨 7.0</h1><p>如果我拥有一座花园<br>邀请你常来停歇</p><div id="intro-loading">
@@ -97,7 +97,14 @@
   <div class="group-photo-editor">
     <p class="photo-step">第二步 · 花海合影</p>
     <h2 id="group-photo-title">与宁哥合影</h2>
-    <p>选一张清晰、五官无遮挡的正脸照。只取金线内的脸部，发型和刘海用白裙人物原本的样式。照片仅在本机处理。</p>
+    <label class="group-photo-pose">合影姿势
+      <select id="group-photo-pose">
+        <option value="duet">侧身对唱</option>
+        <option value="front">正面合影</option>
+      </select>
+    </label>
+    <p id="group-photo-instruction"></p>
+    <p>金线内取五官，发型和刘海沿用白裙人物。照片仅在本机处理。</p>
     <label class="group-photo-pick">选择照片<input type="file" accept="image/*"></label>
     <div class="group-photo-adjust" hidden>
       <label for="group-photo-zoom">缩放</label>
@@ -105,6 +112,7 @@
       <label for="group-photo-rotate">旋转</label>
       <input id="group-photo-rotate" type="range" min="-35" max="35" step="1" value="0">
       <label class="group-photo-source"><input id="group-photo-source" type="checkbox"> 看原图位置</label>
+      <label class="group-photo-source"><input id="group-photo-mirror" type="checkbox"> 左右翻转</label>
     </div>
     <div class="keepsake-actions">
       <button type="button" class="primary" id="make-group-photo" disabled>生成合影</button>
@@ -116,7 +124,7 @@
     <button type="button" id="back-from-group-photo">返回留影</button>
   </div>
 </dialog>
-<audio id="daimi-barks" preload="none" src="assets/daimi/two-barks.m4a?v=20261113-r35"></audio>
+<audio id="daimi-barks" preload="none" src="assets/daimi/two-barks.m4a?v=20261113-r36"></audio>
 <div id="toast" role="status"></div><div id="error" hidden><h2>花房暂时没有打开</h2><p>请尝试在 Safari 或 Chrome 浏览器中打开，并允许图形加速。</p><button onclick="location.reload()">重新加载</button></div>
 <div id="rotate-screen"><div class="phone-outline"></div><h2>横过来，<br>走进花里。</h2><p>请将手机横屏，获得完整的漫游视野。<br>如画面没有转动，请关闭手机的方向锁定。</p><small>康乃馨 7.0 · 横屏体验</small></div><script>
 (() => {
@@ -178,4 +186,4 @@
   watch();
 })();
 </script>
-<script id="game-startup" type="module" src="main.js?v=20261113-r35"></script></body></html>
+<script id="game-startup" type="module" src="main.js?v=20261113-r36"></script></body></html>
