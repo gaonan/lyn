@@ -1,13 +1,16 @@
-import { shareImage } from './keepsake.js?v=20261113-r34';
+import { shareImage } from './keepsake.js?v=20261113-r35';
 
 // All player image data stays in this dialog's memory until it is closed.
 const TEMPLATE_URL = './assets/performer/white-dress-guest.webp';
 const OUTPUT_WIDTH = 1600;
 const OUTPUT_HEIGHT = 900;
 
-// Image-space landmarks on the reusable white-dress cutout (relative to image size).
-const FACE = { x: .504, y: .098, rx: .067, ry: .055 };
-const FIT = { x: .5, y: .48, zoom: 1, angle: 0 };
+// This crop and contour follow the template's skin, inset from its fringe, ears and jaw.
+const HEAD = { x: 253 / 600, y: 44 / 900, width: 100 / 600, height: 100 / 900 };
+const CONTOUR = 'M151 30 C181 31 204 52 221 86 C225 100 227 111 234 125 C242 158 219 196 199 225 C180 249 164 263 148 264 C125 262 101 245 83 223 C61 196 43 159 51 128 C51 111 64 99 69 81 C87 51 112 33 151 30 Z';
+const GUIDE_SIZE = 300;
+const FIT = { x: .5, y: .42, zoom: 1.38, angle: 0 };
+const ADJUST_HINT = '拖动照片，让双眼和嘴巴对准虚线。缩放到金线内看不到原照片背景，再生成合影。';
 
 function canvas(width, height) {
   const element = document.createElement('canvas');
@@ -45,81 +48,110 @@ function drawCrop(ctx, photo, fit, size) {
     photo.width * scale, photo.height * scale);
 }
 
-function drawEditor(editor, photo, fit) {
-  const ctx = editor.getContext('2d');
-  const size = editor.width;
-  ctx.clearRect(0, 0, size, size);
-  ctx.fillStyle = '#171c17';
-  ctx.fillRect(0, 0, size, size);
-  ctx.save();
-  drawCrop(ctx, photo, fit, size);
-  ctx.restore();
-
-  // Keep the preview guide out of the exported compositing pixels.
-  ctx.fillStyle = '#10140db0';
-  ctx.beginPath();
-  ctx.rect(0, 0, size, size);
-  ctx.ellipse(size / 2, size / 2, size * .29, size * .37, 0, 0, Math.PI * 2);
-  ctx.fill('evenodd');
-  ctx.strokeStyle = '#eed6a1';
-  ctx.lineWidth = 1.25;
-  ctx.beginPath();
-  ctx.ellipse(size / 2, size / 2, size * .29, size * .37, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.strokeStyle = '#eed6a1ac';
-  ctx.setLineDash([4, 5]);
-  ctx.beginPath();
-  ctx.moveTo(size * .25, size * .44);
-  ctx.lineTo(size * .75, size * .44);
-  ctx.stroke();
-  ctx.setLineDash([]);
+function createFaceLayer(size) {
+  const contour = new Path2D(CONTOUR);
+  const mask = canvas(size, size);
+  const alpha = mask.getContext('2d');
+  alpha.scale(size / GUIDE_SIZE, size / GUIDE_SIZE);
+  alpha.fillStyle = '#fff';
+  // Layer progressively tighter contours for a soft edge that never spills outside the guide.
+  for (const [scale, strength] of [[1, .06], [.98, .19], [.955, .37], [.932, .62], [.91, 1]]) {
+    alpha.save();
+    alpha.translate(150, 148);
+    alpha.scale(scale, scale);
+    alpha.translate(-150, -148);
+    alpha.globalAlpha = strength;
+    alpha.fill(contour);
+    alpha.restore();
+  }
+  const patch = canvas(size, size);
+  const skin = patch.getContext('2d');
+  return {
+    contour,
+    draw(photo, fit) {
+      skin.clearRect(0, 0, size, size);
+      skin.save();
+      skin.filter = 'brightness(.96) saturate(.94)';
+      drawCrop(skin, photo, fit, size);
+      skin.restore();
+      skin.globalCompositeOperation = 'destination-in';
+      skin.drawImage(mask, 0, 0);
+      skin.globalCompositeOperation = 'source-over';
+      return patch;
+    },
+  };
 }
 
-function makePortrait(template, photo, fit) {
+function headBox(template) {
   const { naturalWidth: w, naturalHeight: h } = template;
-  const result = canvas(w, h);
-  const output = result.getContext('2d');
-  output.drawImage(template, 0, 0);
-  const patch = canvas(384, 384);
-  const skin = patch.getContext('2d');
-  skin.save();
-  // Slightly temper indoor selfies to match the dim stage.
-  skin.filter = 'brightness(.94) saturate(.92)';
-  drawCrop(skin, photo, fit, patch.width);
-  skin.restore();
-  const mask = canvas(patch.width, patch.height);
-  const alpha = mask.getContext('2d');
-  alpha.translate(mask.width / 2, mask.height / 2);
-  alpha.scale(mask.width * .29, mask.height * .37);
-  const softEdge = alpha.createRadialGradient(0, 0, .71, 0, 0, 1);
-  softEdge.addColorStop(0, '#fff');
-  softEdge.addColorStop(.88, '#fffe');
-  softEdge.addColorStop(1, '#fff0');
-  alpha.fillStyle = softEdge;
-  alpha.fillRect(-1, -1, 2, 2);
-  skin.globalCompositeOperation = 'destination-in';
-  skin.drawImage(mask, 0, 0);
+  return [HEAD.x * w, HEAD.y * h, HEAD.width * w, HEAD.height * h];
+}
 
-  output.globalCompositeOperation = 'source-atop';
-  const rx = w * FACE.rx, ry = h * FACE.ry;
-  const width = rx / .29, height = ry / .37;
-  output.drawImage(patch, w * FACE.x - width / 2, h * FACE.y - height / 2, width, height);
+function drawEditor(editor, template, photo, fit, layer, showSource) {
+  const ctx = editor.getContext('2d');
+  const size = editor.width;
+  ctx.fillStyle = '#171c17';
+  ctx.fillRect(0, 0, size, size);
+  if (showSource) {
+    ctx.save();
+    drawCrop(ctx, photo, fit, size);
+    ctx.restore();
+    ctx.save();
+    ctx.scale(size / GUIDE_SIZE, size / GUIDE_SIZE);
+    ctx.fillStyle = '#10140dbf';
+    const shade = new Path2D();
+    shade.rect(0, 0, GUIDE_SIZE, GUIDE_SIZE);
+    shade.addPath(layer.contour);
+    ctx.fill(shade, 'evenodd');
+    ctx.restore();
+  } else {
+    ctx.drawImage(template, ...headBox(template), 0, 0, size, size);
+    ctx.drawImage(layer.draw(photo, fit), 0, 0, size, size);
+  }
+  ctx.save();
+  ctx.scale(size / GUIDE_SIZE, size / GUIDE_SIZE);
+  ctx.strokeStyle = '#ffe1a8';
+  ctx.lineWidth = 1.5;
+  ctx.stroke(layer.contour);
+  ctx.setLineDash([4, 5]);
+  ctx.beginPath();
+  ctx.moveTo(70, 105);
+  ctx.lineTo(230, 105);
+  ctx.moveTo(113, 216);
+  ctx.lineTo(190, 216);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(88, 105, 4, 0, Math.PI * 2);
+  ctx.moveTo(202, 105);
+  ctx.arc(198, 105, 4, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function makePortrait(template, photo, fit, layer) {
+  const result = canvas(template.naturalWidth, template.naturalHeight);
+  const ctx = result.getContext('2d');
+  ctx.drawImage(template, 0, 0);
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.drawImage(layer.draw(photo, fit), ...headBox(template));
   return result;
 }
 
-export function setupGroupPhoto(dialog, render, version) {
+export function setupGroupPhoto(dialog, render, version, prepareStage) {
   const input = dialog.querySelector('input[type=file]');
   const editor = dialog.querySelector('canvas');
   const adjust = dialog.querySelector('.group-photo-adjust');
   const zoom = dialog.querySelector('#group-photo-zoom');
   const rotate = dialog.querySelector('#group-photo-rotate');
+  const sourceToggle = dialog.querySelector('#group-photo-source');
   const status = dialog.querySelector('[role=status]');
   const generate = dialog.querySelector('#make-group-photo');
   const edit = dialog.querySelector('#edit-group-photo');
   const save = dialog.querySelector('#save-group-photo');
   const download = dialog.querySelector('#download-group-photo');
   const preview = dialog.querySelector('img');
-  let template, photo, outputURL, outputFile, drag, busy = false, revision = 0;
+  let template, layer, photo, outputURL, outputFile, drag, busy = false, revision = 0;
   let fit = { ...FIT };
 
   function clearOutput() {
@@ -132,7 +164,7 @@ export function setupGroupPhoto(dialog, render, version) {
   }
   function refresh() {
     if (!photo) return;
-    drawEditor(editor, photo, fit);
+    drawEditor(editor, template, photo, fit, layer, sourceToggle.checked);
     if (!preview.hidden) {
       clearOutput();
       editor.hidden = false;
@@ -147,21 +179,33 @@ export function setupGroupPhoto(dialog, render, version) {
     clearOutput();
     generate.disabled = adjust.hidden = editor.hidden = true;
     status.textContent = '正在读取照片…';
+    let selected;
     try {
-      const selected = await resizeLocalPhoto(file);
-      if (attempt !== revision || !dialog.open) return;
-      photo = selected;
-      fit = { ...FIT };
-      zoom.value = FIT.zoom;
-      rotate.value = FIT.angle;
-      editor.hidden = adjust.hidden = false;
-      generate.disabled = busy;
-      status.textContent = '拖动照片，把眼睛对准虚线，脸留在椭圆内。';
-      refresh();
+      selected = await resizeLocalPhoto(file);
     } catch {
       if (attempt === revision) status.textContent = '这张照片无法读取，请换成 JPG、PNG 或手机截图。';
+      return;
     }
+    if (attempt !== revision || !dialog.open) return;
+    try {
+      template ??= await decodeImage(`${TEMPLATE_URL}?v=${version}`);
+    } catch {
+      if (attempt === revision) status.textContent = '白裙素材加载失败，请重新选择照片再试。';
+      return;
+    }
+    if (attempt !== revision || !dialog.open) return;
+    layer ??= createFaceLayer(384);
+    photo = selected;
+    fit = { ...FIT };
+    zoom.value = FIT.zoom;
+    rotate.value = FIT.angle;
+    sourceToggle.checked = false;
+    editor.hidden = adjust.hidden = false;
+    generate.disabled = busy;
+    status.textContent = ADJUST_HINT;
+    refresh();
   });
+  sourceToggle.addEventListener('change', refresh);
   zoom.addEventListener('input', () => { fit.zoom = zoom.valueAsNumber; refresh(); });
   rotate.addEventListener('input', () => { fit.angle = rotate.valueAsNumber; refresh(); });
   editor.addEventListener('pointerdown', event => {
@@ -190,11 +234,14 @@ export function setupGroupPhoto(dialog, render, version) {
     busy = generate.disabled = true;
     status.textContent = '正在生成花海合影…';
     try {
-      template ??= await decodeImage(`${TEMPLATE_URL}?v=${version}`);
+      if (!await prepareStage()) {
+        if (attempt === revision) status.textContent = '呆米的素材暂未加载成功，请重新加载花房后再试。';
+        return;
+      }
       if (attempt !== revision || !dialog.open) return;
       const image = canvas(OUTPUT_WIDTH, OUTPUT_HEIGHT);
       const ctx = image.getContext('2d');
-      render(ctx, 0, 0, image.width, image.height, makePortrait(template, source, crop));
+      render(ctx, 0, 0, image.width, image.height, makePortrait(template, source, crop, layer));
       const shade = ctx.createLinearGradient(0, image.height - 142, 0, image.height);
       shade.addColorStop(0, '#0f171100');
       shade.addColorStop(1, '#0f1711bc');
@@ -226,7 +273,7 @@ export function setupGroupPhoto(dialog, render, version) {
   edit.addEventListener('click', () => {
     clearOutput();
     editor.hidden = false;
-    status.textContent = '拖动照片，把眼睛对准虚线，脸留在椭圆内。';
+    status.textContent = ADJUST_HINT;
   });
   save.addEventListener('click', async () => {
     if (!outputFile) return;
@@ -237,7 +284,7 @@ export function setupGroupPhoto(dialog, render, version) {
   dialog.addEventListener('close', () => {
     revision++;
     clearOutput();
-    photo = drag = undefined;
+    photo = drag = layer = undefined;
     input.value = '';
     editor.getContext('2d').clearRect(0, 0, editor.width, editor.height);
     editor.hidden = adjust.hidden = generate.disabled = true;
