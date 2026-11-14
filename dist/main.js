@@ -1,22 +1,22 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r28';
-import { buildBotanicals } from './botanicals.js?v=20261113-r28';
-import { createHearts } from './hearts.js?v=20261113-r28';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r28';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r28';
-import { setupMusic } from './music.js?v=20261113-r28';
-import { setupCollection } from './collection.js?v=20261113-r28';
-import { nextPosition } from './navigation.js?v=20261113-r28';
-import { prepareOffline } from './offline.js?v=20261113-r28';
-import { buildMagazines } from './magazines.js?v=20261113-r28';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r28';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r28';
-import { buildRolePortraits } from './roles.js?v=20261113-r28';
-import { buildRecord } from './record.js?v=20261113-r28';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r28';
-import { createArtworkQueue } from './artwork.js?v=20261113-r28';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r28';
-const VERSION = '20261113-r28';
+import { buildArchitecture } from './architecture.js?v=20261113-r29';
+import { buildBotanicals } from './botanicals.js?v=20261113-r29';
+import { createHearts } from './hearts.js?v=20261113-r29';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r29';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r29';
+import { setupMusic } from './music.js?v=20261113-r29';
+import { setupCollection } from './collection.js?v=20261113-r29';
+import { nextPosition } from './navigation.js?v=20261113-r29';
+import { prepareOffline } from './offline.js?v=20261113-r29';
+import { buildMagazines } from './magazines.js?v=20261113-r29';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r29';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r29';
+import { buildRolePortraits } from './roles.js?v=20261113-r29';
+import { buildRecord } from './record.js?v=20261113-r29';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r29';
+import { createArtworkQueue } from './artwork.js?v=20261113-r29';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r29';
+const VERSION = '20261113-r29';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const mobile = matchMedia('(any-pointer: coarse)').matches;
@@ -81,7 +81,7 @@ const openingArtwork = createArtworkQueue(loader, ({ percent }) => {
 }, { concurrency: 5 });
 const artwork = createArtworkQueue(loader, updateArtworkProgress);
 const performer = buildPhotographicPerformer(THREE, scene, {
-  views: PERFORMER_VIEWS, version: VERSION, lowerBodyExtension: .299, loader: openingArtwork.loaderFor('performer'),
+  views: PERFORMER_VIEWS, version: VERSION, nightTint: [.84, .87, .91], lowerBodyExtension: .299, loader: openingArtwork.loaderFor('performer'),
 });
 const music = setupMusic();
 const magazines = buildMagazines(THREE, scene, VERSION, Math.random, openingArtwork.loaderFor('magazines'));

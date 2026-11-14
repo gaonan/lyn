@@ -41,7 +41,7 @@ export function makeSurfaceMaps(T, kind) {
       const cloudy = noise(u * 8, v * 8, 8, 8) - .5;
       const fines = noise(u * 32, v * 32, 32, 32) - .5;
       const pinhole = grain < -.455 && fines < -.06 ? -.36 : 0;
-      shade = 30 * cloudy + 13 * fines + 11 * grain + 25 * pinhole;
+      shade = 8 * cloudy + 10 * fines + 9 * grain + 20 * pinhole;
       height = .19 * fines + .17 * grain + pinhole;
     }
     relief[i] = height;

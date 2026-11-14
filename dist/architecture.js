@@ -1,4 +1,4 @@
-import { makeSurfaceMaps } from './surface-maps.js?v=20261113-r28';
+import { makeSurfaceMaps } from './surface-maps.js?v=20261113-r29';
 
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a
@@ -26,9 +26,9 @@ export function buildArchitecture(THREE, scene) {
   }
   const material = (color, props = {}) => new THREE.MeshStandardMaterial({ color, roughness: .83, ...props });
   const mats = {
-    concrete: material('#b8b5af', surface(concrete, 2, 1, .38)),
-    floor: material('#a19a90', { ...surface(concrete, 9, 8, .33), roughness: .73 }),
-    wall: material('#a29d96', surface(concrete, 5, 3, .36)),
+    concrete: material('#b8b2a6', surface(concrete, 2, 1, .38)),
+    floor: material('#a69b8d', { ...surface(concrete, 9, 8, .33), roughness: .66 }),
+    wall: material('#a69f95', surface(concrete, 5, 3, .36)),
     wood: material('#b79b81', { ...surface(wood, 1, 1, .46), roughness: .53 }),
     darkWood: material('#987968', { ...surface(wood, 2, 3, .36), roughness: .63 }),
     black: material('#292c2b', { roughness: .43, metalness: .45 }),
