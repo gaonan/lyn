@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r30';
-import { roleInReach } from './roles.js?v=20261113-r30';
+import { magazineInReach } from './magazines.js?v=20261113-r32';
+import { roleInReach } from './roles.js?v=20261113-r32';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
@@ -91,6 +91,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     playCelebration();
   }
   function celebrateRoles() {
+    options.goToStage();
     showCovers(rolesCelebration.querySelector('.role-gallery'), roles.entries);
     celebrate(rolesCelebration, () => showModal(roleFinale));
     playCelebration();
@@ -103,15 +104,21 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     const saved = localStorage.getItem(ACHIEVEMENT_KEY);
     if (saved === 'complete' || saved === 'record-pending' || saved === 'record') {
       record.unlock(saved !== 'complete');
-      achievementBadge.hidden = saved !== 'record';
+      showAchievement(saved === 'record');
       achievementPending = saved === 'record-pending';
     }
   } catch {}
+  function showAchievement(claimed) {
+    achievementBadge.hidden = false;
+    achievementBadge.disabled = !claimed;
+    achievementBadge.setAttribute('aria-label', claimed ? '全成就，查看花房留影' : '全成就');
+  }
+
   function finishRecord() {
     achievementPending = false;
     celebrate(achievementCelebration, () => {
       rememberAchievement('record');
-      achievementBadge.hidden = false;
+      showAchievement(true);
       options.goToStage();
     }, 1900);
   }
@@ -190,11 +197,14 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     button.onclick = () => roleDialog.close();
   }
   roleFinale.querySelector('button').onclick = () => roleFinale.close();
-  roleFinale.addEventListener('close', () => {
-    if (record.unlocked) return;
-    record.unlock();
-    rememberAchievement('complete');
-  });
+  function unlockRecord() {
+    if (!record.unlocked) {
+      record.unlock();
+      rememberAchievement('complete');
+    }
+    showAchievement(record.claimed);
+  }
+  roleFinale.addEventListener('close', unlockRecord);
   record.ready.then(ready => {
     if (ready || !record.unlocked || record.claimed) return;
     options.toast('唱片暂未加载成功。可重新加载，已解锁的唱片会保留。');
@@ -271,6 +281,35 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     } catch { failed(); }
   }
 
+  function unlockRoles() {
+    if (roleUnlocked) return;
+    roleUnlocked = true;
+    rolePanel.hidden = false;
+    document.body.classList.add('roles-unlocked');
+    roles.show();
+  }
+
+  function completeForTesting() {
+    cancelHold();
+    target = null;
+    lightButton.hidden = dogButton.hidden = true;
+    invitationPending = barkNeedsTap = false;
+    for (const magazine of magazines.items) magazines.light(magazine.id);
+    count = magazines.items.filter(magazine => magazine.lit).length;
+    counter.textContent = count;
+    magazinesCelebrated = count === total;
+    if (!daimiUnlocked) {
+      daimiUnlocked = true;
+      options.unlock();
+    }
+    unlockRoles();
+    for (const role of roles.entries) roles.receive(role.id);
+    roleCount = roles.entries.length;
+    rolePanel.querySelector('b').textContent = roleCount;
+    unlockRecord();
+    options.goToStage();
+  }
+
   function update(now, active) {
     if (!active || modalOpen()) {
       cancelHold();
@@ -291,10 +330,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     }
     if (invitationPending && !barkPlaying) {
       invitationPending = false;
-      roleUnlocked = true;
-      rolePanel.hidden = false;
-      document.body.classList.add('roles-unlocked');
-      roles.show();
+      unlockRoles();
       dogButton.hidden = true;
       showModal(roleDialog);
       return true;
@@ -364,6 +400,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
 
   return {
     update,
+    completeForTesting,
     get open() { return modalOpen(); },
     get count() { return count; },
     get barkPlays() { return barkPlays; },
