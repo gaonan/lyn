@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r32") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r33") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -502,3 +502,59 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
 #record-finale #make-keepsake { background: #f0e3c8; color: #292920; }
 #record-finale .keepsake-status { min-height: 15px; margin: 7px 0; font-size: 11px; line-height: 1.4; }
 #continue-record { gap: 8px; }
+
+#group-photo-dialog {
+  width: min(780px, calc(100% - 30px));
+  max-height: calc(100% - 26px);
+  padding: clamp(17px, 3.4vw, 30px);
+  overflow: auto;
+}
+#group-photo-dialog[open] {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: clamp(14px, 3vw, 28px);
+  align-items: center;
+}
+.group-photo-picture { display: grid; place-items: center; min-width: 0; }
+.group-photo-picture canvas, .group-photo-picture img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 5px;
+  box-shadow: 0 6px 30px #06060499;
+}
+.group-photo-picture canvas { width: min(100%, 65dvh, 300px); touch-action: none; }
+.group-photo-editor { min-width: 0; text-align: left; }
+#group-photo-dialog h2 { margin: 0 0 8px; font-size: clamp(21px, 3.3vw, 30px); }
+#group-photo-dialog p { margin: 7px 0; font-size: 12px; line-height: 1.45; }
+.group-photo-adjust {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 3px 10px;
+  margin: 7px 0;
+  font-size: 12px;
+}
+.group-photo-adjust input { width: 100%; accent-color: #e7c884; }
+.group-photo-pick { position: relative; overflow: hidden; }
+.group-photo-pick input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.group-photo-pick:focus-within { outline: 2px solid #edd6a0; outline-offset: 3px; }
+#group-photo-dialog .keepsake-actions > *, .group-photo-pick, #back-from-group-photo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid #c4a66a65;
+  border-radius: 5px;
+  background: #5c5138;
+  color: #fff0d1;
+  text-decoration: none;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+#group-photo-dialog #make-group-photo, .group-photo-pick { background: #f0e3c8; color: #292920; }
+#group-photo-dialog:not(:has(.group-photo-picture > :not([hidden]))) { grid-template-columns: minmax(0, 1fr); width: min(440px, calc(100% - 30px)); }
+#group-photo-dialog:not(:has(.group-photo-picture > :not([hidden]))) .group-photo-picture { display: none; }
