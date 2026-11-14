@@ -2,9 +2,9 @@
 """Create and verify immutable static-site archives. Does not edit dist or deploy.
 
 Examples:
-  python3 scripts/package_release.py pack --build 20261113-r25
-  python3 scripts/package_release.py verify artifacts/releases/20261113-r25.tgz
-  python3 scripts/package_release.py verify-public artifacts/releases/20261113-r25.tgz \
+  python3 scripts/package_release.py pack --build 20261113-r26
+  python3 scripts/package_release.py verify artifacts/releases/20261113-r26.tgz
+  python3 scripts/package_release.py verify-public artifacts/releases/20261113-r26.tgz \
       --url https://lyn.lipopo.org/
 """
 from __future__ import annotations

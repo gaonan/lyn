@@ -1,5 +1,5 @@
 // Keep background artwork from taking all available connections on mobile.
-export function createArtworkQueue(loader, report) {
+export function createArtworkQueue(loader, report, { concurrency = 4 } = {}) {
   const groups = new Map();
   const waiting = [];
   let active = 0;
@@ -15,7 +15,7 @@ export function createArtworkQueue(loader, report) {
   }
 
   function pump() {
-    while (started && active < 4 && waiting.length) {
+    while (started && active < concurrency && waiting.length) {
       const job = waiting.shift();
       active++;
       attempt(job, true);

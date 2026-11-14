@@ -1,21 +1,21 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r25';
-import { buildBotanicals } from './botanicals.js?v=20261113-r25';
-import { createHearts } from './hearts.js?v=20261113-r25';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r25';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r25';
-import { setupMusic } from './music.js?v=20261113-r25';
-import { setupCollection } from './collection.js?v=20261113-r25';
-import { nextPosition } from './navigation.js?v=20261113-r25';
-import { prepareOffline } from './offline.js?v=20261113-r25';
-import { buildMagazines } from './magazines.js?v=20261113-r25';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r25';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r25';
-import { buildRolePortraits } from './roles.js?v=20261113-r25';
-import { buildRecord } from './record.js?v=20261113-r25';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r25';
-import { createArtworkQueue } from './artwork.js?v=20261113-r25';
-const VERSION = '20261113-r25';
+import { buildArchitecture } from './architecture.js?v=20261113-r26';
+import { buildBotanicals } from './botanicals.js?v=20261113-r26';
+import { createHearts } from './hearts.js?v=20261113-r26';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r26';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r26';
+import { setupMusic } from './music.js?v=20261113-r26';
+import { setupCollection } from './collection.js?v=20261113-r26';
+import { nextPosition } from './navigation.js?v=20261113-r26';
+import { prepareOffline } from './offline.js?v=20261113-r26';
+import { buildMagazines } from './magazines.js?v=20261113-r26';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r26';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r26';
+import { buildRolePortraits } from './roles.js?v=20261113-r26';
+import { buildRecord } from './record.js?v=20261113-r26';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r26';
+import { createArtworkQueue } from './artwork.js?v=20261113-r26';
+const VERSION = '20261113-r26';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const mobile = matchMedia('(any-pointer: coarse)').matches;
@@ -67,7 +67,7 @@ const world=buildArchitecture(THREE,scene);const flowers=buildBotanicals(THREE,s
 camera.position.set(5.1,5.6,7.5);camera.lookAt(-1.1,2.7,-2.8);
 resizeRenderer();
 renderer.render(scene,camera);
-loading.update(85);
+loading.update(10);
 function onViewportResize() {
   if (resizeRenderer()) renderer.render(scene, camera);
 }
@@ -76,12 +76,15 @@ window.visualViewport?.addEventListener('resize', onViewportResize);
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(onViewportResize).observe(canvas);
 let offline = { controlled: false, reason: 'preparing' };
 const loader = new THREE.TextureLoader();
+const openingArtwork = createArtworkQueue(loader, ({ percent }) => {
+  loading.update(10 + .89 * percent);
+}, { concurrency: 5 });
 const artwork = createArtworkQueue(loader, updateArtworkProgress);
 const performer = buildPhotographicPerformer(THREE, scene, {
-  views: PERFORMER_VIEWS, version: VERSION, lowerBodyExtension: .299, loader: artwork.loaderFor('performer'),
+  views: PERFORMER_VIEWS, version: VERSION, lowerBodyExtension: .299, loader: openingArtwork.loaderFor('performer'),
 });
 const music = setupMusic();
-const magazines = buildMagazines(THREE, scene, VERSION, Math.random, artwork.loaderFor('magazines'));
+const magazines = buildMagazines(THREE, scene, VERSION, Math.random, openingArtwork.loaderFor('magazines'));
 const dogSeat = world.stoolSeat.getCenter(new THREE.Vector3());
 dogSeat.y = world.stoolSeat.max.y + .001;
 dogSeat.z += .012;
@@ -297,11 +300,20 @@ window.bloomDebug={build:VERSION,get offline(){return offline},artworkProgress:a
   get record() { return { unlocked: record.unlocked, claimed: record.claimed }; },
 };
 requestAnimationFrame(frame);
-window.bloomReady = modelReady = loading.finish();
-if (modelReady) {
+openingArtwork.start();
+prepareOffline().then(result => { offline = result; });
+function checkOpeningArtwork(ready) {
+  if (!ready) loading.fail('人物或杂志尚未加载完整，请重新加载。');
+  return ready;
+}
+Promise.all([performer.ready.then(checkOpeningArtwork), magazines.ready.then(checkOpeningArtwork)]).then(([performerReady, magazinesReady]) => {
+  if (!performerReady || !magazinesReady) return;
+  performer.update(performance.now() / 1000, camera);
+  renderer.render(scene, camera);
+  window.bloomReady = modelReady = loading.finish();
+  if (!modelReady) return;
   updateArtworkProgress(artwork.progress());
   setTimeout(() => artwork.start(), 100);
-}
-prepareOffline().then(result => { offline = result; });
+});
 
 
