@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r34") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r35") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -570,3 +570,6 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
 #group-photo-dialog #make-group-photo, .group-photo-pick { background: #f0e3c8; color: #292920; }
 #group-photo-dialog:not(:has(.group-photo-picture > :not([hidden]))) { grid-template-columns: minmax(0, 1fr); width: min(440px, calc(100% - 30px)); }
 #group-photo-dialog:not(:has(.group-photo-picture > :not([hidden]))) .group-photo-picture { display: none; }
+
+.group-photo-source { grid-column: 1 / -1; display: inline-flex; align-items: center; gap: 5px; justify-self: start; }
+.group-photo-source input { width: auto; }

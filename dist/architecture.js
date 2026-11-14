@@ -1,4 +1,4 @@
-import { makeSurfaceMaps } from './surface-maps.js?v=20261113-r34';
+import { makeSurfaceMaps } from './surface-maps.js?v=20261113-r35';
 
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a
