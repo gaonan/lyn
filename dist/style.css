@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r35") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r36") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -573,3 +573,6 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
 
 .group-photo-source { grid-column: 1 / -1; display: inline-flex; align-items: center; gap: 5px; justify-self: start; }
 .group-photo-source input { width: auto; }
+
+.group-photo-pose { display: flex; align-items: center; gap: 9px; color: #fff0d1; font-size: 12px; }
+.group-photo-pose select { color: inherit; background: #252b21; border: 1px solid #c4a66a65; border-radius: 5px; font: inherit; padding: 6px; }
