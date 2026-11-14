@@ -1,4 +1,4 @@
-import { makeSurfaceMaps } from './surface-maps.js?v=20261113-r29';
+import { makeSurfaceMaps } from './surface-maps.js?v=20261113-r30';
 
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a
@@ -17,6 +17,7 @@ export function buildArchitecture(THREE, scene) {
   const ballGeo = new THREE.SphereGeometry(1, 10, 7);
 
   const concrete = makeSurfaceMaps(THREE, 'concrete');
+  const plaster = makeSurfaceMaps(THREE, 'plaster');
   const wood = makeSurfaceMaps(THREE, 'wood');
   const linen = makeSurfaceMaps(THREE, 'fabric');
   function surface(maps, x, y, strength) {
@@ -27,8 +28,8 @@ export function buildArchitecture(THREE, scene) {
   const material = (color, props = {}) => new THREE.MeshStandardMaterial({ color, roughness: .83, ...props });
   const mats = {
     concrete: material('#b8b2a6', surface(concrete, 2, 1, .38)),
-    floor: material('#a69b8d', { ...surface(concrete, 9, 8, .33), roughness: .66 }),
-    wall: material('#a69f95', surface(concrete, 5, 3, .36)),
+    floor: material('#b0a395', { ...surface(concrete, 9, 8, .10), roughness: .76 }),
+    wall: material('#b9ada1', { ...surface(plaster, 4, 3, .20), roughness: .89 }),
     wood: material('#b79b81', { ...surface(wood, 1, 1, .46), roughness: .53 }),
     darkWood: material('#987968', { ...surface(wood, 2, 3, .36), roughness: .63 }),
     black: material('#292c2b', { roughness: .43, metalness: .45 }),
@@ -63,7 +64,7 @@ export function buildArchitecture(THREE, scene) {
     if (!batches.has(key)) batches.set(key, { geo: boxGeo, mat: m, entries: [] });
     batches.get(key).entries.push({ matrix: temp.matrix.clone() });
   }
-  function collider(minX, maxX, minZ, maxZ, minY, maxY) { colliders.push({ minX, maxX, minZ, maxZ, minY, maxY }); }
+  function collider(minX, maxX, minZ, maxZ, minY, maxY, type) { colliders.push({ minX, maxX, minZ, maxZ, minY, maxY, type }); }
   function floor(minX, maxX, minZ, maxZ, y, m = mats.darkWood) {
     box(y === 0 ? mats.floor : mats.concrete, (minX + maxX) / 2, y - .14, (minZ + maxZ) / 2, maxX - minX, .28, maxZ - minZ);
     if (y > 0) box(m, (minX + maxX) / 2, y + .006, (minZ + maxZ) / 2, maxX - minX, .018, maxZ - minZ);
@@ -80,7 +81,7 @@ export function buildArchitecture(THREE, scene) {
       if (i < count) {
         const tx = a[0] + (b[0] - a[0]) * (i + 1) / count, tz = a[2] + (b[2] - a[2]) * (i + 1) / count;
         const ty = a[1] + (b[1] - a[1]) * (i + 1) / count;
-        collider(Math.min(x, tx) - .04, Math.max(x, tx) + .04, Math.min(z, tz) - .04, Math.max(z, tz) + .04, Math.min(y, ty), Math.max(y, ty) + 1.12);
+        collider(Math.min(x, tx) - .04, Math.max(x, tx) + .04, Math.min(z, tz) - .04, Math.max(z, tz) + .04, Math.min(y, ty), Math.max(y, ty) + 1.12, 'guardrail');
       }
     }
     if (flowering) railPaths.push({ a: [a[0], a[1] + 1.05, a[2]], b: [b[0], b[1] + 1.05, b[2]] });
@@ -476,7 +477,7 @@ export function buildArchitecture(THREE, scene) {
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.castShadow = mat === mats.black || mat === mats.truss;
-    mesh.receiveShadow = true;
+    mesh.receiveShadow = mat !== mats.floor;
     mesh.computeBoundingSphere(); group.add(mesh);
   }
   return {

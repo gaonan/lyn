@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r29';
-import { roleInReach } from './roles.js?v=20261113-r29';
+import { magazineInReach } from './magazines.js?v=20261113-r30';
+import { roleInReach } from './roles.js?v=20261113-r30';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
@@ -40,6 +40,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   let roleUnlocked = false;
   let roleCount = 0;
   let achievementPending = false;
+  let newRecord = false;
 
   const modals = [magazineFinale, dialog, roleDialog, rolesCelebration, roleFinale,
     achievementCelebration, recordFinale];
@@ -198,8 +199,17 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     if (ready || !record.unlocked || record.claimed) return;
     options.toast('唱片暂未加载成功。可重新加载，已解锁的唱片会保留。');
   });
-  recordFinale.querySelector('button').onclick = () => recordFinale.close();
-  recordFinale.addEventListener('close', finishRecord);
+  recordFinale.querySelector('#continue-record').onclick = () => recordFinale.close();
+  recordFinale.addEventListener('close', () => {
+    if (!newRecord) return;
+    newRecord = false;
+    finishRecord();
+  });
+  achievementBadge.onclick = () => {
+    if (!record.claimed || modalOpen()) return;
+    options.openKeepsake();
+    showModal(recordFinale);
+  };
 
   function dogInReach(player) {
     return daimiUnlocked && options.artworkProgress('dog').percent === 100
@@ -323,7 +333,8 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     lightButton.hidden = true;
     if (id === record.id) {
       record.claim();
-      recordFinale.querySelector('img').src = record.url;
+      newRecord = true;
+      options.openKeepsake();
       options.rewardSounds.play('record');
       rememberAchievement('record-pending');
       showModal(recordFinale);

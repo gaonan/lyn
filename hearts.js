@@ -2,16 +2,14 @@
  * update(time, player) expects elapsed time in seconds and a player foot position.
  * position is the stable heart-centre anchor; footPosition / floorY identify its floor.
  */
+const STAGE_HEART = { id: 'stage-path', x: 0, y: 0, z: 1.54 };
 const CANDIDATES = [
-  { id: 'stage-path', x: 0, y: 0, z: 2.1 },
   { id: 'garden-entry', x: -5, y: 0, z: 5.8 },
   { id: 'window-aisle', x: 6, y: 0, z: 2.5 },
   { id: 'book-gallery', x: 0, y: 2.4, z: -5.7 },
   { id: 'lounge-path', x: 6.35, y: 3.2, z: 6.4 },
   { id: 'first-landing', x: -3.6, y: 2.4, z: -5.7 },
   { id: 'upper-books', x: 0, y: 4.8, z: -5.7 },
-  { id: 'upper-left', x: -7.6, y: 7.2, z: .9 },
-  { id: 'reading-landing', x: -7.6, y: 7.2, z: -5.7 },
   { id: 'upper-window', x: 7.2, y: 4.8, z: -5.7 },
 ];
 let visitSelection;
@@ -23,7 +21,7 @@ export function createHearts(THREE, scene) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
-    visitSelection = shuffled.slice(0, 5);
+    visitSelection = [STAGE_HEART, ...shuffled.slice(0, 4)];
   }
 
   const shape = new THREE.Shape();

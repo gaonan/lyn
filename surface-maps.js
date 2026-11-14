@@ -20,6 +20,7 @@ export function makeSurfaceMaps(T, kind) {
   const relief = new Float32Array(size * size);
   const wood = kind === 'wood';
   const fabric = kind === 'fabric';
+  const plaster = kind === 'plaster';
   const base = wood ? [177, 135, 92] : fabric ? [225, 219, 204] : [164, 160, 153];
   const tau = 2 * Math.PI;
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
@@ -37,6 +38,11 @@ export function makeSurfaceMaps(T, kind) {
       const weft = Math.sin(tau * (v * 64 + .1 * Math.cos(tau * u * 64)));
       shade = 2 * (warp + weft) + 3 * grain;
       height = .13 * (warp + weft) + .05 * grain;
+    } else if (plaster) {
+      const broad = noise(u * 4, v * 8, 4, 8) - .5;
+      const trowel = noise(u * 8, v * 32, 8, 32) - .5;
+      shade = 6 * broad + 9 * trowel + 5 * grain;
+      height = .18 * trowel + .09 * grain;
     } else {
       const cloudy = noise(u * 8, v * 8, 8, 8) - .5;
       const fines = noise(u * 32, v * 32, 32, 32) - .5;

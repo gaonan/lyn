@@ -1,22 +1,23 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r29';
-import { buildBotanicals } from './botanicals.js?v=20261113-r29';
-import { createHearts } from './hearts.js?v=20261113-r29';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r29';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r29';
-import { setupMusic } from './music.js?v=20261113-r29';
-import { setupCollection } from './collection.js?v=20261113-r29';
-import { nextPosition } from './navigation.js?v=20261113-r29';
-import { prepareOffline } from './offline.js?v=20261113-r29';
-import { buildMagazines } from './magazines.js?v=20261113-r29';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r29';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r29';
-import { buildRolePortraits } from './roles.js?v=20261113-r29';
-import { buildRecord } from './record.js?v=20261113-r29';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r29';
-import { createArtworkQueue } from './artwork.js?v=20261113-r29';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r29';
-const VERSION = '20261113-r29';
+import { buildArchitecture } from './architecture.js?v=20261113-r30';
+import { buildBotanicals } from './botanicals.js?v=20261113-r30';
+import { createHearts } from './hearts.js?v=20261113-r30';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r30';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r30';
+import { setupMusic } from './music.js?v=20261113-r30';
+import { setupCollection } from './collection.js?v=20261113-r30';
+import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r30';
+import { prepareOffline } from './offline.js?v=20261113-r30';
+import { buildMagazines } from './magazines.js?v=20261113-r30';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r30';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r30';
+import { buildRolePortraits } from './roles.js?v=20261113-r30';
+import { buildRecord } from './record.js?v=20261113-r30';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r30';
+import { createArtworkQueue } from './artwork.js?v=20261113-r30';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r30';
+import { setupKeepsake } from './keepsake.js?v=20261113-r30';
+const VERSION = '20261113-r30';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const mobile = matchMedia('(any-pointer: coarse)').matches;
@@ -72,6 +73,16 @@ function onViewportResize() {
   if (resizeRenderer()) renderer.render(scene, camera);
 }
 window.addEventListener('resize', onViewportResize);
+const lightButton = $('#light');
+function alignViewStick() {
+  const { left, width } = lightButton.getBoundingClientRect();
+  const center = Math.max(innerWidth * .70, Math.min(innerWidth * .78, left + width / 2));
+  document.body.style.setProperty('--look-right-center', `${innerWidth - center}px`);
+}
+window.addEventListener('resize', alignViewStick);
+window.visualViewport?.addEventListener('resize', alignViewStick);
+if (typeof ResizeObserver !== 'undefined') new ResizeObserver(alignViewStick).observe($('.tools'));
+alignViewStick();
 window.visualViewport?.addEventListener('resize', onViewportResize);
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(onViewportResize).observe(canvas);
 let offline = { controlled: false, reason: 'preparing' };
@@ -88,6 +99,7 @@ const magazines = buildMagazines(THREE, scene, VERSION, Math.random, openingArtw
 const dogSeat = world.stoolSeat.getCenter(new THREE.Vector3());
 dogSeat.y = world.stoolSeat.max.y + .001;
 dogSeat.z += .012;
+performer.setNight(true);
 const daimi = buildPhotographicPerformer(THREE, scene, {
   name: '呆米', reference: '呆米照片', position: dogSeat.toArray(),
   views: DAIMI_VIEWS, version: VERSION, height: .345, sway: false, fixedViewPlanes: true, loader: artwork.loaderFor('dog'),
@@ -95,6 +107,7 @@ const daimi = buildPhotographicPerformer(THREE, scene, {
 const roles = buildRolePortraits(THREE, scene, VERSION, artwork.loaderFor('roles'));
 const record = buildRecord(THREE, scene, VERSION, artwork.loaderFor('record'));
 daimi.object.visible = false;
+daimi.setNight(true);
 const colliders=[...world.colliders,...flowers.colliders,performer.collider];
 // A soft painted contact shadow grounds the flower banks without a costly shadow map.
 const shadowCanvas=document.createElement('canvas');shadowCanvas.width=shadowCanvas.height=128;const sx=shadowCanvas.getContext('2d');const grad=sx.createRadialGradient(64,64,10,64,64,64);grad.addColorStop(0,'rgba(15,27,16,.36)');grad.addColorStop(1,'rgba(15,27,16,0)');sx.fillStyle=grad;sx.fillRect(0,0,128,128);const shadowMaterial=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(shadowCanvas),transparent:true,depthWrite:false});
@@ -106,11 +119,38 @@ daimiShadow.position.copy(dogSeat);
 daimiShadow.position.y += .0005;
 daimiShadow.visible = false;
 scene.add(daimiShadow);
-let entered=false,modelReady=false,p={x:0,y:0,z:6.8},yaw=0,pitch=.08,eye=1.65,night=false;
+let entered=false,modelReady=false,p=spawnPlayer({x:0,y:0,z:6.8}),yaw=0,pitch=.08,eye=1.65,night=true;
 const rewardSounds = createRewardSounds(VERSION);
 const hearts=createHearts(THREE,scene);
 const collection=setupCollection(hearts,()=>p,rewardSounds);
+const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake);
+function renderKeepsake(ctx, x, y, width, height) {
+  const photoCamera = new THREE.PerspectiveCamera(52, width / height, .07, 65);
+  photoCamera.position.set(.12, 1.51, 3.05);
+  photoCamera.lookAt(-.06, 1.18, -1.5);
+  const props = [...hearts.items.map(heart => heart.object), daimi.object, daimiShadow];
+  const visible = props.map(object => object.visible);
+  props.forEach(object => { object.visible = false; });
+  try {
+    lighting.setNight(true);
+    performer.setNight(true);
+    performer.update(performance.now() / 1000, photoCamera);
+    renderer.setPixelRatio(1);
+    renderer.setSize(width, height, false);
+    renderer.render(scene, photoCamera);
+    ctx.drawImage(canvas, x, y, width, height);
+  } finally {
+    props.forEach((object, i) => { object.visible = visible[i]; });
+    lighting.setNight(night);
+    performer.setNight(night);
+    performer.update(performance.now() / 1000, camera);
+    renderWidth = 0;
+    resizeRenderer();
+    renderer.render(scene, camera);
+  }
+}
 const magazineQuest = setupMagazineQuest(magazines, roles, dogSeat, record, () => p, {
+  openKeepsake,
   dogPhoto: `${DAIMI_VIEWS.front.url}?v=${VERSION}`,
   artworkProgress: artwork.progress,
   unlock() {
@@ -126,6 +166,7 @@ const magazineQuest = setupMagazineQuest(magazines, roles, dogSeat, record, () =
 });
 let introTime=0;
 const keys = new Set();
+let jumpRequested = false;
 let look = null;
 let last=performance.now(),frameCount=0,lastMetric=last,fps=0;
 const destinations = [
@@ -134,7 +175,7 @@ const destinations = [
   { x: 7.60, y: 4.8, z: -5.76, yaw: Math.PI / 2, pitch: 0 },
   { x: -7.60, y: 7.2, z: .95, yaw: -Math.PI / 2, pitch: 0 },
 ];
-function setSpot(n){const s=destinations[n];p={x:s.x,y:s.y,z:s.z};yaw=s.yaw;pitch=s.pitch;eye=s.y+1.65;resetInput();updateLocation();}
+function setSpot(n){const s=destinations[n];p=spawnPlayer({x:s.x,y:s.y,z:s.z});yaw=s.yaw;pitch=s.pitch;eye=s.y+1.65;resetInput();updateLocation();}
 function updateLocation() {
   const label = p.y > 6.7 ? '四层 · 顶部书廊' : p.y > 4.2 ? '三层 · 花藤走廊' :
     p.y > 2.8 ? '夹层 · 窗边花园' : p.y > 1.8 ? '下层 · 书墙回廊' : '一层 · 花海舞台';
@@ -152,19 +193,21 @@ function enter() {
   music.start();
   document.body.classList.add('entered');
   $('#hud').hidden = false;
+  alignViewStick();
   setSpot(0);
   setTimeout(() => { $('#hint').style.opacity = 0; }, 9000);
 }
 $('#enter').onclick=enter;$('.brand').onclick=e=>{e.preventDefault();if(entered)setSpot(0)};
 document.querySelectorAll('[data-spot]').forEach(b=>b.onclick=()=>setSpot(Number(b.dataset.spot)));
 const dialog=$('#help-dialog');$('#help').onclick=()=>{resetInput();dialog.showModal()};$('.close').onclick=()=>dialog.close();$('.close-help').onclick=()=>{dialog.close();enter()};dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});
-$('#light').onclick = () => {
+lightButton.onclick = () => {
   night = !night;
   performer.setNight?.(night);
   daimi.setNight(night);
   lighting.setNight(night);
-  $('#light').innerHTML = night ? '☾<span>夜色</span>' : '☀<span>日光</span>';
-  $('#light').setAttribute('aria-label', night ? '切换日光' : '切换傍晚灯光');
+  lightButton.innerHTML = night ? '☾<span>夜色</span>' : '☀<span>日光</span>';
+  lightButton.setAttribute('aria-label', night ? '切换日光' : '切换傍晚灯光');
+  alignViewStick();
 };
 qualityButton.onclick = () => {
   qualityIndex = (qualityIndex + 1) % qualityLevels.length;
@@ -176,12 +219,38 @@ qualityButton.onclick = () => {
 $('#map-toggle').onclick=()=>{$('#map-panel').hidden=!$('#map-panel').hidden};
 function resetInput() {
   keys.clear();
+  jumpRequested = false;
   moveStick.reset();
   viewStick.reset();
   look = null;
 }
 window.addEventListener('blur',resetInput);document.addEventListener('visibilitychange',resetInput);
-window.addEventListener('keydown',e=>{if(dialog.open||magazineQuest.open)return;if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){e.preventDefault();keys.add(e.code)}});window.addEventListener('keyup',e=>keys.delete(e.code));
+const movementKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+function canMove() {
+  return entered && !document.querySelector('dialog[open]') && !collection.celebrating;
+}
+function requestJump() {
+  if (canMove()) jumpRequested = true;
+}
+$('#jump').addEventListener('pointerdown', event => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  requestJump();
+});
+$('#jump').addEventListener('click', event => {
+  if (event.detail === 0) requestJump();
+});
+window.addEventListener('keydown', event => {
+  if (event.defaultPrevented || !canMove() || event.target.closest?.('input,textarea,[contenteditable]')) return;
+  if (event.code === 'Space') {
+    event.preventDefault();
+    if (!event.repeat) requestJump();
+  } else if (movementKeys.includes(event.code)) {
+    event.preventDefault();
+    keys.add(event.code);
+  }
+});
+window.addEventListener('keyup', event => keys.delete(event.code));
 canvas.addEventListener('pointerdown',e=>{if(!entered||dialog.open||magazineQuest.open||collection.celebrating||look||viewStick.active)return;canvas.setPointerCapture(e.pointerId);look={id:e.pointerId,x:e.clientX,y:e.clientY}});
 canvas.addEventListener('pointermove', e => {
   if (!look || look.id !== e.pointerId) return;
@@ -272,12 +341,26 @@ function drawMagazineMarkers(ctx, tx, tz) {
   }
 }
 function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.035);last=now;if(document.hidden)return;
- if(entered&&!dialog.open&&!magazineQuest.open&&!collection.celebrating){
+ if (canMove()) {
   yaw -= viewSpeed(viewStick.x) * 1.55 * dt;
   pitch = Math.max(-1.15, Math.min(1.15, pitch - viewSpeed(viewStick.y) * 1.05 * dt));
-  let x=moveStick.x+(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0);let z=moveStick.y+(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0);const len=Math.hypot(x,z);if(len>1){x/=len;z/=len}if(len>.04){const speed=2.1*dt;const dx=(x*Math.cos(yaw)+z*Math.sin(yaw))*speed,dz=(-x*Math.sin(yaw)+z*Math.cos(yaw))*speed;p=nextPosition(p,dx,dz,world.surfaces,colliders);updateLocation()}eye+=(p.y+1.65-eye)*Math.min(1,dt*15);camera.position.set(p.x,eye,p.z);camera.rotation.set(pitch,yaw,0);drawMap();}
+  let x = moveStick.x + Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
+  let z = moveStick.y + Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'));
+  const magnitude = Math.hypot(x, z);
+  if (magnitude < .04) x = z = 0;
+  else if (magnitude > 1) { x /= magnitude; z /= magnitude; }
+  const previous = p;
+  p = stepPlayer(p, x * Math.cos(yaw) + z * Math.sin(yaw), -x * Math.sin(yaw) + z * Math.cos(yaw),
+    dt, jumpRequested, world.surfaces, colliders);
+  jumpRequested = false;
+  if (p !== previous && (p.grounded || previous.grounded)) updateLocation();
+  eye += (p.y + 1.65 - eye) * Math.min(1, dt * (p.grounded ? 15 : 23));
+  camera.position.set(p.x, eye, p.z);
+  camera.rotation.set(pitch, yaw, 0);
+  drawMap();
+ }
  else if(!entered){introTime+=dt;camera.position.set(5.1+Math.sin(introTime*.06)*.22,5.6,7.5);camera.lookAt(-1.1,2.7,-2.8)}
- const active=entered&&!dialog.open;
+ const active=entered&&p.grounded&&!document.querySelector('#help-dialog[open], #music-dialog[open]');
  const magazineEngaged=magazineQuest.update(now,active&&!collection.celebrating);
  performer.update(now/1000,camera);
  if(daimi.object.visible)daimi.update(now/1000,camera);
