@@ -1,0 +1,41 @@
+# 康乃馨 7.0
+
+可在手机横屏游玩的第一人称 3D 花海书咖漫游。场景有四层书廊、沙发夹层和花海舞台。
+
+[在线体验](https://lyn.lipopo.org/)
+
+## 玩法
+
+左侧摇杆移动，右侧摇杆转动视角。电脑可用 WASD 或方向键移动，拖动画面转向。
+
+- 靠近心心或书架上的收藏，长按按钮 2 秒。
+- 集齐 5 颗心心和 11 本杂志后，到舞台和呆米打招呼。
+- 解锁隐藏任务后，可以在书架收集 12 个影视角色。全部完成后还可以探索彩蛋。
+- 右上角可以调画质、播放现场原声或选择本机音频。现场原声由微博提供，按需播放。
+
+## 本地运行
+
+需要 Node.js 和 Python 3。无需安装 npm 依赖。
+
+```sh
+npm start
+```
+
+打开 [http://localhost:4173](http://localhost:4173)。网页源码和静态资产在 `dist/`，其中包含 Three.js 和 HLS.js。HTTPS 站点支持缓存完成后的离线访问。
+
+## 测试与打包
+
+```sh
+npm run check
+python3 scripts/package_release.py pack --build 20261113-r25
+```
+
+测试覆盖楼层和楼梯可达性、收集交互、人物照片展示和离线缓存。打包脚本根据 `dist/` 生成发布归档和 SHA-256 清单。
+
+## 素材
+
+这是非官方粉丝作品。场景参考现场影像，空间与尺寸作了艺术化处理。人物贴图、杂志封面与影视剧照的相关权利归各权利人所有。
+
+- 呆米的叫声采用 [Tiny Dog Bark](https://freesound.org/people/qubodup/sounds/813120/)（CC0）。
+- 收集提示音采用 Kenney 的 [Interface Sounds](https://kenney.nl/assets/interface-sounds)（CC0）。
+- 第三方库和字体的许可证随素材存放在 `dist/` 下。
