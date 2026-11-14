@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r26") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r27") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -295,6 +295,7 @@ body.entered #achievement-badge { top: 148px; }
   font-size: 14px;
 }
 .quest-action:focus-visible { outline: 2px solid #ffdc94; outline-offset: 3px; }
+#greet-daimi { -webkit-touch-callout: none; }
 .quest-action { padding-left: 68px; text-align: left; }
 .quest-action svg {
   position: absolute;

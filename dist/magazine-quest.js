@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r26';
-import { roleInReach } from './roles.js?v=20261113-r26';
+import { magazineInReach } from './magazines.js?v=20261113-r27';
+import { roleInReach } from './roles.js?v=20261113-r27';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
@@ -13,6 +13,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   const title = lightButton.querySelector('small');
   const actionLabel = lightButton.querySelector('strong');
   const dogButton = document.querySelector('#greet-daimi');
+  const dogHint = dogButton.querySelector('small');
   const magazineFinale = document.querySelector('#magazine-finale');
   const magazineFan = magazineFinale.querySelector('.magazine-fan');
   const dialog = document.querySelector('#daimi-dialog');
@@ -32,9 +33,9 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   let daimiUnlocked = false;
   let target = null;
   let hold = null;
-  let barkPending = false;
+  let barkPlaying = false;
+  let barkNeedsTap = false;
   let barkPlays = 0;
-  let barkQualifies = false;
   let invitationPending = false;
   let roleUnlocked = false;
   let roleCount = 0;
@@ -120,6 +121,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     hold = null;
     ring.style.strokeDashoffset = '100';
     button.classList.remove('holding');
+    if (button === dogButton) dogHint.textContent = '长按 2 秒';
     if (pointer !== undefined && button.hasPointerCapture(pointer)) {
       button.releasePointerCapture(pointer);
     }
@@ -127,10 +129,10 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
 
   function startHold(button, input) {
     if (button.hidden || hold || (button === lightButton && !target)
-      || (button === dogButton && (barkPending || !barks.paused))) return false;
+      || (button === dogButton && (barkPlaying || barkNeedsTap))) return false;
     hold = { id: target?.id, start: performance.now(), button, ring: button.querySelector('.progress'), ...input };
     button.classList.add('holding');
-    if (button === lightButton) options.rewardSounds.unlock();
+    options.rewardSounds.unlock();
     return true;
   }
 
@@ -138,8 +140,16 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     const greet = hold.button === dogButton && performance.now() - hold.start >= HOLD_MS
       && dogInReach(getPlayer()) && !dogButton.hidden && !modalOpen();
     cancelHold();
-    if (greet) playBarks();
+    if (greet) {
+      if (!playDecodedBarks()) playMediaBarks();
+    }
   }
+  dogButton.addEventListener('contextmenu', event => event.preventDefault());
+  dogButton.addEventListener('click', () => {
+    if (!barkNeedsTap || barkPlaying || dogButton.hidden || !dogInReach(getPlayer()) || modalOpen()) return;
+    options.rewardSounds.unlock();
+    if (!playDecodedBarks()) playMediaBarks();
+  });
 
   for (const button of [lightButton, dogButton]) {
     button.addEventListener('pointerdown', event => {
@@ -196,25 +206,60 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       && Math.abs(player.y - dog.y) < .65
       && Math.hypot(player.x - dog.x, player.z - dog.z) < 1.45;
   }
-  async function playBarks() {
-    if (dogButton.hidden || !dogInReach(getPlayer()) || barkPending || !barks.paused) return;
-    barkPending = true;
-    barkQualifies = !roleUnlocked;
-    try {
-      barks.currentTime = 0;
-      await barks.play();
-      barkPlays++;
-    } catch {
-      barkQualifies = false;
-      options.toast('呆米的叫声暂时无法播放');
-    } finally {
-      barkPending = false;
-    }
+  function barkEnded() {
+    barkPlaying = false;
+    if (!roleUnlocked) invitationPending = true;
   }
-  barks.addEventListener('ended', () => {
-    if (barkQualifies && !roleUnlocked) invitationPending = true;
-    barkQualifies = false;
-  });
+
+  function playDecodedBarks() {
+    const sound = options.rewardSounds.play('barks');
+    if (!sound) return false;
+    barkPlaying = true;
+    barkNeedsTap = false;
+    dogHint.textContent = '长按 2 秒';
+    barkPlays++;
+    sound.addEventListener('ended', barkEnded, { once: true });
+    return true;
+  }
+
+  function playMediaBarks() {
+    barkPlaying = true;
+    barkNeedsTap = false;
+    let finished = false;
+    const timer = setTimeout(failed, 6000);
+    function cleanUp() {
+      finished = true;
+      clearTimeout(timer);
+      barks.removeEventListener('ended', ended);
+      barks.removeEventListener('error', failed);
+    }
+    function ended() {
+      if (finished) return;
+      cleanUp();
+      barkEnded();
+    }
+    function failed() {
+      if (finished) return;
+      cleanUp();
+      barks.pause();
+      barkPlaying = false;
+      barkNeedsTap = true;
+      dogHint.textContent = '点按重试';
+      options.toast('叫声暂未播放，请点按重试');
+    }
+    barks.addEventListener('ended', ended, { once: true });
+    barks.addEventListener('error', failed, { once: true });
+    try {
+      if (barks.error) barks.load();
+      barks.currentTime = 0;
+      barks.play().then(() => {
+        if (!finished) {
+          barkPlays++;
+          dogHint.textContent = '长按 2 秒';
+        }
+      }, failed);
+    } catch { failed(); }
+  }
 
   function update(now, active) {
     if (!active || modalOpen()) {
@@ -234,7 +279,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       showModal(dialog);
       return true;
     }
-    if (invitationPending) {
+    if (invitationPending && !barkPlaying) {
       invitationPending = false;
       roleUnlocked = true;
       rolePanel.hidden = false;
@@ -259,13 +304,18 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       }
     }
     lightButton.hidden = !target;
-    dogButton.hidden = Boolean(target) || !dogInReach(player) || barkPending || !barks.paused;
+    dogButton.hidden = Boolean(target) || !dogInReach(player) || barkPlaying || invitationPending;
     if (hold?.button.hidden) cancelHold();
     if (!hold) return Boolean(target) || !dogButton.hidden;
 
     const progress = Math.max(0, Math.min(1, (now - hold.start) / HOLD_MS));
     hold.ring.style.strokeDashoffset = String(100 * (1 - progress));
-    if (progress < 1 || hold.button === dogButton) return true;
+    if (progress < 1) return true;
+    if (hold.button === dogButton) {
+      if (playDecodedBarks()) cancelHold();
+      else dogHint.textContent = '松手播放';
+      return true;
+    }
     const { id } = hold;
     const { name, title: magazineTitle } = target;
     cancelHold();
