@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from '../dist/vendor/three.module.min.js';
 import { buildArchitecture } from '../dist/architecture.js';
 import { buildBotanicals } from '../dist/botanicals.js';
-import { nextPosition } from '../dist/navigation.js';
+import { nextPosition, spawnPlayer, stepPlayer } from '../dist/navigation.js';
 import { chooseMagazineSpots, magazineInReach } from '../dist/magazines.js';
 import { chooseRoleSpots, roleInReach } from '../dist/roles.js';
 import { RECORD_POSITION, recordInReach } from '../dist/record.js';
@@ -51,7 +51,7 @@ test('descends from the window-side short stair past the sofa, turns right and r
   ];
   for (const [i, target] of steps.entries()) p = reaches(p, target, `descent ${i+1}`);
 });
-test('upper-left collectible is reachable on the turn landing',()=>{reaches({x:-7.6,y:7.2,z:.95},{x:-7.6,y:7.2,z:.9},'upper-left heart');});
+test('the relocated stage heart is reachable in front of the performer',()=>{reaches({x:0,y:0,z:5.5},{x:0,y:0,z:1.54},'stage heart');});
 test('book-walk railings stop the player entering the atrium',()=>{for(const y of [2.4,4.8,7.2]){const p=walk({x:0,y,z:-5.7},0,-4.5);assert.ok(p.z<=-5.31,JSON.stringify(p));assert.equal(p.y,y);}});
 test('lounge inner railing stops the player crossing its edge',()=>{const p=walk({x:5.4,y:3.2,z:2.7},3.8,2.7);assert.ok(p.x>=5.01,JSON.stringify(p));assert.equal(p.y,3.2);});
 test('ground wall and stage stool block movement while leaving room alongside', () => {
@@ -123,4 +123,38 @@ test('all randomized role portrait positions are reachable with the current stai
       }
     }
   }
+});
+
+function simulate(start, frames, moveX, moveZ, jumpFrames, obstacles = colliders) {
+  const trace = [spawnPlayer(start)];
+  for (let frame = 0; frame < frames; frame++) {
+    trace.push(stepPlayer(trace.at(-1), moveX, moveZ, 1/60, jumpFrames.includes(frame), surfaces, obstacles));
+  }
+  return trace;
+}
+test('jumping is faster than walking and a second press boosts height without a third jump', () => {
+  const start = {x:0,y:0,z:5.5};
+  const walking = simulate(start, 15, 0, -1, []);
+  const jumping = simulate(start, 15, 0, -1, [0]);
+  assert.ok(jumping.at(-1).z < walking.at(-1).z - .30);
+  const peak = list => Math.max(...list.map(point => point.y));
+  const single = simulate(start, 110, 0, 0, [0]);
+  const double = simulate(start, 110, 0, 0, [0, 22]);
+  const triple = simulate(start, 110, 0, 0, [0, 22, 35]);
+  assert.ok(peak(double) > peak(single) + .7);
+  assert.deepEqual(triple, double);
+  assert.deepEqual(double.at(-1), {...start, velocityY:0, jumps:0, grounded:true, onProp:false});
+});
+test('two jumps can cross book-walk railings and land on lower levels', () => {
+  for (const y of [2.4, 4.8]) {
+    const path = simulate({x:0,y,z:-5.7}, 175, 0, 1, [0, 30]);
+    assert.ok(path.some(point => point.z > -4.95 && point.y > y + .10), JSON.stringify(path.slice(18, 26)));
+    assert.ok(path.some(point => point.y === 0 && point.grounded), JSON.stringify(path.at(-1)));
+    assert.ok(path.every(point => point.y >= 0 && point.z < 8.91));
+  }
+});
+test('jumping beneath the lounge cannot pass through its ceiling', () => {
+  const path = simulate({x:5.8,y:0,z:5.2}, 100, 0, 0, [0, 22]);
+  assert.ok(Math.max(...path.map(point=>point.y)) < 1.42);
+  assert.equal(path.at(-1).y, 0);
 });

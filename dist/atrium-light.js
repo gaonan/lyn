@@ -35,7 +35,9 @@ export function createAtriumLighting(T, renderer, scene) {
   shelves.position.set(-2.4, 3.5, -3.25);
   const lounge = new T.PointLight('#ffc58b', 1, 7.5, 2);
   lounge.position.set(7.15, 5.32, 3.1);
-  scene.add(bounce, daylight, daylight.target, shelves, lounge);
+  const upperFill = new T.PointLight('#fff2dd', 0, 15, 2);
+  upperFill.position.set(0, 7.1, -1.55);
+  scene.add(bounce, daylight, daylight.target, shelves, lounge, upperFill);
 
   function spotlight(color, from, to, angle, penumbra = .48) {
     const light = new T.SpotLight(color, 1, 15, angle, penumbra, 2);
@@ -157,6 +159,7 @@ export function createAtriumLighting(T, renderer, scene) {
     daylight.intensity = night ? .17 : 2.72;
     shelves.intensity = night ? 25 : 16;
     lounge.intensity = night ? 28 : 16;
+    upperFill.intensity = night ? 19 : 0;
     cool.intensity = night ? 198 : 38;
     warm.intensity = night ? 133 : 39;
     wash.intensity = night ? 64 : 0;
@@ -172,6 +175,6 @@ export function createAtriumLighting(T, renderer, scene) {
     renderer.shadowMap.enabled = enabled;
     if (enabled) renderer.shadowMap.needsUpdate = true;
   }
-  setNight(false);
+  setNight(true);
   return { setNight, setShadows };
 }

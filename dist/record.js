@@ -1,3 +1,5 @@
+import { keepsakeText, textLines } from './keepsake.js?v=20261113-r30';
+
 export const RECORD_POSITION = { x: -2.85, y: 1.53, z: 8.87 };
 
 export function buildRecord(T, scene, version, loader = new T.TextureLoader()) {
@@ -14,6 +16,41 @@ export function buildRecord(T, scene, version, loader = new T.TextureLoader()) {
     new T.MeshStandardMaterial({ color: '#bb9556', metalness: .35, roughness: .46 }),
   );
   display.add(frame);
+  let plaque;
+  function setMessage(message) {
+    const value = keepsakeText(message).trim();
+    if (!value) {
+      if (plaque) plaque.visible = false;
+      return;
+    }
+    if (!plaque) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 512;
+      const map = new T.CanvasTexture(canvas);
+      map.colorSpace = T.SRGBColorSpace;
+      plaque = new T.Mesh(new T.PlaneGeometry(1.48, .74),
+        new T.MeshBasicMaterial({ map, toneMapped: false }));
+      plaque.position.set(1.54, -.05, .038);
+      display.add(plaque);
+    }
+    const map = plaque.material.map;
+    const ctx = map.image.getContext('2d');
+    ctx.fillStyle = '#24251d';
+    ctx.fillRect(0, 0, 1024, 512);
+    ctx.strokeStyle = '#bfa670';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(21, 21, 982, 470);
+    ctx.fillStyle = '#cdb784';
+    ctx.font = '36px -apple-system, "PingFang SC", sans-serif';
+    ctx.fillText('写给这一晚', 60, 91);
+    ctx.fillStyle = '#fff0d5';
+    ctx.font = '56px "Songti SC", "Noto Serif CJK SC", serif';
+    const lines = textLines(ctx, value, 900).slice(0, 5);
+    lines.forEach((line, index) => ctx.fillText(line, 60, 164 + index * 64));
+    map.needsUpdate = true;
+    plaque.visible = true;
+  }
   let loaded = false;
   const ready = loader.loadAsync(url).then(texture => {
     texture.colorSpace = T.SRGBColorSpace;
@@ -43,6 +80,7 @@ export function buildRecord(T, scene, version, loader = new T.TextureLoader()) {
       return loaded && unlocked && !claimed && recordInReach(player);
     },
     claim() { claimed = true; },
+    setMessage,
     get unlocked() { return unlocked; },
     get claimed() { return claimed; },
   };
