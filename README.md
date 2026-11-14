@@ -25,11 +25,13 @@ npm start
 
 打开 [http://localhost:4173](http://localhost:4173)。网页源码和静态资产在 `dist/`，其中包含 Three.js 和 HLS.js。HTTPS 站点支持缓存完成后的离线访问。
 
+混凝土、木纹、布纹和叶脉贴图在浏览器生成。超清画质会预先计算固定建筑的投影。
+
 ## 测试与打包
 
 ```sh
 npm run check
-python3 scripts/package_release.py pack --build 20261113-r27
+python3 scripts/package_release.py pack --build 20261113-r28
 ```
 
 测试覆盖楼层和楼梯可达性、收集交互、人物照片展示和离线缓存。打包脚本根据 `dist/` 生成发布归档和 SHA-256 清单。

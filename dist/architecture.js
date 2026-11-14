@@ -1,3 +1,5 @@
+import { makeSurfaceMaps } from './surface-maps.js?v=20261113-r28';
+
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a
 // broad right lounge BETWEEN two bookshelf-walkway elevations, joined by short
@@ -7,59 +9,37 @@ export function buildArchitecture(THREE, scene) {
   const colliders = [], surfaces = [], railPaths = [], flowerBeds = [];
   const group = new THREE.Group(); group.name = 'Flower cafe architecture'; scene.add(group);
   const batches = new Map(), temp = new THREE.Object3D();
-  let seed = 8141;
+  // Keep the original placement sequence independent of the material textures.
+  let seed = 1863998497;
   const random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
   const boxGeo = new THREE.BoxGeometry(1, 1, 1);
   const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 12);
   const ballGeo = new THREE.SphereGeometry(1, 10, 7);
 
-  function texture(kind) {
-    const c = document.createElement('canvas'); c.width = c.height = 256;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = kind === 'wood' ? '#b18a5b' : '#aeb2b6'; ctx.fillRect(0, 0, 256, 256);
-    if (kind === 'wood') {
-      for (let i = 0; i < 200; i++) {
-        ctx.strokeStyle = `rgba(${random() > .5 ? '66,38,19' : '240,211,169'},${.035 + random() * .1})`;
-        ctx.lineWidth = .4 + random() * 1.4;
-        const x = random() * 256;
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.bezierCurveTo(x + 12, 80, x - 14, 160, x + random() * 5, 256); ctx.stroke();
-      }
-      for (let i = 0; i < 4; i++) { ctx.fillStyle = '#59432a44'; ctx.fillRect(i * 64, 0, 1, 256); }
-    } else {
-      const pixels = ctx.getImageData(0, 0, 256, 256);
-      for (let i = 0; i < pixels.data.length; i += 4) {
-        const d = (random() - .5) * 17;
-        pixels.data[i] += d; pixels.data[i + 1] += d; pixels.data[i + 2] += d;
-      }
-      ctx.putImageData(pixels, 0, 0);
-      for (let i = 0; i < 36; i++) {
-        const x = random() * 256, y = random() * 256, r = 20 + random() * 80;
-        const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
-        grad.addColorStop(0, '#454b5510'); grad.addColorStop(1, '#454b5500');
-        ctx.fillStyle = grad; ctx.fillRect(0, 0, 256, 256);
-      }
-    }
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(kind === 'wood' ? 2 : 3, kind === 'wood' ? 3 : 2);
-    t.anisotropy = 4; return t;
+  const concrete = makeSurfaceMaps(THREE, 'concrete');
+  const wood = makeSurfaceMaps(THREE, 'wood');
+  const linen = makeSurfaceMaps(THREE, 'fabric');
+  function surface(maps, x, y, strength) {
+    const map = maps.map.clone(), normalMap = maps.normalMap.clone();
+    map.repeat.set(x, y); normalMap.repeat.set(x, y);
+    return { map, normalMap, normalScale: new THREE.Vector2(strength, strength) };
   }
-  const concreteMap = texture('concrete'), woodMap = texture('wood');
   const material = (color, props = {}) => new THREE.MeshStandardMaterial({ color, roughness: .83, ...props });
   const mats = {
-    concrete: material('#989fa7', { map: concreteMap }),
-    floor: material('#8c8b87', { map: concreteMap }),
-    wall: material('#8b929b', { map: concreteMap }),
-    wood: material('#bd9363', { map: woodMap }),
-    darkWood: material('#66503d', { map: woodMap }),
-    black: material('#262c28', { roughness: .55, metalness: .25 }),
+    concrete: material('#b8b5af', surface(concrete, 2, 1, .38)),
+    floor: material('#a19a90', { ...surface(concrete, 9, 8, .33), roughness: .73 }),
+    wall: material('#a29d96', surface(concrete, 5, 3, .36)),
+    wood: material('#b79b81', { ...surface(wood, 1, 1, .46), roughness: .53 }),
+    darkWood: material('#987968', { ...surface(wood, 2, 3, .36), roughness: .63 }),
+    black: material('#292c2b', { roughness: .43, metalness: .45 }),
     book: material('#ffffff', { roughness: .8 }),
     paper: material('#dfd5bf'),
-    fabric: material('#ddd5c2'),
+    fabric: material('#f0e7d8', surface(linen, 4, 3, .34)),
     moss: material('#304634'),
     brass: material('#a7804c', { roughness: .43, metalness: .55 }),
     ivory: material('#ede0c4'),
-    glass: material('#b3c8cb', { emissive: '#8fa7ab', emissiveIntensity: .2, roughness: .25 }),
-    light: new THREE.MeshBasicMaterial({ color: '#ffe3ab' }),
+    glass: material('#b3c8cb', { emissive: '#8fa7ab', emissiveIntensity: .2, roughness: .23, metalness: .23 }),
+    light: new THREE.MeshBasicMaterial({ color: '#ffe6be', toneMapped: false }),
     dark: material('#141c18'),
     red: material('#d95940'),
     chrome: material('#b9b7a4', { metalness: .65, roughness: .3 }),
@@ -282,14 +262,45 @@ export function buildArchitecture(THREE, scene) {
   }
   collider(-8.73, -5.67, 6.27, 8.55, 0, 2.65);
 
+  // Round the upholstered edges so they catch light across the seams.
+  function cushionGeometry(w, h, d) {
+    const geo = new THREE.BoxGeometry(1, 1, 1, 6, 6, 6);
+    const pos = geo.getAttribute('position'), normal = geo.getAttribute('normal');
+    const half = new THREE.Vector3(w / 2, h / 2, d / 2);
+    const point = new THREE.Vector3(), inner = new THREE.Vector3(), edge = new THREE.Vector3();
+    const radius = .035;
+    function spread(v, halfSize) {
+      const steps = [0, halfSize - radius, halfSize - radius * .38, halfSize];
+      return Math.sign(v) * steps[Math.round(Math.abs(v) * 6)];
+    }
+    for (let i = 0; i < pos.count; i++) {
+      point.set(spread(pos.getX(i), half.x), spread(pos.getY(i), half.y), spread(pos.getZ(i), half.z));
+      inner.set(
+        THREE.MathUtils.clamp(point.x, -half.x + radius, half.x - radius),
+        THREE.MathUtils.clamp(point.y, -half.y + radius, half.y - radius),
+        THREE.MathUtils.clamp(point.z, -half.z + radius, half.z - radius),
+      );
+      edge.subVectors(point, inner).normalize();
+      point.copy(inner).addScaledVector(edge, radius);
+      pos.setXYZ(i, point.x, point.y, point.z);
+      normal.setXYZ(i, edge.x, edge.y, edge.z);
+    }
+    return geo;
+  }
+  const seatCushion = cushionGeometry(.76, .18, .72);
+  const backCushion = cushionGeometry(.76, .45, .17);
+
   // Solid wood lounge armchairs, linen cushions, tables and coffee cups.
   function chair(x, y, z, rotation = 0, scale = 1) {
     const c = Math.cos(rotation), s = Math.sin(rotation);
-    function part(m, lx, ly, lz, w, h, d) { box(m, x + (lx * c + lz * s) * scale, y + ly * scale, z + (-lx * s + lz * c) * scale, w * scale, h * scale, d * scale, rotation); }
+    function part(m, lx, ly, lz, w, h, d, geometry = boxGeo) {
+      instance(geometry, m, x + (lx * c + lz * s) * scale, y + ly * scale,
+        z + (-lx * s + lz * c) * scale, w * scale, h * scale, d * scale, 0, rotation);
+    }
     part(mats.wood, 0, .25, 0, .95, .38, .92);
-    part(mats.fabric, 0, .49, -.01, .76, .18, .72);
+    part(mats.fabric, 0, .49, -.01, 1, 1, 1, seatCushion);
     part(mats.wood, 0, .67, -.39, .96, .72, .14);
-    part(mats.fabric, 0, .73, -.27, .75, .54, .16);
+    part(mats.fabric, 0, .73, -.27, .75 / .76, 1.2, .16 / .17, backCushion);
     for (const sign of [-1, 1]) part(mats.wood, sign * .44, .49, 0, .12, .67, .94);
     const half = .51 * scale;
     collider(x - half, x + half, z - half, z + half, y, y + 1.1 * scale);
@@ -318,8 +329,8 @@ export function buildArchitecture(THREE, scene) {
   box(mats.wood, sofa.x, sofa.y + .24, sofa.z, 1.86, .37, .93);
   box(mats.wood, sofa.x, sofa.y + .66, sofa.z - .4, 1.86, .69, .13);
   for (const offset of [-.39, .39]) {
-    box(mats.fabric, sofa.x + offset, sofa.y + .48, sofa.z + .025, .76, .18, .72);
-    box(mats.fabric, sofa.x + offset, sofa.y + .72, sofa.z - .28, .76, .45, .17);
+    instance(seatCushion, mats.fabric, sofa.x + offset, sofa.y + .48, sofa.z + .025, 1, 1, 1);
+    instance(backCushion, mats.fabric, sofa.x + offset, sofa.y + .72, sofa.z - .28, 1, 1, 1);
   }
   for (const offset of [-.85, .85]) {
     box(mats.wood, sofa.x + offset, sofa.y + .47, sofa.z, .17, .63, .96);
@@ -380,7 +391,7 @@ export function buildArchitecture(THREE, scene) {
   const stoolMap = new THREE.CanvasTexture(grainCanvas);
   stoolMap.colorSpace = THREE.SRGBColorSpace;
   stoolMap.anisotropy = 4;
-  const stoolWood = material('#d2b79b', { map: stoolMap, roughness: .57 });
+  const stoolWood = material('#d2b79b', { map: stoolMap, normalMap: wood.normalMap, normalScale: new THREE.Vector2(.34, .34), roughness: .55 });
 
   function timberPart(w, h, d, bevel, x, y, z, seat = false) {
     const halfW = w / 2 - bevel, halfH = h / 2 - bevel;
@@ -410,6 +421,8 @@ export function buildArchitecture(THREE, scene) {
     }
     const mesh = new THREE.Mesh(geometry, stoolWood);
     mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     stool.add(mesh);
     return mesh;
   }
@@ -462,7 +475,8 @@ export function buildArchitecture(THREE, scene) {
     });
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.castShadow = false; mesh.receiveShadow = true;
+    mesh.castShadow = mat === mats.black || mat === mats.truss;
+    mesh.receiveShadow = true;
     mesh.computeBoundingSphere(); group.add(mesh);
   }
   return {

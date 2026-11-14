@@ -16,12 +16,14 @@ export function buildBotanicals(THREE, scene, railPaths = []) {
   const roseTex = flowerTexture(true);
   const plane = new THREE.PlaneGeometry(1, 1);
   const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .92, side: THREE.DoubleSide });
-  const floretMaterial = new THREE.MeshStandardMaterial({ map: rosetteTex, alphaTest: .24, color: '#e7e7e7', vertexColors: true, roughness: 1, side: THREE.DoubleSide });
+  const floretMaterial = new THREE.MeshStandardMaterial({ map: rosetteTex, alphaTest: .24, color: '#efede9', vertexColors: true, roughness: .82, side: THREE.DoubleSide });
   const roseMaterial = new THREE.MeshStandardMaterial({ map: roseTex, alphaTest: .35, color: 0xffffff, roughness: .85, side: THREE.DoubleSide });
   const stemMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 });
   batch('florets', corollaGeometry(), floretMaterial);
   batch('roses', plane, roseMaterial);
-  batch('leaves', leafGeometry(), foliageMaterial);
+  batch('leaves', leafGeometry(), new THREE.MeshStandardMaterial({
+    map: leafTexture(), roughness: .64, side: THREE.DoubleSide,
+  }));
   batch('ferns', fernGeometry(), foliageMaterial);
   batch('stems', new THREE.CylinderGeometry(1, 1, 1, 3, 1, true), stemMaterial);
   batch('pots', new THREE.CylinderGeometry(.80, 1, 1, 12), new THREE.MeshStandardMaterial({ color: '#555b4b', roughness: .95 }));
@@ -115,14 +117,46 @@ export function buildBotanicals(THREE, scene, railPaths = []) {
     }
     const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;return tex;
   }
+  function leafTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 96;
+    const ctx = canvas.getContext('2d');
+    const surface = ctx.createLinearGradient(0, 0, 96, 0);
+    surface.addColorStop(0, '#a5aba0');
+    surface.addColorStop(.42, '#f4f4e8');
+    surface.addColorStop(.53, '#ecede0');
+    surface.addColorStop(1, '#bdc5b9');
+    ctx.fillStyle = surface;
+    ctx.fillRect(0, 0, 96, 96);
+    ctx.lineWidth = .8;
+    ctx.strokeStyle = '#75897059';
+    for (let y = 20; y < 95; y += 11) {
+      ctx.beginPath();
+      ctx.moveTo(1, y - 20);
+      ctx.quadraticCurveTo(28, y - 9, 48, y);
+      ctx.quadraticCurveTo(71, y - 7, 95, y - 20);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#fff9d9c0';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(48, 0);
+    ctx.lineTo(48, 96);
+    ctx.stroke();
+    const map = new THREE.CanvasTexture(canvas);
+    map.colorSpace = THREE.SRGBColorSpace;
+    return map;
+  }
   function leafGeometry() {
-    const positions = [0, 0, 0];
+    const positions = [0, 0, 0], uvs = [.5, 0];
     const indices = [0, 1, 2, 0, 2, 3];
     const sections = [[.22,.14,.02],[.47,.22,.06],[.73,.16,.10]];
     for (const [y, width, bend] of sections) {
       positions.push(-width, y, bend, 0, y, bend + .055, width, y, bend);
+      uvs.push(0, y, .5, y, 1, y);
     }
     positions.push(0, 1, .16);
+    uvs.push(.5, 1);
     for (let i = 1; i < 7; i += 3) {
       indices.push(i,i+3,i+1, i+1,i+3,i+4, i+1,i+4,i+2, i+2,i+4,i+5);
     }
@@ -130,6 +164,7 @@ export function buildBotanicals(THREE, scene, railPaths = []) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setIndex(indices);
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.computeVertexNormals();
     return geometry;
   }
