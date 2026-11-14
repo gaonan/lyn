@@ -26,37 +26,131 @@ export function textLines(ctx, text, maxWidth) {
   });
 }
 
-export function paintKeepsake(out, render, album, text) {
+const FILM_TITLE = '康乃馨 7.0';
+const FILM_LINES = ['如果我拥有一座花园', '邀请你常来停歇'];
+const FILM_FONT = '"Noto Serif SC Film", "Songti SC", "Noto Serif CJK SC", serif';
+
+export async function loadFilmFont() {
+  await document.fonts?.load(
+    `600 64px ${FILM_FONT}`, FILM_TITLE + FILM_LINES.join('') + '唱片留影花海合影花海对唱写给这一晚',
+  ).catch(() => {});
+}
+
+export function photoTimestamp(date) {
+  const two = value => String(value).padStart(2, '0');
+  return `${date.getFullYear()}.${two(date.getMonth() + 1)}.${two(date.getDate())}  ${two(date.getHours())}:${two(date.getMinutes())}`;
+}
+
+function fillSprocket(ctx, x, y, width, height, radius, color) {
+  const right = x + width, bottom = y + height;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(right, y, right, bottom, radius);
+  ctx.arcTo(right, bottom, x, bottom, radius);
+  ctx.arcTo(x, bottom, x, y, radius);
+  ctx.arcTo(x, y, right, y, radius);
+  ctx.fill();
+}
+
+function paintFilmStrip(ctx, y, width) {
+  ctx.fillStyle = '#15120f';
+  ctx.fillRect(0, y, width, 43);
+  ctx.fillStyle = '#987244';
+  ctx.fillRect(0, y + 2, width, 1);
+  ctx.fillRect(0, y + 40, width, 1);
+  const step = 58;
+  const holes = Math.floor((width - 45) / step);
+  const first = (width - (holes - 1) * step - 29) / 2;
+  for (let index = 0; index < holes; index++) {
+    const x = first + index * step;
+    fillSprocket(ctx, x - 1, y + 12, 31, 20, 4, '#100d0a');
+    fillSprocket(ctx, x, y + 13, 29, 17, 3.5, '#a49373');
+  }
+}
+
+export function paintFilmPhoto(out, render, { label, album, text, date = new Date() }) {
   const ctx = out.getContext('2d');
-  const { width: w, height: h } = out;
-  ctx.fillStyle = '#151a18';
-  ctx.fillRect(0, 0, w, h);
-  render(ctx, 52, 112, 1496, 800);
-  ctx.strokeStyle = '#a98c5d';
+  const { width, height } = out;
+  const x = 48, y = 54, right = width - x;
+  const frameWidth = width - x * 2;
+  const frameHeight = album ? 704 : 593;
+  const footerY = y + frameHeight + 1;
+  const footerBottom = height - 43;
+
+  ctx.fillStyle = '#121511';
+  ctx.fillRect(0, 0, width, height);
+  render(ctx, x, y, frameWidth, frameHeight);
+  ctx.strokeStyle = '#d6b275';
   ctx.lineWidth = 1;
-  ctx.strokeRect(33.5, 33.5, w - 67, h - 67);
-  ctx.strokeRect(51.5, 111.5, 1497, 801);
-  ctx.fillStyle = '#f4e6cd';
-  ctx.font = '600 34px "Songti SC", "Noto Serif CJK SC", serif';
-  ctx.fillText('康乃馨 7.0', 52, 81);
-  ctx.font = '500 22px -apple-system, "PingFang SC", sans-serif';
+  ctx.strokeRect(x - .5, y - .5, frameWidth + 1, frameHeight + 1);
+
+  const footer = ctx.createLinearGradient(0, footerY, width, footerBottom);
+  footer.addColorStop(0, '#181f19');
+  footer.addColorStop(.59, '#171b15');
+  footer.addColorStop(1, '#221b13');
+  ctx.fillStyle = footer;
+  ctx.fillRect(x, footerY, frameWidth, footerBottom - footerY);
+  ctx.strokeStyle = '#b28c554f';
+  ctx.strokeRect(x - .5, footerY - .5, frameWidth + 1, footerBottom - footerY - 8);
+
+  let quoteX = x + 29;
+  const quoteY = footerY + (album ? 116 : 78);
+  if (album) {
+    const ax = x + 29, ay = footerY + 48, aw = 412;
+    const ah = Math.round(aw * album.naturalHeight / album.naturalWidth);
+    ctx.drawImage(album, ax, ay, aw, ah);
+    ctx.strokeStyle = '#cbad76';
+    ctx.strokeRect(ax - .5, ay - .5, aw + 1, ah + 1);
+    ctx.strokeStyle = '#b28c557a';
+    ctx.beginPath();
+    ctx.moveTo(ax + aw + 28, ay);
+    ctx.lineTo(ax + aw + 28, footerBottom - 39);
+    ctx.stroke();
+    quoteX = ax + aw + 57;
+  }
+
+  ctx.fillStyle = '#f5e5bf';
+  ctx.font = `600 ${album ? 67 : 61}px ${FILM_FONT}`;
+  ctx.fillText(FILM_LINES[0], quoteX, quoteY);
+  ctx.fillStyle = '#f0d9a4';
+  ctx.fillText(FILM_LINES[1], quoteX, quoteY + (album ? 89 : 79));
+
+  if (album && text) {
+    ctx.strokeStyle = '#b28c557a';
+    ctx.beginPath();
+    ctx.moveTo(quoteX, footerY + 234);
+    ctx.lineTo(right - 29, footerY + 234);
+    ctx.stroke();
+    ctx.font = `600 20px ${FILM_FONT}`;
+    ctx.fillStyle = '#cbb282';
+    ctx.fillText('写给这一晚', quoteX, footerY + 269);
+    ctx.fillStyle = '#f5ebd6';
+    const noteWidth = right - 59 - quoteX;
+    let fontSize = 31, lines;
+    do {
+      ctx.font = `400 ${fontSize}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
+      lines = textLines(ctx, text, noteWidth);
+      fontSize -= 2;
+    } while (lines.length > 2 && fontSize >= 23);
+    const rows = lines.length > 2 ? [lines[0], lines.slice(1).join('')] : lines;
+    rows.forEach((line, index) => ctx.fillText(line, quoteX, footerY + 314 + index * 39, noteWidth));
+  }
+
   ctx.textAlign = 'right';
-  ctx.fillStyle = '#ccb583';
-  ctx.fillText('花海舞台 · 夜色留影', 1548, 78);
+  ctx.font = `600 49px ${FILM_FONT}`;
+  ctx.fillStyle = '#f5e5bf';
+  ctx.fillText(FILM_TITLE, right - 29, footerY + (album ? 81 : 66));
+  ctx.font = `600 25px ${FILM_FONT}`;
+  ctx.fillStyle = '#cbb282';
+  ctx.fillText(label, right - 29, footerY + (album ? 123 : 106));
+  ctx.font = '500 25px "IBM Plex Mono", "Courier New", monospace';
+  ctx.fillStyle = '#ecc68f';
+  ctx.fillText(photoTimestamp(date), right - 29, footerBottom - 32);
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#292821';
-  ctx.fillRect(52, 948, 360, 222);
-  ctx.drawImage(album, 52, 948, 360, 222);
-  ctx.strokeStyle = '#a98c5d';
-  ctx.strokeRect(51.5, 947.5, 361, 223);
-  ctx.fillStyle = '#c8ae79';
-  ctx.font = '500 21px -apple-system, "PingFang SC", sans-serif';
-  ctx.fillText(text ? '写给这一晚' : '花房彩蛋', 465, 975);
-  ctx.fillStyle = '#fff1d9';
-  ctx.font = '600 40px "Songti SC", "Noto Serif CJK SC", serif';
-  const lines = textLines(ctx, text || '邀请你常来停歇', 1035);
-  const lineHeight = Math.min(57, 145 / Math.max(1, lines.length - 1));
-  lines.forEach((line, index) => ctx.fillText(line, 465, 1035 + index * lineHeight));
+
+  paintFilmStrip(ctx, 0, width);
+  paintFilmStrip(ctx, footerBottom, width);
 }
 
 export async function shareImage(file, title) {
@@ -129,12 +223,12 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
     generating = generate.disabled = true;
     status.textContent = '正在生成留影…';
     try {
-      if (!album.complete || !album.naturalWidth) await album.decode();
+      await Promise.all([loadFilmFont(), album.complete && album.naturalWidth ? undefined : album.decode()]);
       if (attempt !== generation || !dialog.open) return;
       const out = document.createElement('canvas');
       out.width = 1600;
       out.height = 1220;
-      paintKeepsake(out, render, album, text);
+      paintFilmPhoto(out, render, { label: '唱片留影', album, text });
       const blob = await new Promise(resolve => out.toBlob(resolve, 'image/jpeg', .94));
       if (!blob) throw new Error('No image was encoded');
       if (attempt !== generation || !dialog.open) return;
