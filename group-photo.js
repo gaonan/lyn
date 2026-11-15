@@ -1,5 +1,5 @@
-import { createFilmCanvas, loadFilmFont, paintFilmPhoto, shareImage } from './keepsake.js?v=20261113-r39';
-import { cheekColors, matchFaceLighting } from './portrait-color.js?v=20261113-r39';
+import { createFilmCanvas, loadFilmFont, paintFilmPhoto, shareImage } from './keepsake.js?v=20261113-r40';
+import { cheekColors, matchFaceLighting } from './portrait-color.js?v=20261113-r40';
 
 // All player image data stays in this dialog's memory until it is closed.
 const GUIDE_SIZE = 300;
@@ -10,6 +10,13 @@ const POSES = {
   front: {
     file: 'stagewear-front.webp',
     head: [435 / 1024, 57 / 1536, 152 / 1024, 191 / 1536],
+    jacket: [
+      'M465 250 C456 274 431 284 409 293 L346 308 L315 353 L306 532 C322 603 380 684 439 737',
+      'L453 733 Q442 723 454 711 L486 689 Q478 671 455 650 L410 581 Q464 582 516 578',
+      'L604 582 Q596 636 546 685 L539 695 Q572 695 588 732 L601 729 C635 691 677 616 692 569',
+      'L711 426 L685 306 L619 290 Q582 274 558 252 L565 287 Q581 328 559 370 L539 454',
+      'Q516 429 490 407 L448 361 L477 324 Q464 289 465 250 Z',
+    ].join(' '),
     contour: 'M150 29 C194 29 222 63 244 91 C253 105 254 121 260 136 C271 162 250 208 226 237 C204 263 171 283 153 283 C129 283 97 260 75 235 C52 206 31 164 39 138 C45 118 47 105 56 89 C75 61 100 28 150 29 Z',
     eyes: [[99, 120], [214, 120]],
     mouth: [[115, 220], [199, 220]],
@@ -19,6 +26,13 @@ const POSES = {
   duet: {
     file: 'stagewear-duet.webp',
     head: [425 / 1024, 54 / 1536, 150 / 1024, 165 / 1536],
+    jacket: [
+      'M416 234 Q423 256 442 280 L465 316 L489 335 L528 368',
+      'Q523 403 506 434 L485 591 Q436 591 351 584 L365 476 L291 437 L283 288 L387 264 Z',
+      'M585 288 L618 295 Q644 336 643 469 L731 451 Q719 470 727 492 L752 480 L753 521',
+      'Q697 548 600 569 L594 597 L570 596 Q560 529 556 458 Q565 406 588 360',
+      'Q599 357 602 343 L584 290 Z',
+    ].join(' '),
     contour: 'M79 98 C93 86 110 84 127 82 Q136 82 140 92 Q153 81 172 77 C182 74 184 59 195 51 C209 57 218 78 223 91 C225 104 237 115 245 131 C257 154 244 175 238 191 C231 213 242 231 236 251 C224 265 205 284 178 286 C150 285 123 272 104 255 C78 235 54 210 47 187 C40 167 54 146 60 130 C65 114 70 107 79 98 Z',
     eyes: [[127, 122], [200, 95]],
     mouth: [[157, 221], [221, 203]],
@@ -178,12 +192,37 @@ function drawEditor(editor, template, photo, fit, layer, showSource) {
 function makePortrait(template, photo, fit, layer) {
   const scale = Math.max(1, 1200 / template.naturalWidth);
   const result = canvas(template.naturalWidth * scale, template.naturalHeight * scale);
-  const ctx = result.getContext('2d');
+  const ctx = result.getContext('2d', { willReadFrequently: true });
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(template, 0, 0, result.width, result.height);
+  toneJacket(ctx, layer.pose.jacket, result.width / 1024);
   ctx.globalCompositeOperation = 'source-atop';
   ctx.drawImage(layer.draw(photo, fit), ...headBox(template, layer.pose).map(value => value * scale));
   return result;
+}
+
+function toneJacket(ctx, outline, scale) {
+  // These mask coordinates are authored against the 1024px wardrobe artwork.
+  const left = Math.floor(280 * scale), top = Math.floor(230 * scale);
+  const width = Math.ceil(480 * scale), height = Math.ceil(510 * scale);
+  const mask = canvas(width, height).getContext('2d');
+  mask.setTransform(scale, 0, 0, scale, -left, -top);
+  mask.fill(new Path2D(outline));
+  const coverage = mask.getImageData(0, 0, width, height).data;
+  const image = ctx.getImageData(left, top, width, height);
+  const pixels = image.data;
+  for (let i = 0; i < pixels.length; i += 4) {
+    if (!coverage[i + 3] || !pixels[i + 3]) continue;
+    const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+    const light = .2126 * r + .7152 * g + .0722 * b;
+    const midtone = Math.min(1, light / 98, (255 - light) / 54);
+    const coloredRim = Math.max(r, g, b) - Math.min(r, g, b);
+    const factor = 1 - .24 * midtone * (1 - .56 * Math.min(1, coloredRim / 86)) * coverage[i + 3] / 255;
+    pixels[i] *= factor;
+    pixels[i + 1] *= factor;
+    pixels[i + 2] *= factor;
+  }
+  ctx.putImageData(image, left, top);
 }
 
 export function setupGroupPhoto(dialog, render, version, prepareStage) {
