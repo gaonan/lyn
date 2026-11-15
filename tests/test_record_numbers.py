@@ -162,7 +162,7 @@ class RecordNumbersTests(unittest.TestCase):
             self.assertEqual(request(wall_url)[2], {"messages": [], "total": 0})
             self.assertEqual(request(wall_url, origin=MIRROR, method="OPTIONS")[0], 204)
             self.assertEqual(request(wall_url, method="POST", payload={"requestId": "a" * 32, "text": "未发号"})[0], 404)
-            for number in range(1, 19):
+            for number in range(1, 36):
                 request_id = f"{number:032x}"
                 self.assertEqual(claim(url, request_id), number)
                 payload = {"requestId": request_id, "text": f" 留言 {number} "}
@@ -170,17 +170,17 @@ class RecordNumbersTests(unittest.TestCase):
                 if number == 3:
                     self.assertEqual([entry["text"] for entry in request(wall_url)[2]["messages"]],
                                      ["留言 3", "留言 2", "留言 1"])
-            request_id = f"{19:032x}"
-            self.assertEqual(claim(url, request_id), 19)
+            request_id = f"{36:032x}"
+            self.assertEqual(claim(url, request_id), 36)
             emoji_at_limit = "花" * 49 + "👩‍👩‍👦"
             self.assertEqual(request(wall_url, method="POST", payload={"requestId": request_id, "text": emoji_at_limit})[0], 204)
             self.assertEqual(request(wall_url, method="POST", payload={"requestId": request_id, "text": "花" * 51})[0], 400)
             self.assertEqual(request(wall_url, method="POST", payload={"requestId": request_id, "text": emoji_at_limit})[0], 204)
             wall = request(wall_url)[2]
-            self.assertEqual(wall["total"], 19)
-            self.assertEqual(len({entry['id'] for entry in wall['messages']}), 16)
+            self.assertEqual(wall["total"], 36)
+            self.assertEqual(len({entry['id'] for entry in wall['messages']}), 30)
             self.assertTrue(all(set(entry) == {"id", "text"} for entry in wall["messages"]))
-            self.assertEqual(request(url)[2], {"latest": 19})
+            self.assertEqual(request(url)[2], {"latest": 36})
 
 
 if __name__ == "__main__":

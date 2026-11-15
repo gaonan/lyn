@@ -2,14 +2,25 @@ import { keepsakeText, textLines } from './keepsake.js?v=20261113-r50';
 
 const WIDTH = 2048;
 const HEIGHT = 384;
-const COLUMNS = [65, 355, 643, 1195, 1471, 1752];
-// The empty middle columns make room for the door, album and personal plaque.
-const SLOTS = [
-  ...COLUMNS.map(x => [x, 54]),
-  ...[...COLUMNS.slice(0, 3), COLUMNS.at(-1)].map(x => [x, 157]),
-  ...COLUMNS.map(x => [x, 266]),
+const leftSlots = [
+  [54, 46, 178], [259, 73, 156], [477, 31, 163], [674, 66, 181],
+  [34, 141, 193], [242, 157, 193], [451, 116, 178], [664, 147, 178],
+  [72, 225, 162], [247, 248, 160], [477, 204, 155], [645, 227, 189],
+  [40, 312, 172], [279, 329, 156], [457, 298, 172], [694, 315, 151],
 ];
-const POSITIONS = [2, 14, 6, 4, 9, 11, 0, 15, 7, 3, 12, 8, 13, 1, 5, 10].map(index => SLOTS[index]);
+// Reserve the middle of the right half for the album and the personal plaque.
+const rightSlots = [
+  [1178, 34, 174], [1390, 28, 175], [1597, 41, 163], [1812, 27, 180],
+  [1188, 106, 172], [1373, 92, 172], [1583, 103, 175], [1783, 91, 170],
+  [1175, 294, 182], [1388, 316, 162], [1574, 302, 176], [1815, 319, 174],
+  [1802, 158, 178], [1777, 230, 208],
+];
+const leftOrder = [6, 9, 0, 14, 5, 11, 3, 12, 2, 15, 8, 1, 13, 4, 7, 10];
+const rightOrder = [2, 9, 5, 13, 0, 11, 6, 4, 1, 12, 3, 8, 7, 10];
+const POSITIONS = leftOrder.flatMap((slot, index) => {
+  const right = rightSlots[rightOrder[index]];
+  return right ? [leftSlots[slot], right] : [leftSlots[slot]];
+});
 const INK = ['#ffda98', '#dbe6c3', '#f3cfc8', '#e0d5ee', '#f9e8be'];
 const WALL_FONT = '"Kaiti SC", STKaiti, KaiTi, "Songti SC", "Noto Serif SC", serif';
 
@@ -36,34 +47,24 @@ export function buildWallProjection(T, scene) {
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
     panel.visible = notes.length > 0;
     for (const [index, { id, text }] of notes.entries()) {
-      const [x, y] = POSITIONS[index];
+      const [x, y, width] = POSITIONS[index];
       const color = INK[id % INK.length];
       ctx.save();
-      ctx.translate(x, y + (id % 7 - 3) * 2);
-      ctx.rotate((id % 7 - 3) * .013);
-      const wash = ctx.createRadialGradient(93, 16, 0, 93, 16, 136);
-      wash.addColorStop(0, `${color}22`);
-      wash.addColorStop(1, `${color}00`);
-      ctx.fillStyle = wash;
-      ctx.fillRect(-44, -118, 274, 270);
-      let size = 30;
+      ctx.translate(x, y + (id % 5 - 2));
+      ctx.rotate((id % 9 - 4) * .009);
+      let size = 18 + (id * 7 % 9);
+      const room = Math.min(55, HEIGHT - y - 12);
       let lines;
-      do {
+      for (; size >= 11; size--) {
         ctx.font = `600 ${size}px ${WALL_FONT}`;
-        lines = textLines(ctx, text, 233);
-        if (lines.length * size * 1.13 <= 82) break;
-        size -= 2;
-      } while (size >= 16);
+        lines = textLines(ctx, text, width);
+        if (lines.length * size * 1.15 <= room) break;
+      }
       ctx.fillStyle = color;
       ctx.shadowColor = color;
-      ctx.shadowBlur = 10;
-      ctx.globalAlpha = .88;
-      lines.slice(0, 5).forEach((line, row) => ctx.fillText(line, 0, row * size * 1.13, 239));
-      ctx.shadowBlur = 4;
-      ctx.globalAlpha = .56;
-      ctx.beginPath();
-      ctx.ellipse(-12, -6, 3, 2, .2, 0, 2 * Math.PI);
-      ctx.fill();
+      ctx.shadowBlur = 7;
+      ctx.globalAlpha = .93;
+      lines.forEach((line, row) => ctx.fillText(line, 0, row * size * 1.15, width));
       ctx.restore();
     }
     map.needsUpdate = true;

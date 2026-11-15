@@ -20,7 +20,7 @@ API_PATH = "/api/record-number"
 VISIT_PATH = "/api/visit"
 STATS_PATH = "/api/visitor-stats"
 WALL_PATH = "/api/wall-messages"
-WALL_PAGE_SIZE = 16
+WALL_CAPACITY = 30
 PUBLIC_ORIGINS = {"https://lyn.lipopo.org", "https://gaonan.github.io"}
 REQUEST_ID = re.compile(r"[0-9a-f]{32}")
 SHANGHAI = timezone(timedelta(hours=8))
@@ -91,11 +91,11 @@ def wall_messages(database):
     with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute("BEGIN")
         total = connection.execute("SELECT COUNT(*) FROM wall_message").fetchone()[0]
-        if total <= WALL_PAGE_SIZE:
+        if total <= WALL_CAPACITY:
             rows = connection.execute("SELECT id, text FROM wall_message ORDER BY id DESC").fetchall()
         else:
             rows = connection.execute("SELECT id, text FROM wall_message ORDER BY RANDOM() LIMIT ?",
-                                      (WALL_PAGE_SIZE,)).fetchall()
+                                      (WALL_CAPACITY,)).fetchall()
     return {"messages": [{"id": id_, "text": text} for id_, text in rows], "total": total}
 
 
