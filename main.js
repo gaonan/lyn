@@ -1,54 +1,83 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r42';
-import { buildBotanicals } from './botanicals.js?v=20261113-r42';
-import { createHearts } from './hearts.js?v=20261113-r42';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r42';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r42';
-import { setupMusic } from './music.js?v=20261113-r42';
-import { setupCollection } from './collection.js?v=20261113-r42';
-import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r42';
-import { prepareOffline } from './offline.js?v=20261113-r42';
-import { buildMagazines } from './magazines.js?v=20261113-r42';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r42';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r42';
-import { buildRolePortraits } from './roles.js?v=20261113-r42';
-import { buildRecord } from './record.js?v=20261113-r42';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r42';
-import { createArtworkQueue } from './artwork.js?v=20261113-r42';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r42';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r42';
-import { setupKeepsake } from './keepsake.js?v=20261113-r42';
-const VERSION = '20261113-r42';
+import { buildArchitecture } from './architecture.js?v=20261113-r43';
+import { buildBotanicals } from './botanicals.js?v=20261113-r43';
+import { createHearts } from './hearts.js?v=20261113-r43';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r43';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r43';
+import { setupMusic } from './music.js?v=20261113-r43';
+import { setupCollection } from './collection.js?v=20261113-r43';
+import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r43';
+import { prepareOffline } from './offline.js?v=20261113-r43';
+import { buildMagazines } from './magazines.js?v=20261113-r43';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r43';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r43';
+import { buildRolePortraits } from './roles.js?v=20261113-r43';
+import { buildRecord } from './record.js?v=20261113-r43';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r43';
+import { createArtworkQueue } from './artwork.js?v=20261113-r43';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r43';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r43';
+import { setupKeepsake } from './keepsake.js?v=20261113-r43';
+const VERSION = '20261113-r43';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
-const mobile = matchMedia('(any-pointer: coarse)').matches;
-const renderer=new THREE.WebGLRenderer({canvas,antialias:!mobile,powerPreference:'high-performance'});
+const touchDevice = matchMedia('(any-pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+document.body.classList.toggle('touch-device', touchDevice);
+function createRenderer() {
+  try {
+    return new THREE.WebGLRenderer({
+      canvas, antialias: !touchDevice, powerPreference: touchDevice ? 'default' : 'high-performance',
+    });
+  } catch (error) {
+    loading.fail('无法启动 WebGL 2。请用系统 Safari 或 Chrome 打开，或更新浏览器后重试。');
+    throw error;
+  }
+}
+const renderer = createRenderer();
+const gl = renderer.getContext();
+const [maxViewportWidth, maxViewportHeight] = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+const rendererNotice = $('#error');
+let rendererSuspended = false;
+let openingArtworkReady = false;
 canvas.addEventListener('webglcontextlost', event => {
   event.preventDefault();
-  if (window.bloomReady) $('#error').hidden = false;
-  else loading.fail('画面初始化中断，请重新加载。');
+  rendererSuspended = true;
+  resetInput();
+  rendererNotice.hidden = false;
+});
+canvas.addEventListener('webglcontextrestored', () => {
+  rendererSuspended = false;
+  qualityIndex = 2;
+  lighting.setShadows(false);
+  updateQualityLabel();
+  renderWidth = 0;
+  rendererNotice.hidden = true;
+  resizeRenderer();
+  finishOpening();
 });
 const qualityLevels = [
-  { label: '超清', maxPixelRatio: 3 },
-  { label: '清晰', maxPixelRatio: 2 },
-  { label: '普通', maxPixelRatio: 1.4 },
+  { label: '超清', maxPixelRatio: 3, maxPixels: 5600000 },
+  { label: '清晰', maxPixelRatio: 2, maxPixels: 2000000 },
+  { label: '普通', maxPixelRatio: 1.4, maxPixels: 1050000 },
 ];
 const qualityButton = $('#quality');
-let qualityIndex = mobile ? 1 : 0;
+let qualityIndex = touchDevice ? 1 : 0;
 let renderWidth = 0, renderHeight = 0;
 function resizeRenderer() {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
-  if (!width || !height) return false;
-  const { maxPixelRatio } = qualityLevels[qualityIndex];
-  const pixelRatio = Math.min(devicePixelRatio, maxPixelRatio);
+  if (!width || !height || rendererSuspended) return false;
+  const { maxPixelRatio, maxPixels } = qualityLevels[qualityIndex];
+  const pixelRatio = Math.min(devicePixelRatio, maxPixelRatio, Math.sqrt(maxPixels / (width * height)),
+    maxViewportWidth / width, maxViewportHeight / height);
   if (width === renderWidth && height === renderHeight && pixelRatio === renderer.getPixelRatio()) return false;
   renderWidth = width;
   renderHeight = height;
-  if (pixelRatio !== renderer.getPixelRatio()) renderer.setPixelRatio(pixelRatio);
   // Let CSS size the canvas, including while a mobile browser rotates.
-  renderer.setSize(width, height, false);
+  renderer.setDrawingBufferSize(width, height, pixelRatio);
   camera.aspect = width / height;
+  const portraitFov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(Math.PI / 8) / camera.aspect));
+  camera.fov = THREE.MathUtils.clamp(portraitFov, 62, 84);
   camera.updateProjectionMatrix();
   return true;
 }
@@ -70,22 +99,31 @@ camera.position.set(5.1,5.6,7.5);camera.lookAt(-1.1,2.7,-2.8);
 resizeRenderer();
 renderer.render(scene,camera);
 loading.update(10);
-function onViewportResize() {
-  if (resizeRenderer()) renderer.render(scene, camera);
-}
-window.addEventListener('resize', onViewportResize);
 const lightButton = $('#light');
 function alignViewStick() {
   const { left, width } = lightButton.getBoundingClientRect();
   const center = Math.max(innerWidth * .70, Math.min(innerWidth * .78, left + width / 2));
   document.body.style.setProperty('--look-right-center', `${innerWidth - center}px`);
 }
-window.addEventListener('resize', alignViewStick);
-window.visualViewport?.addEventListener('resize', alignViewStick);
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(alignViewStick).observe($('.tools'));
-alignViewStick();
+let resizeFrame;
+function updateViewport() {
+  alignViewStick();
+  const visibleHeight = window.visualViewport?.height ?? innerHeight;
+  document.body.style.setProperty('--visible-height', `${Math.floor(visibleHeight)}px`);
+  if (resizeRenderer()) renderer.render(scene, camera);
+}
+function onViewportResize() {
+  if (resizeFrame) return;
+  resizeFrame = requestAnimationFrame(() => {
+    resizeFrame = undefined;
+    updateViewport();
+  });
+}
+window.addEventListener('resize', onViewportResize);
 window.visualViewport?.addEventListener('resize', onViewportResize);
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(onViewportResize).observe(canvas);
+updateViewport();
 let offline = { controlled: false, reason: 'preparing' };
 const loader = new THREE.TextureLoader();
 const openingArtwork = createArtworkQueue(loader, ({ percent }) => {
@@ -177,11 +215,8 @@ function renderKeepsake(ctx, x, y, width, height, pixelScale, guestPortrait, pos
     lighting.setNight(true);
     performer.setNight(true);
     performer.update(performance.now() / 1000, photoCamera);
-    const gl = renderer.getContext();
-    const [maxWidth, maxHeight] = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
-    const captureScale = Math.min(pixelScale, maxWidth / width, maxHeight / height);
-    renderer.setPixelRatio(1);
-    renderer.setSize(Math.round(width * captureScale), Math.round(height * captureScale), false);
+    const captureScale = Math.min(pixelScale, maxViewportWidth / width, maxViewportHeight / height);
+    renderer.setDrawingBufferSize(Math.round(width * captureScale), Math.round(height * captureScale), 1);
     renderer.render(scene, photoCamera);
     ctx.drawImage(canvas, x, y, width, height);
   } finally {
@@ -251,7 +286,7 @@ function updateLocation() {
 let toastTimer;
 function toast(t){clearTimeout(toastTimer);$('#toast').textContent=t;$('#toast').style.opacity=1;toastTimer=setTimeout(()=>$('#toast').style.opacity=0,2400)}
 function enter() {
-  if (entered || !modelReady) return;
+  if (entered || !modelReady || rendererSuspended) return;
   entered = true;
   rewardSounds.unlock();
   music.start();
@@ -308,7 +343,7 @@ function resetInput() {
 window.addEventListener('blur',resetInput);document.addEventListener('visibilitychange',resetInput);
 const movementKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 function canMove() {
-  return entered && !document.querySelector('dialog[open]') && !collection.celebrating;
+  return entered && !rendererSuspended && !document.querySelector('dialog[open]') && !collection.celebrating;
 }
 window.addEventListener('keydown', event => {
   if (event.defaultPrevented || !canMove() || event.target.closest?.('input,textarea,[contenteditable]')) return;
@@ -410,7 +445,7 @@ function drawMagazineMarkers(ctx, tx, tz) {
     if (label.textContent !== String(count)) label.textContent = count;
   }
 }
-function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.035);last=now;if(document.hidden)return;
+function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.035);last=now;if(document.hidden||rendererSuspended)return;
  if (canMove()) {
   yaw -= viewSpeed(viewStick.x) * 1.55 * dt;
   pitch = Math.max(-1.15, Math.min(1.15, pitch - viewSpeed(viewStick.y) * 1.05 * dt));
@@ -453,7 +488,7 @@ function updateArtworkProgress(overall) {
   }
 }
 
-window.bloomDebug={build:VERSION,get offline(){return offline},artworkProgress:artwork.progress,get position(){return {...p,yaw,pitch}},get collected(){return collection.count},get hearts(){return hearts.items.map(h=>({id:h.id,footPosition:h.footPosition,collected:h.collected}))},get renderer(){return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,fps}},surfaces:world.surfaces,flowerCounts:flowers.counts,performer:performer.object.userData,
+window.bloomDebug={build:VERSION,get offline(){return offline},artworkProgress:artwork.progress,get position(){return {...p,yaw,pitch}},get collected(){return collection.count},get hearts(){return hearts.items.map(h=>({id:h.id,footPosition:h.footPosition,collected:h.collected}))},get renderer(){return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,fps,buffer:[canvas.width,canvas.height],pixelRatio:renderer.getPixelRatio(),suspended:rendererSuspended}},surfaces:world.surfaces,flowerCounts:flowers.counts,performer:performer.object.userData,
   get magazines() { return magazines.items.map(({ id, x, y, z, floorY, lit }) => ({ id, x, y, z, floorY, lit })); },
   get daimi() { return { visible: daimi.object.visible, position: dogSeat.toArray(), height: daimi.object.userData.height,
     view: daimi.object.userData.currentView, barkPlays: magazineQuest.barkPlays }; },
@@ -467,14 +502,18 @@ function checkOpeningArtwork(ready) {
   if (!ready) loading.fail('人物或杂志尚未加载完整，请重新加载。');
   return ready;
 }
-Promise.all([performer.ready.then(checkOpeningArtwork), magazines.ready.then(checkOpeningArtwork)]).then(([performerReady, magazinesReady]) => {
-  if (!performerReady || !magazinesReady) return;
+function finishOpening() {
+  if (!openingArtworkReady || modelReady || rendererSuspended) return;
   performer.update(performance.now() / 1000, camera);
   renderer.render(scene, camera);
   window.bloomReady = modelReady = loading.finish();
   if (!modelReady) return;
   updateArtworkProgress(artwork.progress());
   setTimeout(() => artwork.start(), 100);
+}
+Promise.all([performer.ready.then(checkOpeningArtwork), magazines.ready.then(checkOpeningArtwork)]).then(ready => {
+  openingArtworkReady = ready.every(Boolean);
+  finishOpening();
 });
 
 
