@@ -1,5 +1,5 @@
-import { createFilmCanvas, loadFilmFont, paintFilmPhoto, shareImage } from './keepsake.js?v=20261113-r40';
-import { cheekColors, matchFaceLighting } from './portrait-color.js?v=20261113-r40';
+import { createFilmCanvas, loadFilmFont, paintFilmPhoto, shareImage } from './keepsake.js?v=20261113-r41';
+import { cheekColors, matchFaceLighting } from './portrait-color.js?v=20261113-r41';
 
 // All player image data stays in this dialog's memory until it is closed.
 const GUIDE_SIZE = 300;
@@ -14,8 +14,8 @@ const POSES = {
       'M465 250 C456 274 431 284 409 293 L346 308 L315 353 L306 532 C322 603 380 684 439 737',
       'L453 733 Q442 723 454 711 L486 689 Q478 671 455 650 L410 581 Q464 582 516 578',
       'L604 582 Q596 636 546 685 L539 695 Q572 695 588 732 L601 729 C635 691 677 616 692 569',
-      'L711 426 L685 306 L619 290 Q582 274 558 252 L565 287 Q581 328 559 370 L539 454',
-      'Q516 429 490 407 L448 361 L477 324 Q464 289 465 250 Z',
+      'L711 426 L685 306 L619 290 Q582 274 558 252 L566 293',
+      'C549 314 492 313 467 295 Q462 279 465 250 Z',
     ].join(' '),
     contour: 'M150 29 C194 29 222 63 244 91 C253 105 254 121 260 136 C271 162 250 208 226 237 C204 263 171 283 153 283 C129 283 97 260 75 235 C52 206 31 164 39 138 C45 118 47 105 56 89 C75 61 100 28 150 29 Z',
     eyes: [[99, 120], [214, 120]],
@@ -27,11 +27,11 @@ const POSES = {
     file: 'stagewear-duet.webp',
     head: [425 / 1024, 54 / 1536, 150 / 1024, 165 / 1536],
     jacket: [
-      'M416 234 Q423 256 442 280 L465 316 L489 335 L528 368',
-      'Q523 403 506 434 L485 591 Q436 591 351 584 L365 476 L291 437 L283 288 L387 264 Z',
-      'M585 288 L618 295 Q644 336 643 469 L731 451 Q719 470 727 492 L752 480 L753 521',
-      'Q697 548 600 569 L594 597 L570 596 Q560 529 556 458 Q565 406 588 360',
-      'Q599 357 602 343 L584 290 Z',
+      'M416 234 Q423 256 442 280 Q469 300 509 288 L488 338 L529 372',
+      'L546 329 L555 299 L567 345 Q574 367 586 359 L584 288',
+      'L618 295 Q644 336 643 469 L731 451 Q719 470 727 492 L752 480 L753 521',
+      'Q697 548 600 569 L594 597 L570 596 Q560 584 559 574 L499 575 L485 591',
+      'Q436 591 351 584 L365 476 L291 437 L283 288 L387 264 Z',
     ].join(' '),
     contour: 'M79 98 C93 86 110 84 127 82 Q136 82 140 92 Q153 81 172 77 C182 74 184 59 195 51 C209 57 218 78 223 91 C225 104 237 115 245 131 C257 154 244 175 238 191 C231 213 242 231 236 251 C224 265 205 284 178 286 C150 285 123 272 104 255 C78 235 54 210 47 187 C40 167 54 146 60 130 C65 114 70 107 79 98 Z',
     eyes: [[127, 122], [200, 95]],
@@ -215,12 +215,12 @@ function toneJacket(ctx, outline, scale) {
     if (!coverage[i + 3] || !pixels[i + 3]) continue;
     const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
     const light = .2126 * r + .7152 * g + .0722 * b;
-    const midtone = Math.min(1, light / 98, (255 - light) / 54);
-    const coloredRim = Math.max(r, g, b) - Math.min(r, g, b);
-    const factor = 1 - .24 * midtone * (1 - .56 * Math.min(1, coloredRim / 86)) * coverage[i + 3] / 255;
-    pixels[i] *= factor;
-    pixels[i + 1] *= factor;
-    pixels[i + 2] *= factor;
+    // Bring the leather into the same near-black range while keeping narrow specular folds legible.
+    const reflectance = .50 + .23 * Math.max(0, light - 105) / 150;
+    const weight = coverage[i + 3] / 255;
+    pixels[i] += ((light + .29 * (r - light)) * reflectance - r) * weight;
+    pixels[i + 1] += ((light + .29 * (g - light)) * reflectance - g) * weight;
+    pixels[i + 2] += ((light + .29 * (b - light)) * reflectance - b) * weight;
   }
   ctx.putImageData(image, left, top);
 }
