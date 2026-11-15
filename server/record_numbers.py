@@ -58,6 +58,14 @@ def initialize_visits(database):
             ) WITHOUT ROWID
         """)
         connection.execute("CREATE INDEX IF NOT EXISTS visit_by_day ON visit(day, visitor)")
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS visit_milestone (
+                page_id TEXT PRIMARY KEY REFERENCES visit(page_id),
+                ready INTEGER NOT NULL,
+                failed INTEGER NOT NULL,
+                first_collection INTEGER NOT NULL
+            ) WITHOUT ROWID
+        """)
         connection.execute("CREATE TABLE IF NOT EXISTS visit_start (day TEXT NOT NULL)")
         connection.execute(
             "INSERT INTO visit_start SELECT ? WHERE NOT EXISTS (SELECT 1 FROM visit_start)",
@@ -66,34 +74,50 @@ def initialize_visits(database):
 
 
 def log_visit(database, origin, payload):
-    if set(payload) != {"visitorId", "pageId", "event"}:
+    base_keys = {"visitorId", "pageId", "event"}
+    tracked = set(payload) == base_keys | {"v"} and payload["v"] == 2
+    if not tracked and set(payload) != base_keys:
         raise ValueError
     visitor_id, page_id, event = (payload[key] for key in ("visitorId", "pageId", "event"))
     if not all(isinstance(value, str) and REQUEST_ID.fullmatch(value) for value in (visitor_id, page_id)):
         raise ValueError
-    if event not in ("open", "enter"):
+    if event not in (("open", "enter", "ready", "load-failed", "first-collection") if tracked else ("open", "enter")):
         raise ValueError
     visitor = sha256(f"{origin}:{visitor_id}".encode()).hexdigest()
     page = sha256(page_id.encode()).hexdigest()
     day = datetime.now(SHANGHAI).date().isoformat()
     with closing(sqlite3.connect(database)) as connection, connection:
-        connection.execute("""
+        cursor = connection.execute("""
             INSERT INTO visit VALUES (?, ?, ?, ?)
             ON CONFLICT(page_id) DO UPDATE SET entered = MAX(visit.entered, excluded.entered)
             WHERE visit.visitor = excluded.visitor
-        """, (page, visitor, day, int(event == "enter")))
+        """, (page, visitor, day, int(event in ("enter", "first-collection"))))
+        if tracked and cursor.rowcount:
+            connection.execute("""
+                INSERT INTO visit_milestone VALUES (?, ?, ?, ?)
+                ON CONFLICT(page_id) DO UPDATE SET
+                    ready = MAX(visit_milestone.ready, excluded.ready),
+                    failed = MAX(visit_milestone.failed, excluded.failed),
+                    first_collection = MAX(visit_milestone.first_collection, excluded.first_collection)
+            """, (page, int(event in ("ready", "enter", "first-collection")),
+                  int(event == "load-failed"), int(event == "first-collection")))
 
 
 def visitor_stats(database):
     today = datetime.now(SHANGHAI).date()
     days = [(today - timedelta(days=n)).isoformat() for n in range(6, -1, -1)]
-    fields = ("visitors", "opens", "enters")
-    counters = "COUNT(DISTINCT visitor), COUNT(*), COALESCE(SUM(entered), 0)"
+    fields = ("visitors", "opens", "enters", "tracked", "ready", "failed", "tracked_enters", "first_collection")
+    counters = """
+        COUNT(DISTINCT visitor), COUNT(*), COALESCE(SUM(entered), 0), COUNT(m.page_id),
+        COALESCE(SUM(m.ready), 0), COALESCE(SUM(m.failed * (1 - m.ready)), 0),
+        COALESCE(SUM(entered * m.ready), 0), COALESCE(SUM(m.first_collection), 0)
+    """
+    visits = "visit LEFT JOIN visit_milestone AS m USING (page_id)"
     with closing(sqlite3.connect(database)) as connection:
         start = connection.execute("SELECT day FROM visit_start").fetchone()[0]
-        total = dict(zip(fields, connection.execute(f"SELECT {counters} FROM visit").fetchone()))
+        total = dict(zip(fields, connection.execute(f"SELECT {counters} FROM {visits}").fetchone()))
         recent = {day: dict(zip(fields, row)) for day, *row in connection.execute(
-            f"SELECT day, {counters} FROM visit WHERE day >= ? GROUP BY day", (days[0],)
+            f"SELECT day, {counters} FROM {visits} WHERE day >= ? GROUP BY day", (days[0],)
         )}
     return {"total": total, "days": [
         {"day": day, **recent.get(day, dict.fromkeys(fields, 0))} for day in days if day >= start

@@ -31,6 +31,12 @@ function overlaps(box, x, z) {
     && z + RADIUS > box.minZ && z - RADIUS < box.maxZ;
 }
 
+export function canRestorePosition({ x, y, z }, surfaces, colliders) {
+  return surfaces.some(surface => x >= surface.minX && x <= surface.maxX
+    && z >= surface.minZ && z <= surface.maxZ && Math.abs(heightAt(surface, z, x) - y) < .01)
+    && !colliders.some(box => overlaps(box, x, z) && y + 1.45 > box.minY && y + .2 < box.maxY);
+}
+
 /** Integrate jumps against the same floor, stair and obstacle geometry as walking. */
 export function stepPlayer(player, moveX, moveZ, elapsed, jump, surfaces, colliders) {
   const dt = Math.min(elapsed, .035);

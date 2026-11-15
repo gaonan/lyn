@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r46';
-import { roleInReach } from './roles.js?v=20261113-r46';
+import { magazineInReach } from './magazines.js?v=20261113-r47';
+import { roleInReach } from './roles.js?v=20261113-r47';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
@@ -39,6 +39,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   let invitationPending = false;
   let roleUnlocked = false;
   let roleCount = 0;
+  let roleFinalePending = false;
   let achievementPending = false;
   let newRecord = false;
 
@@ -189,6 +190,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   document.addEventListener('visibilitychange', cancelHold);
 
   dialog.querySelector('.close').onclick = () => dialog.close();
+  dialog.addEventListener('close', () => options.playSave.mark('dogSeen'));
   dialog.querySelector('.primary').onclick = () => {
     dialog.close();
     options.goToStage();
@@ -196,6 +198,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   for (const button of roleDialog.querySelectorAll('button')) {
     button.onclick = () => roleDialog.close();
   }
+  roleDialog.addEventListener('close', () => options.playSave.mark('invitationSeen'));
   roleFinale.querySelector('button').onclick = () => roleFinale.close();
   function unlockRecord() {
     if (!record.unlocked) {
@@ -228,7 +231,10 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   }
   function barkEnded() {
     barkPlaying = false;
-    if (!roleUnlocked) invitationPending = true;
+    if (!roleUnlocked) {
+      options.playSave.mark('dogGreeted');
+      invitationPending = true;
+    }
   }
 
   function playDecodedBarks() {
@@ -289,6 +295,28 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     roles.show();
   }
 
+  function restore() {
+    const saved = options.playSave.state;
+    for (const id of saved.magazines) magazines.light(id);
+    count = magazines.items.filter(magazine => magazine.lit).length;
+    counter.textContent = count;
+    magazinesCelebrated = count === total;
+    if (!magazinesCelebrated || !options.heartsComplete()) return;
+    if (saved.dogSeen || saved.dogGreeted || saved.invitationSeen) {
+      daimiUnlocked = true;
+      options.unlock();
+    }
+    if (!saved.invitationSeen) {
+      invitationPending = saved.dogGreeted;
+      return;
+    }
+    unlockRoles();
+    for (const id of saved.roles) roles.receive(id);
+    roleCount = roles.entries.filter(role => role.received).length;
+    rolePanel.querySelector('b').textContent = roleCount;
+    roleFinalePending = roleCount === roles.entries.length && !record.unlocked;
+  }
+
   function completeForTesting() {
     cancelHold();
     target = null;
@@ -318,6 +346,12 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     }
     if (achievementPending) {
       finishRecord();
+      return true;
+    }
+    if (roleFinalePending) {
+      roleFinalePending = false;
+      options.goToStage();
+      showModal(roleFinale);
       return true;
     }
     if (!daimiUnlocked && magazinesCelebrated && options.heartsComplete()) {
@@ -379,6 +413,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     }
     if (roleUnlocked) {
       if (!roles.receive(id)) return true;
+      options.onCollect('roles', id);
       options.rewardSounds.play('role');
       rolePanel.querySelector('b').textContent = ++roleCount;
       if (roleCount === roles.entries.length) celebrateRoles();
@@ -386,6 +421,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       return true;
     }
     if (!magazines.light(id)) return true;
+    options.onCollect('magazines', id);
     options.rewardSounds.play('magazine');
     counter.textContent = ++count;
     if (count === total) {
@@ -400,6 +436,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
 
   return {
     update,
+    restore,
     completeForTesting,
     get open() { return modalOpen(); },
     get count() { return count; },

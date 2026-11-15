@@ -25,6 +25,7 @@
   .toolbar { margin: 15px 0 0; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   #status { margin: 0; font-size: 12px; color: #c6ceb9; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .history-table { overflow-x: auto; }
   th, td { padding: 7px 3px; text-align: right; border-bottom: 1px solid #e8d6b222; white-space: nowrap; }
   th { color: #d5bc87; font-weight: 500; }
   th:first-child, td:first-child { text-align: left; }
@@ -53,9 +54,14 @@
       <dl class="cards" id="total"><div><dt>去重访客</dt><dd>—</dd></div><div><dt>页面打开</dt><dd>—</dd></div><div><dt>进入花房</dt><dd>—</dd></div></dl>
     </section>
     <div class="record"><span>唱片最新发号</span><strong id="number">—</strong></div>
+    <section aria-labelledby="funnel-title">
+      <h2 id="funnel-title">游玩漏斗</h2>
+      <table id="funnel"><thead><tr><th scope="col">新版本事件</th><th scope="col">今天</th><th scope="col">累计</th></tr></thead><tbody></tbody></table>
+      <p class="definition">加载失败含启动报错和出现停滞提示后离开。首次收集按页面去重，恢复存档和测试通关不计。</p>
+    </section>
     <section aria-labelledby="history-title">
       <h2 id="history-title">近 7 天</h2>
-      <table><thead><tr><th scope="col">日期</th><th scope="col">访客</th><th scope="col">打开</th><th scope="col">进场</th></tr></thead><tbody></tbody></table>
+      <div class="history-table"><table id="history"><thead><tr><th scope="col">日期</th><th scope="col">访客</th><th scope="col">打开</th><th scope="col">进场</th><th scope="col">就绪</th><th scope="col">失败</th><th scope="col">首收集</th></tr></thead><tbody></tbody></table></div>
     </section>
     <p class="definition">访客按同一浏览器、同一站点去重。进场按点过「开始收集」的页面计数。日期以北京时间为准。</p>
   </div>
@@ -78,6 +84,13 @@
   function values({ visitors, opens, enters }) {
     return [visitors, opens, enters].map(value => format.format(value));
   }
+  const milestones = [
+    ['页面打开', 'tracked'], ['加载完成', 'ready'], ['加载失败', 'failed'],
+    ['进入花房', 'tracked_enters'], ['首次收集', 'first_collection'],
+  ];
+  function milestoneCount(data, name) {
+    return data.tracked ? format.format(data[name]) : '—';
+  }
   async function load() {
     if (loading) return;
     if (!/^[a-f0-9]{64}$/.test(key)) return unlock('请输入密钥，或打开你的私密统计链接。');
@@ -91,11 +104,20 @@
       const { total, days } = await response.json();
       const fill = (selector, data) => document.querySelectorAll(selector + ' dd')
         .forEach((cell, index) => { cell.textContent = values(data)[index]; });
-      fill('#today', days.at(-1));
+      const today = days.at(-1);
+      fill('#today', today);
       fill('#total', total);
-      $('tbody').replaceChildren(...[...days].reverse().map(day => {
+      $('#funnel tbody').replaceChildren(...milestones.map(([label, name]) => {
         const row = document.createElement('tr');
-        [day.day.slice(5), ...values(day)].forEach(value => { row.insertCell().textContent = value; });
+        row.insertCell().textContent = label;
+        row.insertCell().textContent = format.format(today[name] ?? 0);
+        row.insertCell().textContent = format.format(total[name] ?? 0);
+        return row;
+      }));
+      $('#history tbody').replaceChildren(...[...days].reverse().map(day => {
+        const row = document.createElement('tr');
+        [day.day.slice(5), ...values(day), ...['ready', 'failed', 'first_collection'].map(name => milestoneCount(day, name))]
+          .forEach(value => { row.insertCell().textContent = value; });
         return row;
       }));
       try { sessionStorage.setItem('carnation7-stats-key', key); } catch {}

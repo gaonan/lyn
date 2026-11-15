@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
 from pathlib import Path
+import sqlite3
 from tempfile import TemporaryDirectory
 from threading import Thread
 import unittest
@@ -28,7 +29,7 @@ def running_server(database, stats_key=None):
 
 
 def request(url, *, origin=MAIN, method="GET", payload=None, key=None):
-    data = None if payload is None else json.dumps(payload).encode()
+    data = None if payload is None else json.dumps(payload, separators=(",", ":")).encode()
     headers = {"Origin": origin, "Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
@@ -98,10 +99,38 @@ class RecordNumbersTests(unittest.TestCase):
             status, headers, stats = request(stats_url, key=key)
             self.assertEqual(status, 200)
             self.assertEqual(headers["Cache-Control"], "no-store")
-            self.assertEqual(stats["total"], {"visitors": 2, "opens": 3, "enters": 1})
+            self.assertEqual({key: stats["total"][key] for key in ("visitors", "opens", "enters")},
+                             {"visitors": 2, "opens": 3, "enters": 1})
+            self.assertEqual(stats["total"]["tracked"], 0)
             self.assertEqual(len(stats["days"]), 1)
             self.assertEqual(stats["days"][-1]["opens"], 3)
             self.assertIsNone(request(url)[2]["latest"])
+
+    def test_funnel_migrates_legacy_counts_and_deduplicates_reordered_events(self):
+        key = "a" * 64
+        with running_server(self.database) as url:
+            event = {"visitorId": "a" * 32, "pageId": "1" * 32, "event": "enter"}
+            self.assertEqual(request(url.replace(API_PATH, "/api/visit"), method="POST", payload=event)[0], 204)
+            self.assertEqual(claim(url, "1" * 32), 1)
+        with sqlite3.connect(self.database.with_name("visits.sqlite3")) as connection:
+            connection.execute("DROP TABLE visit_milestone")
+        with running_server(self.database, stats_key=key.encode()) as url:
+            for page, event, origin in (
+                ("2", "first-collection", MAIN), ("2", "first-collection", MAIN),
+                ("2", "open", MAIN), ("2", "load-failed", MAIN),
+                ("3", "load-failed", MIRROR), ("3", "open", MIRROR),
+                ("4", "ready", MAIN), ("5", "open", MAIN),
+            ):
+                payload = {"visitorId": "a" * 32, "pageId": page * 32, "event": event, "v": 2}
+                self.assertEqual(request(url.replace(API_PATH, "/api/visit"), origin=origin,
+                                         method="POST", payload=payload)[0], 204)
+            stats = request(url.replace(API_PATH, "/api/visitor-stats"), key=key)[2]
+            self.assertEqual(stats["total"], {
+                "visitors": 2, "opens": 5, "enters": 2, "tracked": 4, "ready": 2,
+                "failed": 1, "tracked_enters": 1, "first_collection": 1,
+            })
+            self.assertEqual(stats["days"][-1]["first_collection"], 1)
+            self.assertEqual(request(url)[2], {"latest": 1})
 
 
 if __name__ == "__main__":

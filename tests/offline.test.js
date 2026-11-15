@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {prepareOffline} from '../dist/offline.js';
 
-const pageURL='https://example.test/flower/?v=20261113-r46';
-const currentURL='https://example.test/flower/sw.js?v=20261113-r46';
+const pageURL='https://example.test/flower/?v=20261113-r47';
+const currentURL='https://example.test/flower/sw.js?v=20261113-r47';
 class Workers extends EventTarget {
   controller=null;
   requests=[];

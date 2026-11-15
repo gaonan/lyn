@@ -21,14 +21,14 @@ export function chooseRoleSpots(random = Math.random) {
   return spots;
 }
 
-export function buildRolePortraits(T, scene, version, loader = new T.TextureLoader()) {
+export function buildRolePortraits(T, scene, version, loader = new T.TextureLoader(), random = Math.random) {
   const display = new T.Group();
   display.visible = false;
   scene.add(display);
   const frameMaterial = new T.MeshBasicMaterial({ color: '#e5b9f1', toneMapped: false });
   const accentMaterial = new T.MeshBasicMaterial({ color: '#fbe5ff', toneMapped: false });
   const accent = new T.CircleGeometry(.045, 4);
-  const entries = chooseRoleSpots().map((spot, index) => {
+  const entries = chooseRoleSpots(random).map((spot, index) => {
     const [name, series] = ROLES[index];
     const url = `./assets/roles/role-${String(index + 1).padStart(2, '0')}.webp?v=${version}`;
     const portrait = new T.Group();
