@@ -1,26 +1,28 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r46';
-import { buildBotanicals } from './botanicals.js?v=20261113-r46';
-import { createHearts } from './hearts.js?v=20261113-r46';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r46';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r46';
-import { setupMusic } from './music.js?v=20261113-r46';
-import { setupCollection } from './collection.js?v=20261113-r46';
-import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r46';
-import { prepareOffline } from './offline.js?v=20261113-r46';
-import { buildMagazines } from './magazines.js?v=20261113-r46';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r46';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r46';
-import { buildRolePortraits } from './roles.js?v=20261113-r46';
-import { buildRecord } from './record.js?v=20261113-r46';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r46';
-import { createArtworkQueue } from './artwork.js?v=20261113-r46';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r46';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r46';
-import { setupKeepsake } from './keepsake.js?v=20261113-r46';
-const VERSION = '20261113-r46';
+import { buildArchitecture } from './architecture.js?v=20261113-r47';
+import { buildBotanicals } from './botanicals.js?v=20261113-r47';
+import { createHearts } from './hearts.js?v=20261113-r47';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r47';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r47';
+import { setupMusic } from './music.js?v=20261113-r47';
+import { setupCollection } from './collection.js?v=20261113-r47';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r47';
+import { prepareOffline } from './offline.js?v=20261113-r47';
+import { buildMagazines } from './magazines.js?v=20261113-r47';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r47';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r47';
+import { buildRolePortraits } from './roles.js?v=20261113-r47';
+import { buildRecord } from './record.js?v=20261113-r47';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r47';
+import { createArtworkQueue } from './artwork.js?v=20261113-r47';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r47';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r47';
+import { setupKeepsake } from './keepsake.js?v=20261113-r47';
+import { createPlaySave } from './play-save.js?v=20261113-r47';
+const VERSION = '20261113-r47';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
+const playSave = createPlaySave();
 const touchDevice = matchMedia('(any-pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 document.body.classList.toggle('touch-device', touchDevice);
 function createRenderer() {
@@ -134,7 +136,7 @@ const performer = buildPhotographicPerformer(THREE, scene, {
   views: PERFORMER_VIEWS, version: VERSION, nightTint: [.84, .87, .91], lowerBodyExtension: .299, loader: openingArtwork.loaderFor('performer'),
 });
 const music = setupMusic();
-const magazines = buildMagazines(THREE, scene, VERSION, Math.random, openingArtwork.loaderFor('magazines'));
+const magazines = buildMagazines(THREE, scene, VERSION, playSave.random('magazines'), openingArtwork.loaderFor('magazines'));
 const dogSeat = world.stoolSeat.getCenter(new THREE.Vector3());
 dogSeat.y = world.stoolSeat.max.y + .001;
 dogSeat.z += .012;
@@ -143,7 +145,7 @@ const daimi = buildPhotographicPerformer(THREE, scene, {
   name: '呆米', reference: '呆米照片', position: dogSeat.toArray(),
   views: DAIMI_VIEWS, version: VERSION, height: .345, sway: false, fixedViewPlanes: true, loader: artwork.loaderFor('dog'),
 });
-const roles = buildRolePortraits(THREE, scene, VERSION, artwork.loaderFor('roles'));
+const roles = buildRolePortraits(THREE, scene, VERSION, artwork.loaderFor('roles'), playSave.random('roles'));
 const record = buildRecord(THREE, scene, VERSION, artwork.loaderFor('record'));
 daimi.object.visible = false;
 daimi.setNight(true);
@@ -160,8 +162,13 @@ daimiShadow.visible = false;
 scene.add(daimiShadow);
 let entered=false,modelReady=false,p=spawnPlayer({x:0,y:0,z:6.8}),yaw=0,pitch=.08,eye=1.65,night=true;
 const rewardSounds = createRewardSounds(VERSION);
-const hearts=createHearts(THREE,scene);
-const collection=setupCollection(hearts,()=>p,rewardSounds);
+const hearts = createHearts(THREE, scene, playSave.random('hearts'));
+function saveCollection(group, id) {
+  playSave.collect(group, id);
+  window.dispatchEvent(new Event('bloom-collected'));
+}
+const collection = setupCollection(hearts, () => p, rewardSounds, id => saveCollection('hearts', id));
+collection.restore(playSave.state.hearts);
 const openGroupPhoto = setupGroupPhoto($('#group-photo-dialog'), renderKeepsake, VERSION, () => daimi.ready);
 const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, openGroupPhoto);
 function renderKeepsake(ctx, x, y, width, height, pixelScale, guestPortrait, pose) {
@@ -239,6 +246,8 @@ function renderKeepsake(ctx, x, y, width, height, pixelScale, guestPortrait, pos
   }
 }
 const magazineQuest = setupMagazineQuest(magazines, roles, dogSeat, record, () => p, {
+  playSave,
+  onCollect: saveCollection,
   openKeepsake,
   dogPhoto: `${DAIMI_VIEWS.front.url}?v=${VERSION}`,
   artworkProgress: artwork.progress,
@@ -264,16 +273,40 @@ const destinations = [
   { x: 7.60, y: 4.8, z: -5.76, yaw: Math.PI / 2, pitch: 0 },
   { x: -7.60, y: 7.2, z: .95, yaw: -Math.PI / 2, pitch: 0 },
 ];
-function setSpot(index) {
-  const { x, y, z, yaw: heading, pitch: tilt } = destinations[index];
+let checkpoint, lastSavedCheckpoint, lastCheckpointSave = 0;
+function captureCheckpoint() {
+  if (!p.grounded || p.onProp) return;
+  const { x, y, z } = p;
+  if (checkpoint?.x === x && checkpoint.y === y && checkpoint.z === z
+    && checkpoint.yaw === yaw && checkpoint.pitch === pitch) return;
+  checkpoint = { x, y, z, yaw, pitch };
+}
+function flushCheckpoint(now = performance.now()) {
+  if (!entered || !checkpoint || checkpoint === lastSavedCheckpoint) return;
+  playSave.savePosition(checkpoint);
+  lastSavedCheckpoint = checkpoint;
+  lastCheckpointSave = now;
+}
+window.addEventListener('pagehide', () => flushCheckpoint());
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) flushCheckpoint();
+});
+$('#reload').addEventListener('click', () => flushCheckpoint(), { capture: true });
+
+function placePlayer({ x, y, z, yaw: heading, pitch: tilt }) {
   p = spawnPlayer({ x, y, z });
   yaw = heading;
-  pitch = tilt;
+  pitch = Math.max(-1.15, Math.min(1.15, tilt));
   eye = y + 1.65;
   camera.position.set(x, eye, z);
   camera.rotation.set(pitch, yaw, 0);
   resetInput();
   updateLocation();
+  captureCheckpoint();
+  flushCheckpoint();
+}
+function setSpot(index) {
+  placePlayer(destinations[index]);
 }
 function updateLocation() {
   const label = p.y > 6.7 ? '四层 · 顶部书廊' : p.y > 4.2 ? '三层 · 花藤走廊' :
@@ -311,7 +344,8 @@ function enter() {
   $('#hud').hidden = false;
   updateLandscapeReminder();
   alignViewStick();
-  setSpot(0);
+  const saved = playSave.state.position;
+  placePlayer(saved && canRestorePosition(saved, world.surfaces, colliders) ? saved : destinations[0]);
   setTimeout(() => { $('#hint').style.opacity = 0; }, 9000);
 }
 $('#enter').onclick=enter;$('.brand').onclick=e=>{e.preventDefault();if(entered)setSpot(0)};
@@ -330,6 +364,10 @@ testCorner.addEventListener('click', () => {
   testTaps = 0;
   collection.completeForTesting();
   magazineQuest.completeForTesting();
+  playSave.collect('hearts', ...hearts.items.map(heart => heart.id));
+  playSave.collect('magazines', ...magazines.items.map(magazine => magazine.id));
+  playSave.collect('roles', ...roles.entries.map(role => role.id));
+  playSave.mark('invitationSeen');
   toast(record.claimed ? '前置任务已完成' : '前置任务已完成 · 唱片在一楼背墙');
 });
 
@@ -477,6 +515,8 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
     dt, jumpRequested, world.surfaces, colliders);
   jumpRequested = false;
   if (p !== previous && (p.grounded || previous.grounded)) updateLocation();
+  captureCheckpoint();
+  if (now - lastCheckpointSave >= 1000) flushCheckpoint(now);
   eye += (p.y + 1.65 - eye) * Math.min(1, dt * (p.grounded ? 15 : 23));
   camera.position.set(p.x, eye, p.z);
   camera.rotation.set(pitch, yaw, 0);
@@ -522,6 +562,8 @@ function checkOpeningArtwork(ready) {
 }
 function finishOpening() {
   if (!openingArtworkReady || modelReady || rendererSuspended) return;
+  magazineQuest.restore();
+  if (playSave.state.position) $('#enter span').textContent = '继续漫游';
   performer.update(performance.now() / 1000, camera);
   renderer.render(scene, camera);
   window.bloomReady = modelReady = loading.finish();

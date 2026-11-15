@@ -12,17 +12,13 @@ const CANDIDATES = [
   { id: 'upper-books', x: 0, y: 4.8, z: -5.7 },
   { id: 'upper-window', x: 7.2, y: 4.8, z: -5.7 },
 ];
-let visitSelection;
-
-export function createHearts(THREE, scene) {
-  if (!visitSelection) {
-    const shuffled = [...CANDIDATES];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    visitSelection = [STAGE_HEART, ...shuffled.slice(0, 4)];
+export function createHearts(THREE, scene, random = Math.random) {
+  const shuffled = [...CANDIDATES];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
+  const selection = [STAGE_HEART, ...shuffled.slice(0, 4)];
 
   const shape = new THREE.Shape();
   shape.moveTo(0, .19);
@@ -45,7 +41,7 @@ export function createHearts(THREE, scene) {
   const transform = new THREE.Object3D();
   let lastTime = 0;
 
-  const items = visitSelection.map((spot, index) => {
+  const items = selection.map((spot, index) => {
     const object = new THREE.Group(); object.name = `Collectible heart: ${spot.id}`;
     object.position.set(spot.x, spot.y + 1.1, spot.z);
     const body = new THREE.Mesh(heartGeometry, heartMaterial);
@@ -108,11 +104,12 @@ export function createHearts(THREE, scene) {
     }
   }
 
-  function collect(id) {
+  function collect(id, restored = false) {
     const item = items.find(entry => entry.id === id);
     if (!item || item.collected) return false;
     item.collected = true;
-    item.object.userData.collectedAt = lastTime;
+    item.object.userData.collectedAt = restored ? lastTime - 1 : lastTime;
+    if (restored) item.object.visible = false;
     return true;
   }
 

@@ -1,4 +1,4 @@
-export function setupCollection(hearts, getPlayer, rewardSounds) {
+export function setupCollection(hearts, getPlayer, rewardSounds, onCollect) {
   const root=document.createElement('div');root.innerHTML=`<div id="heart-counter" aria-live="polite"><span>♡</span><label>心心收集度：</label><b>0</b><em>/ 5</em></div><button id="collect-heart" hidden aria-label="按住两秒收集爱心"><svg viewBox="0 0 72 72"><circle class="track" cx="36" cy="36" r="32"/><circle class="progress" cx="36" cy="36" r="32"/></svg><span class="heart-symbol">♥</span><span class="collect-label">按住收集<small>2 秒 · 留住这份心意</small></span></button><div id="collected-message" role="status">♥ 已收集</div><div id="finale" hidden><canvas id="petal-sky"></canvas><div class="finale-content"><div class="eyebrow">FIVE HEARTS. ONE DESTINATION.</div><div class="finale-heart">♡</div><h2>该相逢的人<br>会相逢</h2><p>一路的花开，是相逢的伏笔。</p><button id="continue-walk">带着心意，继续漫游 <span>↗</span></button></div></div>`;document.body.append(root);
   const button=document.getElementById('collect-heart'),ring=button.querySelector('.progress'),counter=document.querySelector('#heart-counter b'),message=document.getElementById('collected-message'),finale=document.getElementById('finale');
   let near=null,holding=null,count=0,shown=false,celebrating=false,finaleStart=0,lastTime=0,pointer=null;const length=Math.PI*64;ring.style.strokeDasharray=length;ring.style.strokeDashoffset=length;
@@ -17,7 +17,13 @@ export function setupCollection(hearts, getPlayer, rewardSounds) {
   function update(now,active){lastTime=now;const p=getPlayer();hearts.update(now/1000,p);if(celebrating)celebrate(now);if(!active||celebrating){button.hidden=true;cancel();return;}
     near=hearts.items.filter(h=>!h.collected&&Math.abs(p.y-h.floorY)<.7&&Math.hypot(p.x-h.footPosition.x,p.z-h.footPosition.z)<1.6).sort((a,b)=>Math.hypot(p.x-a.footPosition.x,p.z-a.footPosition.z)-Math.hypot(p.x-b.footPosition.x,p.z-b.footPosition.z))[0]||null;
     button.hidden=!near;if(holding&&(!near||holding.id!==near.id))cancel();
-    if(holding){const progress=Math.min(1,(now-holding.start)/2000);ring.style.strokeDashoffset=length*(1-progress);if(progress===1){const id=holding.id;cancel();if(hearts.collect(id)){rewardSounds?.play('heart');count++;counter.textContent=count;message.classList.add('show');setTimeout(()=>message.classList.remove('show'),1600);button.hidden=true;if(navigator.vibrate)navigator.vibrate([30,25,60]);if(count===5)setTimeout(finish,850);}}}
+    if(holding){const progress=Math.min(1,(now-holding.start)/2000);ring.style.strokeDashoffset=length*(1-progress);if(progress===1){const id=holding.id;cancel();if(hearts.collect(id)){onCollect?.(id);rewardSounds?.play('heart');count++;counter.textContent=count;message.classList.add('show');setTimeout(()=>message.classList.remove('show'),1600);button.hidden=true;if(navigator.vibrate)navigator.vibrate([30,25,60]);if(count===5)setTimeout(finish,850);}}}
+  }
+  function restore(ids) {
+    for (const id of ids) hearts.collect(id, true);
+    count = hearts.items.filter(heart => heart.collected).length;
+    counter.textContent = count;
+    shown = count === hearts.items.length;
   }
   function completeForTesting() {
     cancel();
@@ -27,5 +33,5 @@ export function setupCollection(hearts, getPlayer, rewardSounds) {
     shown = true;
     button.hidden = true;
   }
-  return {update,completeForTesting,get count(){return count},get holding(){return !!holding},get celebrating(){return celebrating},get complete(){return shown&&!celebrating}};
+  return {update,restore,completeForTesting,get count(){return count},get holding(){return !!holding},get celebrating(){return celebrating},get complete(){return shown&&!celebrating}};
 }

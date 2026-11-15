@@ -17,19 +17,31 @@
     fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ visitorId, pageId, event }),
+      body: JSON.stringify({ visitorId, pageId, event, v: 2 }),
       credentials: 'omit',
       keepalive: true,
     }).catch(() => {});
   };
+  let opened = false;
+  const pendingEvents = [];
   function recordOpening() {
     if (document.hidden || document.prerendering) return;
     document.removeEventListener('visibilitychange', recordOpening);
     document.removeEventListener('prerenderingchange', recordOpening);
+    opened = true;
     report('open');
+    for (const event of pendingEvents.splice(0)) report(event);
   }
   document.addEventListener('visibilitychange', recordOpening);
   document.addEventListener('prerenderingchange', recordOpening);
   recordOpening();
-  window.addEventListener('bloom-entered', () => report('enter'), { once: true });
+  for (const [signal, event] of [
+    ['bloom-ready', 'ready'], ['bloom-load-failed', 'load-failed'],
+    ['bloom-entered', 'enter'], ['bloom-collected', 'first-collection'],
+  ]) {
+    window.addEventListener(signal, () => {
+      if (opened) report(event);
+      else pendingEvents.push(event);
+    }, { once: true });
+  }
 })();
