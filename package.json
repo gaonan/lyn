@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "python3 -m http.server 4173 --directory dist",
-    "check": "node --check dist/main.js && node --check dist/architecture.js && node --check dist/atrium-light.js && node --check dist/surface-maps.js && node --check dist/botanicals.js && node --check dist/performer-photo.js && node --check dist/performer-views.js && node --check dist/keepsake.js && node --check dist/group-photo.js && node --check dist/navigation.js && node --check dist/offline.js && node --check dist/sw.js && node --test tests/*.test.js"
+    "start": "python3 -B server/record_numbers.py --port 4173 --database .local/record-numbers.sqlite3 --static-root dist",
+    "check": "node --check dist/main.js && node --check dist/architecture.js && node --check dist/atrium-light.js && node --check dist/surface-maps.js && node --check dist/botanicals.js && node --check dist/performer-photo.js && node --check dist/performer-views.js && node --check dist/keepsake.js && node --check dist/group-photo.js && node --check dist/navigation.js && node --check dist/offline.js && node --check dist/sw.js && node --test tests/*.test.js && python3 -B -m unittest discover -s tests -p 'test_*.py'"
   }
 }

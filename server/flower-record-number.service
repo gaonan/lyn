@@ -1,0 +1,17 @@
+[Unit]
+Description=Carnation record keepsake numbering
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 -B /opt/flower-cafe/record-number/record_numbers.py --database /var/lib/flower-record-number/records.sqlite3
+Restart=on-failure
+DynamicUser=yes
+StateDirectory=flower-record-number
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

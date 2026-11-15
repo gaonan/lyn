@@ -29,13 +29,15 @@ npm start
 
 打开 [http://localhost:4173](http://localhost:4173)。网页源码和静态资产在 `dist/`，其中包含 Three.js 和 HLS.js。HTTPS 站点支持缓存完成后的离线访问。
 
+主站与备用站从同一服务领取唱片收藏编号，起号为 `No.000001`。[查看已发到的编号](https://lyn.lipopo.org/api/record-number)。生成带编号的唱片留影时需要联网，照片和留言仍在本机处理。本地运行使用 `.local/record-numbers.sqlite3`，与线上序列独立。
+
 混凝土、木纹、布纹和叶脉贴图在浏览器生成。超清画质会预先计算固定建筑的投影。舞台光束由 WebGL 程序生成，日光与夜色模式使用不同的灯光强度。
 
 ## 测试与打包
 
 ```sh
 npm run check
-python3 scripts/package_release.py pack --build 20261113-r43
+python3 scripts/package_release.py pack --build 20261113-r44
 ```
 
 测试覆盖楼层和楼梯可达性、收集交互、人物照片展示和离线缓存。打包脚本根据 `dist/` 生成发布归档和 SHA-256 清单。
