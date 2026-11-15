@@ -1,10 +1,14 @@
-"""Issue a shared serial for each numbered Carnation keepsake."""
+"""Issue Carnation keepsake numbers and track aggregate visits."""
 
 import argparse
 from contextlib import closing
+from datetime import datetime, timedelta, timezone
 from functools import partial
+from hashlib import sha256
+from hmac import compare_digest
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 import re
 import sqlite3
@@ -12,8 +16,11 @@ from urllib.parse import urlsplit
 
 
 API_PATH = "/api/record-number"
+VISIT_PATH = "/api/visit"
+STATS_PATH = "/api/visitor-stats"
 PUBLIC_ORIGINS = {"https://lyn.lipopo.org", "https://gaonan.github.io"}
 REQUEST_ID = re.compile(r"[0-9a-f]{32}")
+SHANGHAI = timezone(timedelta(hours=8))
 
 
 def initialize(database):
@@ -39,10 +46,64 @@ def issue(database, request_id):
         return cursor.lastrowid
 
 
+def initialize_visits(database):
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("PRAGMA journal_mode = WAL")
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS visit (
+                page_id TEXT PRIMARY KEY,
+                visitor TEXT NOT NULL,
+                day TEXT NOT NULL,
+                entered INTEGER NOT NULL
+            ) WITHOUT ROWID
+        """)
+        connection.execute("CREATE INDEX IF NOT EXISTS visit_by_day ON visit(day, visitor)")
+        connection.execute("CREATE TABLE IF NOT EXISTS visit_start (day TEXT NOT NULL)")
+        connection.execute(
+            "INSERT INTO visit_start SELECT ? WHERE NOT EXISTS (SELECT 1 FROM visit_start)",
+            (datetime.now(SHANGHAI).date().isoformat(),),
+        )
+
+
+def log_visit(database, origin, payload):
+    if set(payload) != {"visitorId", "pageId", "event"}:
+        raise ValueError
+    visitor_id, page_id, event = (payload[key] for key in ("visitorId", "pageId", "event"))
+    if not all(isinstance(value, str) and REQUEST_ID.fullmatch(value) for value in (visitor_id, page_id)):
+        raise ValueError
+    if event not in ("open", "enter"):
+        raise ValueError
+    visitor = sha256(f"{origin}:{visitor_id}".encode()).hexdigest()
+    page = sha256(page_id.encode()).hexdigest()
+    day = datetime.now(SHANGHAI).date().isoformat()
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("""
+            INSERT INTO visit VALUES (?, ?, ?, ?)
+            ON CONFLICT(page_id) DO UPDATE SET entered = MAX(visit.entered, excluded.entered)
+            WHERE visit.visitor = excluded.visitor
+        """, (page, visitor, day, int(event == "enter")))
+
+
+def visitor_stats(database):
+    today = datetime.now(SHANGHAI).date()
+    days = [(today - timedelta(days=n)).isoformat() for n in range(6, -1, -1)]
+    fields = ("visitors", "opens", "enters")
+    counters = "COUNT(DISTINCT visitor), COUNT(*), COALESCE(SUM(entered), 0)"
+    with closing(sqlite3.connect(database)) as connection:
+        start = connection.execute("SELECT day FROM visit_start").fetchone()[0]
+        total = dict(zip(fields, connection.execute(f"SELECT {counters} FROM visit").fetchone()))
+        recent = {day: dict(zip(fields, row)) for day, *row in connection.execute(
+            f"SELECT day, {counters} FROM visit WHERE day >= ? GROUP BY day", (days[0],)
+        )}
+    return {"total": total, "days": [
+        {"day": day, **recent.get(day, dict.fromkeys(fields, 0))} for day in days if day >= start
+    ]}
+
+
 class RecordHandler(SimpleHTTPRequestHandler):
     @property
-    def is_api(self):
-        return urlsplit(self.path).path == API_PATH
+    def endpoint(self):
+        return urlsplit(self.path).path
 
     def respond(self, status, payload=None):
         data = json.dumps(payload).encode() if payload is not None else b""
@@ -62,7 +123,16 @@ class RecordHandler(SimpleHTTPRequestHandler):
             self.wfile.write(data)
 
     def do_GET(self):
-        if not self.is_api:
+        if self.endpoint == STATS_PATH:
+            key = self.server.stats_key
+            auth = self.headers.get("Authorization", "").encode()
+            if not key or not compare_digest(auth, b"Bearer " + key):
+                return self.respond(401, {"error": "key_required"})
+            try:
+                return self.respond(200, visitor_stats(self.server.visits_database))
+            except sqlite3.Error:
+                return self.respond(503, {"error": "temporarily_unavailable"})
+        if self.endpoint != API_PATH:
             if self.server.serve_static:
                 return super().do_GET()
             return self.respond(404, {"error": "not_found"})
@@ -74,21 +144,23 @@ class RecordHandler(SimpleHTTPRequestHandler):
         self.respond(200, {"latest": latest})
 
     def do_HEAD(self):
-        if not self.is_api and self.server.serve_static:
+        if self.endpoint not in (API_PATH, STATS_PATH, VISIT_PATH) and self.server.serve_static:
             return super().do_HEAD()
         self.do_GET()
 
     def do_OPTIONS(self):
-        if not self.is_api:
+        if self.endpoint not in (API_PATH, VISIT_PATH):
             return self.respond(404, {"error": "not_found"})
         if self.headers.get("Origin") not in self.server.allowed_origins:
             return self.respond(403, {"error": "origin_not_allowed"})
         self.respond(204)
 
     def do_POST(self):
-        if not self.is_api:
+        endpoint = self.endpoint
+        if endpoint not in (API_PATH, VISIT_PATH):
             return self.respond(404, {"error": "not_found"})
-        if self.headers.get("Origin") not in self.server.allowed_origins:
+        origin = self.headers.get("Origin")
+        if origin not in self.server.allowed_origins:
             return self.respond(403, {"error": "origin_not_allowed"})
         if self.headers.get_content_type() != "application/json":
             return self.respond(415, {"error": "json_required"})
@@ -97,13 +169,17 @@ class RecordHandler(SimpleHTTPRequestHandler):
             if not 1 <= size <= 128:
                 raise ValueError
             payload = json.loads(self.rfile.read(size))
-            request_id = payload.get("requestId") if isinstance(payload, dict) else None
+            if not isinstance(payload, dict):
+                raise ValueError
+            if endpoint == VISIT_PATH:
+                log_visit(self.server.visits_database, origin, payload)
+                return self.respond(204)
+            request_id = payload.get("requestId")
             if not isinstance(request_id, str) or not REQUEST_ID.fullmatch(request_id) or len(payload) != 1:
                 raise ValueError
+            number = issue(self.server.database, request_id)
         except (ValueError, TimeoutError):
             return self.respond(400, {"error": "invalid_request"})
-        try:
-            number = issue(self.server.database, request_id)
         except sqlite3.Error:
             return self.respond(503, {"error": "temporarily_unavailable"})
         self.respond(200, {"number": number})
@@ -112,9 +188,12 @@ class RecordHandler(SimpleHTTPRequestHandler):
 class RecordServer(ThreadingHTTPServer):
     request_queue_size = 64
 
-    def __init__(self, address, database, static_root=None):
+    def __init__(self, address, database, static_root=None, stats_key=None):
         initialize(database)
         self.database = database
+        self.visits_database = Path(database).with_name("visits.sqlite3")
+        initialize_visits(self.visits_database)
+        self.stats_key = stats_key
         self.serve_static = static_root is not None
         self.allowed_origins = set(PUBLIC_ORIGINS)
         super().__init__(address, partial(RecordHandler, directory=static_root))
@@ -132,9 +211,14 @@ def main():
     parser.add_argument("--port", type=int, default=8713)
     parser.add_argument("--database", type=Path, required=True)
     parser.add_argument("--static-root", type=Path)
+    parser.add_argument("--stats-key-file", type=Path)
     args = parser.parse_args()
     args.database.parent.mkdir(parents=True, exist_ok=True)
-    with RecordServer(("127.0.0.1", args.port), args.database, args.static_root) as server:
+    key_file = args.stats_key_file
+    if not key_file and "CREDENTIALS_DIRECTORY" in os.environ:
+        key_file = Path(os.environ["CREDENTIALS_DIRECTORY"]) / "visitor-stats-key"
+    stats_key = key_file.read_bytes().strip() if key_file else None
+    with RecordServer(("127.0.0.1", args.port), args.database, args.static_root, stats_key) as server:
         server.serve_forever()
 
 

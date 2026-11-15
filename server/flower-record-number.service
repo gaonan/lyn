@@ -1,5 +1,5 @@
 [Unit]
-Description=Carnation record keepsake numbering
+Description=Carnation record keepsake numbering and visitor counts
 After=network.target
 
 [Service]
@@ -8,6 +8,7 @@ Restart=on-failure
 DynamicUser=yes
 StateDirectory=flower-record-number
 StateDirectoryMode=0700
+LoadCredential=visitor-stats-key:/etc/flower-cafe/visitor-stats-key
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

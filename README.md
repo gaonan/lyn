@@ -31,13 +31,15 @@ npm start
 
 主站与备用站从同一服务领取唱片收藏编号，起号为 `No.000001`。[查看已发到的编号](https://lyn.lipopo.org/api/record-number)。生成带编号的唱片留影时需要联网，照片和留言仍在本机处理。本地运行使用 `.local/record-numbers.sqlite3`，与线上序列独立。
 
+主站和备用站的访问数据汇总到[私密统计页](https://lyn.lipopo.org/stats/)，需要管理者密钥。同一浏览器在同一站点的多次访问按一个去重访客计算，同时记录页面打开次数和点击开始收集的次数。统计以北京时间分日。
+
 混凝土、木纹、布纹和叶脉贴图在浏览器生成。超清画质会预先计算固定建筑的投影。舞台光束由 WebGL 程序生成，日光与夜色模式使用不同的灯光强度。
 
 ## 测试与打包
 
 ```sh
 npm run check
-python3 scripts/package_release.py pack --build 20261113-r44
+python3 scripts/package_release.py pack --build 20261113-r45
 ```
 
 测试覆盖楼层和楼梯可达性、收集交互、人物照片展示和离线缓存。打包脚本根据 `dist/` 生成发布归档和 SHA-256 清单。

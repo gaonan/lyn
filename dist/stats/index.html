@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#18231c">
+<title>康乃馨 7.0 · 访问统计</title>
+<style>
+  :root { color-scheme: dark; font: 16px/1.55 system-ui, sans-serif; background: #17231c; color: #f5eedc; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at top left,#343725,#17231c 55%); }
+  main { max-width: 680px; margin: auto; padding: max(32px,env(safe-area-inset-top)) 20px 36px; }
+  header { border-bottom: 1px solid #b8975566; padding: 0 0 18px; }
+  header p { margin: 0; color: #d9bd81; font-size: 13px; }
+  h1 { margin: 6px 0 0; font: 600 34px/1.24 "Songti SC",serif; }
+  h2 { margin: 0 0 10px; font-size: 16px; font-weight: 600; }
+  section, form { margin-top: 20px; }
+  .cards { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 0; }
+  .cards div, .record { min-width: 0; padding: 11px 10px; border: 1px solid #c7a46e55; background: #f1e2b30a; border-radius: 6px; }
+  .cards dt, .record span { color: #d8d0b8; font-size: 12px; }
+  .cards dd { margin: 5px 0 0; color: #f1d6a2; font: 550 clamp(20px,6vw,34px)/1.1 ui-monospace,monospace; overflow-wrap: anywhere; }
+  .record { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
+  .record strong { font-family: ui-monospace,monospace; color: #f1d6a2; }
+  .toolbar { margin: 15px 0 0; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  #status { margin: 0; font-size: 12px; color: #c6ceb9; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 7px 3px; text-align: right; border-bottom: 1px solid #e8d6b222; white-space: nowrap; }
+  th { color: #d5bc87; font-weight: 500; }
+  th:first-child, td:first-child { text-align: left; }
+  button, input { font: inherit; color: inherit; border: 1px solid #be9b6055; border-radius: 5px; }
+  button { min-height: 38px; padding: 0 12px; background: #d9bd83; color: #25261b; }
+  button:disabled { opacity: .68; }
+  label { display: block; font-size: 13px; margin-bottom: 7px; }
+  .key-row { display: flex; gap: 8px; }
+  input { flex: 1; min-width: 0; width: 100%; padding: 6px 9px; background: #101910; }
+  .definition { color: #b9c1aa; font-size: 12px; }
+</style>
+<main>
+  <header><p>康乃馨 7.0</p><h1>访问统计</h1></header>
+  <form id="access" hidden>
+    <label for="key">统计访问密钥</label>
+    <div class="key-row"><input type="password" id="key" required autocomplete="off"><button>打开</button></div>
+  </form>
+  <div class="toolbar"><p id="status" role="status">正在读取…</p><button id="refresh" type="button" hidden>刷新</button></div>
+  <div id="statistics" hidden>
+    <section aria-labelledby="today-title">
+      <h2 id="today-title">今天</h2>
+      <dl class="cards" id="today"><div><dt>去重访客</dt><dd>—</dd></div><div><dt>页面打开</dt><dd>—</dd></div><div><dt>进入花房</dt><dd>—</dd></div></dl>
+    </section>
+    <section aria-labelledby="total-title">
+      <h2 id="total-title">上线统计以来</h2>
+      <dl class="cards" id="total"><div><dt>去重访客</dt><dd>—</dd></div><div><dt>页面打开</dt><dd>—</dd></div><div><dt>进入花房</dt><dd>—</dd></div></dl>
+    </section>
+    <div class="record"><span>唱片最新发号</span><strong id="number">—</strong></div>
+    <section aria-labelledby="history-title">
+      <h2 id="history-title">近 7 天</h2>
+      <table><thead><tr><th scope="col">日期</th><th scope="col">访客</th><th scope="col">打开</th><th scope="col">进场</th></tr></thead><tbody></tbody></table>
+    </section>
+    <p class="definition">访客按同一浏览器、同一站点去重。进场按点过「开始收集」的页面计数。日期以北京时间为准。</p>
+  </div>
+</main>
+<script>
+  const $ = selector => document.querySelector(selector);
+  const form = $('#access'), status = $('#status'), refresh = $('#refresh'), stats = $('#statistics');
+  const format = new Intl.NumberFormat('zh-CN');
+  const clock = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit' });
+  let key = location.hash.slice(1);
+  let loading = false;
+  if (!key) {
+    try { key = sessionStorage.getItem('carnation7-stats-key'); } catch {}
+  }
+  function unlock(message) {
+    form.hidden = false;
+    refresh.hidden = stats.hidden = true;
+    status.textContent = message;
+  }
+  function values({ visitors, opens, enters }) {
+    return [visitors, opens, enters].map(value => format.format(value));
+  }
+  async function load() {
+    if (loading) return;
+    if (!/^[a-f0-9]{64}$/.test(key)) return unlock('请输入密钥，或打开你的私密统计链接。');
+    status.textContent = '正在读取…';
+    refresh.hidden = false;
+    loading = refresh.disabled = true;
+    try {
+      const response = await fetch('/api/visitor-stats', { headers: { Authorization: 'Bearer ' + key }, cache: 'no-store' });
+      if (response.status === 401) return unlock('统计密钥无效，请检查后重试。');
+      if (!response.ok) throw new Error('Statistics unavailable');
+      const { total, days } = await response.json();
+      const fill = (selector, data) => document.querySelectorAll(selector + ' dd')
+        .forEach((cell, index) => { cell.textContent = values(data)[index]; });
+      fill('#today', days.at(-1));
+      fill('#total', total);
+      $('tbody').replaceChildren(...[...days].reverse().map(day => {
+        const row = document.createElement('tr');
+        [day.day.slice(5), ...values(day)].forEach(value => { row.insertCell().textContent = value; });
+        return row;
+      }));
+      try { sessionStorage.setItem('carnation7-stats-key', key); } catch {}
+      form.hidden = true;
+      stats.hidden = false;
+      status.textContent = '更新于 ' + clock.format(new Date()) + '（北京时间）';
+      fetch('/api/record-number', { cache: 'no-store' }).then(result => result.json()).then(({ latest }) => {
+        $('#number').textContent = Number.isSafeInteger(latest) ? 'No.' + String(latest).padStart(6, '0') : '尚未发号';
+      }).catch(() => { $('#number').textContent = '暂时无法查询'; });
+    } catch {
+      status.textContent = '暂时无法读取统计，请刷新重试。';
+    } finally {
+      loading = refresh.disabled = false;
+    }
+  }
+  refresh.onclick = load;
+  form.onsubmit = event => {
+    event.preventDefault();
+    key = $('#key').value.trim();
+    load();
+  };
+  window.addEventListener('hashchange', () => {
+    key = location.hash.slice(1);
+    load();
+  });
+  load();
+</script>
+</html>

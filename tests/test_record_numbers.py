@@ -16,8 +16,8 @@ MIRROR = "https://gaonan.github.io"
 
 
 @contextmanager
-def running_server(database):
-    with RecordServer(("127.0.0.1", 0), database) as server:
+def running_server(database, stats_key=None):
+    with RecordServer(("127.0.0.1", 0), database, stats_key=stats_key) as server:
         thread = Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
@@ -27,9 +27,11 @@ def running_server(database):
             thread.join()
 
 
-def request(url, *, origin=MAIN, method="GET", payload=None):
+def request(url, *, origin=MAIN, method="GET", payload=None, key=None):
     data = None if payload is None else json.dumps(payload).encode()
     headers = {"Origin": origin, "Content-Type": "application/json"}
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
     try:
         response = urlopen(Request(url, data=data, headers=headers, method=method), timeout=10)
     except HTTPError as error:
@@ -79,6 +81,27 @@ class RecordNumbersTests(unittest.TestCase):
             self.assertEqual(request(url, method="POST",
                                      payload={"requestId": "a" * 32, "text": "local"})[0], 400)
             self.assertEqual(claim(url, "a" * 32), 1)
+
+    def test_visits_deduplicate_pages_and_browser_per_site_without_affecting_records(self):
+        key = "a" * 64
+        with running_server(self.database, stats_key=key.encode()) as url:
+            visit_url = url.replace(API_PATH, "/api/visit")
+            stats_url = url.replace(API_PATH, "/api/visitor-stats")
+            for page, event, origin in (
+                ("1", "enter", MAIN), ("1", "open", MAIN), ("1", "enter", MAIN),
+                ("2", "open", MAIN), ("3", "open", MIRROR),
+            ):
+                payload = {"visitorId": "a" * 32, "pageId": page * 32, "event": event}
+                self.assertEqual(request(visit_url, origin=origin, method="POST", payload=payload)[0], 204)
+            self.assertEqual(request(stats_url)[0], 401)
+            self.assertEqual(request(stats_url, key="b" * 64)[0], 401)
+            status, headers, stats = request(stats_url, key=key)
+            self.assertEqual(status, 200)
+            self.assertEqual(headers["Cache-Control"], "no-store")
+            self.assertEqual(stats["total"], {"visitors": 2, "opens": 3, "enters": 1})
+            self.assertEqual(len(stats["days"]), 1)
+            self.assertEqual(stats["days"][-1]["opens"], 3)
+            self.assertIsNone(request(url)[2]["latest"])
 
 
 if __name__ == "__main__":
