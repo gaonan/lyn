@@ -77,8 +77,8 @@ function paintFilmStrip(ctx, y, width) {
   }
 }
 
-function paintRecordNumber(ctx, x, y) {
-  const serial = `No.${String(1 + Math.floor(Math.random() * 999999)).padStart(6, '0')}`;
+function paintRecordNumber(ctx, x, y, number) {
+  const serial = `No.${String(number).padStart(6, '0')}`;
   const foil = ctx.createLinearGradient(x, y - 23, x + 22, y + 3);
   foil.addColorStop(0, '#b68b48');
   foil.addColorStop(.38, '#f8df9f');
@@ -94,7 +94,7 @@ function paintRecordNumber(ctx, x, y) {
   ctx.restore();
 }
 
-export function paintFilmPhoto(out, render, { label, album, text, date = new Date() }) {
+export function paintFilmPhoto(out, render, { label, album, text, recordNumber, date = new Date() }) {
   const ctx = out.getContext('2d');
   const width = out.width / FILM_SCALE, height = out.height / FILM_SCALE;
   const x = 48, y = 54, right = width - x;
@@ -135,7 +135,7 @@ export function paintFilmPhoto(out, render, { label, album, text, date = new Dat
     ctx.drawImage(album, ax, ay, aw, ah);
     ctx.strokeStyle = '#cbad76';
     ctx.strokeRect(ax - .5, ay - .5, aw + 1, ah + 1);
-    paintRecordNumber(ctx, ax + aw / 2, ay + ah + 46);
+    paintRecordNumber(ctx, ax + aw / 2, ay + ah + 46, recordNumber);
     ctx.strokeStyle = '#b28c557a';
     ctx.beginPath();
     ctx.moveTo(ax + aw + 28, ay);
@@ -200,6 +200,7 @@ export async function shareImage(file, title) {
 
 export function setupKeepsake(dialog, record, render, openGroupPhoto) {
   const key = 'carnation7-wall-note';
+  const sequenceKey = 'carnation7-next-record-number';
   const input = dialog.querySelector('textarea');
   const counter = dialog.querySelector('.keepsake-count');
   const album = dialog.querySelector('.keepsake-album');
@@ -214,7 +215,7 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
   let savedText = '';
   try { savedText = keepsakeText(localStorage.getItem(key) || ''); } catch {}
   record.setMessage(savedText);
-  let file, url, generating = false, generation = 0;
+  let file, url, generating = false, generation = 0, nextRecordNumber = 0;
 
   function discardImage() {
     generation++;
@@ -259,20 +260,32 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
     status.textContent = '正在生成留影…';
     try {
       await Promise.all([loadFilmFont(), album.complete && album.naturalWidth ? undefined : album.decode()]);
-      if (attempt !== generation || !dialog.open) return;
-      const out = createFilmCanvas(true);
-      paintFilmPhoto(out, render, { label: '唱片留影', album, text });
-      const blob = await new Promise(resolve => out.toBlob(resolve, 'image/jpeg', .96));
-      if (!blob) throw new Error('No image was encoded');
-      if (attempt !== generation || !dialog.open) return;
-      file = new File([blob], '康乃馨7.0-花房留影.jpg', { type: 'image/jpeg' });
-      url = URL.createObjectURL(blob);
-      preview.src = url;
-      preview.hidden = false;
-      album.hidden = true;
-      save.hidden = download.hidden = confirmSaved.hidden = false;
-      download.href = url;
-      status.textContent = '可分享、下载，也可长按图片保存。';
+      const renderNextRecord = async () => {
+        if (attempt !== generation || !dialog.open) return;
+        let recordNumber = nextRecordNumber;
+        try {
+          const stored = Number(localStorage.getItem(sequenceKey));
+          if (Number.isSafeInteger(stored) && stored > recordNumber) recordNumber = stored;
+        } catch {}
+        const out = createFilmCanvas(true);
+        paintFilmPhoto(out, render, { label: '唱片留影', album, text, recordNumber });
+        const blob = await new Promise(resolve => out.toBlob(resolve, 'image/jpeg', .96));
+        if (!blob) throw new Error('No image was encoded');
+        if (attempt !== generation || !dialog.open) return;
+        file = new File([blob], '康乃馨7.0-花房留影.jpg', { type: 'image/jpeg' });
+        url = URL.createObjectURL(blob);
+        nextRecordNumber = recordNumber + 1;
+        try { localStorage.setItem(sequenceKey, String(nextRecordNumber)); } catch {}
+        preview.src = url;
+        preview.hidden = false;
+        album.hidden = true;
+        save.hidden = download.hidden = confirmSaved.hidden = false;
+        download.href = url;
+        status.textContent = '可分享、下载，也可长按图片保存。';
+      };
+      // Hold the number until the JPEG is ready so another tab cannot issue it at the same time.
+      if (navigator.locks) await navigator.locks.request(sequenceKey, renderNextRecord);
+      else await renderNextRecord();
     } catch {
       if (attempt === generation) status.textContent = '留言已保留。留影生成失败，请再试一次。';
     } finally {
