@@ -77,20 +77,29 @@ function paintFilmStrip(ctx, y, width) {
   }
 }
 
-function paintRecordNumber(ctx, x, y, number) {
-  const serial = `No.${String(number).padStart(6, '0')}`;
-  const foil = ctx.createLinearGradient(x, y - 23, x + 22, y + 3);
-  foil.addColorStop(0, '#b68b48');
-  foil.addColorStop(.38, '#f8df9f');
-  foil.addColorStop(.58, '#ebc67c');
-  foil.addColorStop(1, '#b98a42');
+function paintRecordNumber(ctx, x, y, width, serial) {
+  const height = 73, center = x + width / 2;
+  const foil = ctx.createLinearGradient(x, y, x + width, y + height);
+  foil.addColorStop(0, '#916b35');
+  foil.addColorStop(.26, '#ead297');
+  foil.addColorStop(.48, '#ffebba');
+  foil.addColorStop(.72, '#d0a660');
+  foil.addColorStop(1, '#95703a');
   ctx.save();
-  ctx.textAlign = 'center';
-  ctx.font = '600 26px "IBM Plex Mono", "Courier New", monospace';
-  ctx.fillStyle = '#100c07';
-  ctx.fillText(serial, x, y + 1);
+  ctx.fillStyle = '#241c12';
+  ctx.fillRect(x, y, width, height);
+  ctx.strokeStyle = foil;
+  ctx.strokeRect(x + .5, y + .5, width - 1, height - 1);
+  ctx.strokeStyle = '#886b425f';
+  ctx.strokeRect(x + 4.5, y + 4.5, width - 9, height - 9);
   ctx.fillStyle = foil;
-  ctx.fillText(serial, x, y);
+  ctx.fillRect(x + 21, y + 37, 37, 1);
+  ctx.fillRect(x + width - 58, y + 37, 37, 1);
+  ctx.textAlign = 'center';
+  ctx.font = '500 15px "PingFang SC", system-ui, sans-serif';
+  ctx.fillText('唱片收藏编号', center, y + 24);
+  ctx.font = '600 35px "IBM Plex Mono", "Courier New", monospace';
+  ctx.fillText(serial, center, y + 57);
   ctx.restore();
 }
 
@@ -135,7 +144,7 @@ export function paintFilmPhoto(out, render, { label, album, text, recordNumber, 
     ctx.drawImage(album, ax, ay, aw, ah);
     ctx.strokeStyle = '#cbad76';
     ctx.strokeRect(ax - .5, ay - .5, aw + 1, ah + 1);
-    paintRecordNumber(ctx, ax + aw / 2, ay + ah + 46, recordNumber);
+    paintRecordNumber(ctx, ax, ay + ah + 18, aw, recordNumber);
     ctx.strokeStyle = '#b28c557a';
     ctx.beginPath();
     ctx.moveTo(ax + aw + 28, ay);
@@ -198,13 +207,41 @@ export async function shareImage(file, title) {
   }
 }
 
+async function getRecordNumber(requestId) {
+  const endpoint = location.hostname === 'gaonan.github.io'
+    ? 'https://lyn.lipopo.org/api/record-number'
+    : '/api/record-number';
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestId }),
+      signal: controller.signal,
+      credentials: 'omit',
+    });
+    if (!response.ok) throw new Error('Record number request failed');
+    const { number } = await response.json();
+    if (!Number.isSafeInteger(number) || number < 1) throw new Error('Invalid record number');
+    return `No.${String(number).padStart(6, '0')}`;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function setupKeepsake(dialog, record, render, openGroupPhoto) {
   const key = 'carnation7-wall-note';
-  const sequenceKey = 'carnation7-next-record-number';
+  const pendingKey = 'carnation7-pending-record-request';
   const input = dialog.querySelector('textarea');
   const counter = dialog.querySelector('.keepsake-count');
   const album = dialog.querySelector('.keepsake-album');
   const preview = dialog.querySelector('.keepsake-preview');
+  const compose = dialog.querySelector('.keepsake-compose');
+  const issued = dialog.querySelector('.keepsake-issued');
+  const serialLabel = dialog.querySelector('#record-number');
+  const title = dialog.querySelector('#record-finale-title');
+  const edit = dialog.querySelector('#edit-keepsake');
   const generate = dialog.querySelector('#make-keepsake');
   const save = dialog.querySelector('#save-keepsake');
   const download = dialog.querySelector('#download-keepsake');
@@ -215,7 +252,9 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
   let savedText = '';
   try { savedText = keepsakeText(localStorage.getItem(key) || ''); } catch {}
   record.setMessage(savedText);
-  let file, url, generating = false, generation = 0, nextRecordNumber = 0;
+  let file, url, requestId, generating = false, generation = 0;
+  try { requestId = sessionStorage.getItem(pendingKey); } catch {}
+  if (!/^[0-9a-f]{32}$/.test(requestId)) requestId = undefined;
 
   function discardImage() {
     generation++;
@@ -223,8 +262,11 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
     url = undefined;
     file = undefined;
     preview.hidden = true;
+    album.hidden = false;
     preview.removeAttribute('src');
-    save.hidden = download.hidden = groupPhoto.hidden = confirmSaved.hidden = true;
+    issued.hidden = groupPhoto.hidden = confirmSaved.hidden = true;
+    compose.hidden = false;
+    title.textContent = '恭喜发现彩蛋，你好厉害！';
     download.removeAttribute('href');
   }
 
@@ -234,18 +276,18 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
     counter.textContent = `${characters(limited).length} / ${LIMIT}`;
   }
 
-  dialog.addEventListener('close', () => {
-    discardImage();
-    album.hidden = false;
-  });
+  dialog.addEventListener('close', discardImage);
   function editNote() {
     updateLimit();
     discardImage();
-    album.hidden = false;
     status.textContent = '';
   }
   input.addEventListener('input', event => { if (!event.isComposing) editNote(); });
   input.addEventListener('compositionend', editNote);
+  edit.addEventListener('click', () => {
+    editNote();
+    input.focus();
+  });
 
   generate.addEventListener('click', async () => {
     if (generating) return;
@@ -257,37 +299,43 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
     discardImage();
     const attempt = generation;
     generating = generate.disabled = true;
-    status.textContent = '正在生成留影…';
+    status.textContent = '正在准备留影…';
+    let stage = 'image';
     try {
       await Promise.all([loadFilmFont(), album.complete && album.naturalWidth ? undefined : album.decode()]);
-      const renderNextRecord = async () => {
-        if (attempt !== generation || !dialog.open) return;
-        let recordNumber = nextRecordNumber;
-        try {
-          const stored = Number(localStorage.getItem(sequenceKey));
-          if (Number.isSafeInteger(stored) && stored > recordNumber) recordNumber = stored;
-        } catch {}
-        const out = createFilmCanvas(true);
-        paintFilmPhoto(out, render, { label: '唱片留影', album, text, recordNumber });
-        const blob = await new Promise(resolve => out.toBlob(resolve, 'image/jpeg', .96));
-        if (!blob) throw new Error('No image was encoded');
-        if (attempt !== generation || !dialog.open) return;
-        file = new File([blob], '康乃馨7.0-花房留影.jpg', { type: 'image/jpeg' });
-        url = URL.createObjectURL(blob);
-        nextRecordNumber = recordNumber + 1;
-        try { localStorage.setItem(sequenceKey, String(nextRecordNumber)); } catch {}
-        preview.src = url;
-        preview.hidden = false;
-        album.hidden = true;
-        save.hidden = download.hidden = confirmSaved.hidden = false;
-        download.href = url;
-        status.textContent = '可分享、下载，也可长按图片保存。';
-      };
-      // Hold the number until the JPEG is ready so another tab cannot issue it at the same time.
-      if (navigator.locks) await navigator.locks.request(sequenceKey, renderNextRecord);
-      else await renderNextRecord();
+      if (attempt !== generation || !dialog.open) return;
+      if (!requestId) {
+        requestId = Array.from(crypto.getRandomValues(new Uint8Array(16)),
+          byte => byte.toString(16).padStart(2, '0')).join('');
+        try { sessionStorage.setItem(pendingKey, requestId); } catch {}
+      }
+      stage = 'number';
+      status.textContent = '正在领取收藏编号…';
+      const recordNumber = await getRecordNumber(requestId);
+      if (attempt !== generation || !dialog.open) return;
+      stage = 'image';
+      status.textContent = '正在生成留影…';
+      const out = createFilmCanvas(true);
+      paintFilmPhoto(out, render, { label: '唱片留影', album, text, recordNumber });
+      const blob = await new Promise(resolve => out.toBlob(resolve, 'image/jpeg', .96));
+      if (!blob) throw new Error('No image was encoded');
+      if (attempt !== generation || !dialog.open) return;
+      file = new File([blob], `康乃馨7.0-唱片留影-${recordNumber}.jpg`, { type: 'image/jpeg' });
+      url = URL.createObjectURL(blob);
+      requestId = undefined;
+      try { sessionStorage.removeItem(pendingKey); } catch {}
+      serialLabel.textContent = recordNumber;
+      title.textContent = '收藏你的唱片留影';
+      preview.src = url;
+      preview.hidden = issued.hidden = confirmSaved.hidden = false;
+      album.hidden = compose.hidden = true;
+      download.href = url;
+      download.download = file.name;
+      status.textContent = '也可以长按预览图保存。';
     } catch {
-      if (attempt === generation) status.textContent = '留言已保留。留影生成失败，请再试一次。';
+      if (attempt === generation) status.textContent = stage === 'number'
+        ? '暂时连不上编号服务器，联网后再试一次。留言已保留。'
+        : '留言已保留。留影生成失败，请再试一次。';
     } finally {
       generating = generate.disabled = false;
     }

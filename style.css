@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r43") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r44") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r43") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r44") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -453,10 +453,13 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
   touch-action: manipulation;
 }
 #record-finale {
-  width: min(760px, calc(100% - 30px));
+  width: min(820px, calc(100% - 30px));
+  max-width: none;
   max-height: calc(100% - 30px);
   padding: clamp(17px, 3.4vw, 30px);
   overflow: auto;
+  background: radial-gradient(ellipse at 6% 7%, #51402a 0%, #2b3024 45%, #18241e 100%);
+  border-color: #bd985e99;
 }
 #record-finale[open] {
   display: grid;
@@ -465,11 +468,18 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
   align-items: center;
 }
 #record-finale img {
+  display: block;
   width: 100%;
   max-height: min(59dvh, 320px);
   height: auto;
   object-fit: contain;
   box-shadow: 0 6px 30px #06060499;
+}
+.keepsake-art {
+  background: #0e1310;
+  padding: 5px;
+  border: 1px solid #d8b17673;
+  box-shadow: 0 12px 32px #070a0599;
 }
 .keepsake-editor { min-width: 0; text-align: left; }
 #record-finale h2 { margin: 0 0 12px; font-size: clamp(18px, 3.25vw, 27px); }
@@ -488,7 +498,7 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
   font: 16px/1.35 system-ui, sans-serif;
 }
 .keepsake-count { display: block; color: #c7b694; font-size: 11px; text-align: right; }
-.keepsake-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.keepsake-actions, .keepsake-navigation { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 #record-finale .keepsake-actions > *, #continue-record, #confirm-keepsake-saved, #open-group-photo {
   display: inline-flex;
   align-items: center;
@@ -505,7 +515,45 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
   font-size: 12px;
   letter-spacing: 0;
 }
-#record-finale #make-keepsake { background: #f0e3c8; color: #292920; }
+#record-finale #make-keepsake, #record-finale #save-keepsake {
+  width: auto;
+  min-height: 40px;
+  margin: 4px 0 0;
+  padding: 0 13px;
+  gap: 13px;
+  border-radius: 4px;
+  background: linear-gradient(105deg, #f7e8c5, #d7ba7f);
+  color: #292316;
+  font-size: 13px;
+  letter-spacing: .03em;
+}
+#record-finale #download-keepsake { min-height: 40px; margin-top: 4px; }
+.record-ticket {
+  display: grid;
+  gap: 5px;
+  justify-items: center;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: linear-gradient(140deg, #3a2b19, #201a12 57%, #33271a) padding-box,
+    linear-gradient(110deg, #9b7540, #f0d499 46%, #906a37) border-box;
+  box-shadow: inset 0 0 0 4px #e2b7710e, 0 5px 24px #12100655;
+  color: #d0ab73;
+}
+.record-ticket span { font-size: 10px; letter-spacing: .22em; }
+.record-ticket strong {
+  color: #f0cf8e;
+  font: 600 clamp(24px, 3.6vw, 34px)/1.05 "IBM Plex Mono", "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px #130e08, 0 0 16px #d59e403c;
+}
+#edit-keepsake {
+  border: 0;
+  background: none;
+  color: #d6c59e;
+  font-size: 12px;
+  padding: 7px 4px 1px;
+}
 #record-finale .keepsake-status { min-height: 15px; margin: 7px 0; font-size: 11px; line-height: 1.4; }
 #continue-record { gap: 8px; }
 #record-finale .photo-step, #group-photo-dialog .photo-step {
