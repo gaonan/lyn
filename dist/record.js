@@ -1,4 +1,4 @@
-import { keepsakeText, textLines } from './keepsake.js?v=20261113-r49';
+import { keepsakeText, textLines } from './keepsake.js?v=20261113-r50';
 
 export const RECORD_POSITION = { x: -2.85, y: 1.53, z: 8.87 };
 
@@ -29,9 +29,9 @@ export function buildRecord(T, scene, version, loader = new T.TextureLoader()) {
       canvas.height = 512;
       const map = new T.CanvasTexture(canvas);
       map.colorSpace = T.SRGBColorSpace;
-      plaque = new T.Mesh(new T.PlaneGeometry(1.48, .74),
+      plaque = new T.Mesh(new T.PlaneGeometry(1.48, height + .055),
         new T.MeshBasicMaterial({ map, toneMapped: false }));
-      plaque.position.set(1.54, -.05, .038);
+      plaque.position.set(1.54, 0, .038);
       display.add(plaque);
     }
     const map = plaque.material.map;

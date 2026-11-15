@@ -156,6 +156,32 @@ class RecordNumbersTests(unittest.TestCase):
             self.assertEqual(stats["total"]["opens"], 0)
             self.assertEqual(request(url)[2], {"latest": None})
 
+    def test_wall_requires_issued_number_and_samples_a_shared_pool(self):
+        with running_server(self.database) as url:
+            wall_url = url.replace(API_PATH, "/api/wall-messages")
+            self.assertEqual(request(wall_url)[2], {"messages": [], "total": 0})
+            self.assertEqual(request(wall_url, origin=MIRROR, method="OPTIONS")[0], 204)
+            self.assertEqual(request(wall_url, method="POST", payload={"requestId": "a" * 32, "text": "未发号"})[0], 404)
+            for number in range(1, 19):
+                request_id = f"{number:032x}"
+                self.assertEqual(claim(url, request_id), number)
+                payload = {"requestId": request_id, "text": f" 留言 {number} "}
+                self.assertEqual(request(wall_url, origin=MIRROR, method="POST", payload=payload)[0], 204)
+                if number == 3:
+                    self.assertEqual([entry["text"] for entry in request(wall_url)[2]["messages"]],
+                                     ["留言 3", "留言 2", "留言 1"])
+            request_id = f"{19:032x}"
+            self.assertEqual(claim(url, request_id), 19)
+            emoji_at_limit = "花" * 49 + "👩‍👩‍👦"
+            self.assertEqual(request(wall_url, method="POST", payload={"requestId": request_id, "text": emoji_at_limit})[0], 204)
+            self.assertEqual(request(wall_url, method="POST", payload={"requestId": request_id, "text": "花" * 51})[0], 400)
+            self.assertEqual(request(wall_url, method="POST", payload={"requestId": request_id, "text": emoji_at_limit})[0], 204)
+            wall = request(wall_url)[2]
+            self.assertEqual(wall["total"], 19)
+            self.assertEqual(len({entry['id'] for entry in wall['messages']}), 16)
+            self.assertTrue(all(set(entry) == {"id", "text"} for entry in wall["messages"]))
+            self.assertEqual(request(url)[2], {"latest": 19})
+
 
 if __name__ == "__main__":
     unittest.main()

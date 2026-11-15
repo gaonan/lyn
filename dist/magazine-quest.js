@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r49';
-import { roleInReach } from './roles.js?v=20261113-r49';
+import { magazineInReach } from './magazines.js?v=20261113-r50';
+import { roleInReach } from './roles.js?v=20261113-r50';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
@@ -210,7 +210,10 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   roleFinale.addEventListener('close', () => {
     const alreadyUnlocked = record.unlocked;
     unlockRecord();
-    if (!alreadyUnlocked) options.onChallenge('record');
+    if (!alreadyUnlocked) {
+      options.onChallenge('record');
+      options.toast('请看一下你背后的墙，唱片在那里。', 5800);
+    }
   });
   record.ready.then(ready => {
     if (ready || !record.unlocked || record.claimed) return;

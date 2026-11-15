@@ -29,7 +29,7 @@ npm start
 
 打开 [http://localhost:4173](http://localhost:4173)。网页源码和静态资产在 `dist/`，其中包含 Three.js 和 HLS.js。HTTPS 站点支持缓存完成后的离线访问。
 
-主站与备用站从同一服务领取唱片收藏编号，起号为 `No.000001`。[查看已发到的编号](https://lyn.lipopo.org/api/record-number)。生成带编号的唱片留影时需要联网，照片和留言仍在本机处理。本地运行使用 `.local/record-numbers.sqlite3`，与线上序列独立。
+主站与备用站从同一服务领取唱片收藏编号，起号为 `No.000001`。[查看已发到的编号](https://lyn.lipopo.org/api/record-number)。两站共用一楼留言墙。玩家选择「发布到留言墙」时会上传留言文字，照片全程在本机处理。本地运行使用 `.local/record-numbers.sqlite3`，与线上序列独立。
 
 主站和备用站的访问数据汇总到[私密统计页](https://lyn.lipopo.org/stats/)，需要管理者密钥。同一浏览器在同一站点的多次访问按一个去重访客计算，同时记录页面打开次数和点击开始收集的次数。统计以北京时间分日。
 
@@ -41,7 +41,7 @@ npm start
 
 ```sh
 npm run check
-python3 scripts/package_release.py pack --build 20261113-r49
+python3 scripts/package_release.py pack --build 20261113-r50
 ```
 
 测试覆盖楼层和楼梯可达性、收集交互、人物照片展示和离线缓存。打包脚本根据 `dist/` 生成发布归档和 SHA-256 清单。

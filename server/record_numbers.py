@@ -13,11 +13,14 @@ from pathlib import Path
 import re
 import sqlite3
 from urllib.parse import urlsplit
+from unicodedata import category
 
 
 API_PATH = "/api/record-number"
 VISIT_PATH = "/api/visit"
 STATS_PATH = "/api/visitor-stats"
+WALL_PATH = "/api/wall-messages"
+WALL_PAGE_SIZE = 16
 PUBLIC_ORIGINS = {"https://lyn.lipopo.org", "https://gaonan.github.io"}
 REQUEST_ID = re.compile(r"[0-9a-f]{32}")
 SHANGHAI = timezone(timedelta(hours=8))
@@ -35,6 +38,13 @@ def initialize(database):
                 request_id TEXT NOT NULL UNIQUE
             )
         """)
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS wall_message (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                number INTEGER NOT NULL UNIQUE REFERENCES record_number(number),
+                text TEXT NOT NULL
+            )
+        """)
 
 
 def issue(database, request_id):
@@ -47,6 +57,46 @@ def issue(database, request_id):
             return prior[0]
         cursor = connection.execute("INSERT INTO record_number(request_id) VALUES (?)", (request_id,))
         return cursor.lastrowid
+
+
+def publish_message(database, request_id, raw_text):
+    if not isinstance(raw_text, str):
+        raise ValueError
+    text = " ".join(raw_text.split())
+    if not text or len(text) > 200 or any(category(char).startswith("C") and char != "\u200d" for char in text):
+        raise ValueError
+    # Count marks and joined emoji with their base character.
+    length = 0
+    previous = ""
+    regionals = 0
+    for char in text:
+        regional = "\U0001f1e6" <= char <= "\U0001f1ff"
+        if char != "\u200d" and previous != "\u200d" and not category(char).startswith("M"):
+            if not "\U0001f3fb" <= char <= "\U0001f3ff" and not (regional and regionals % 2):
+                length += 1
+        regionals = regionals + 1 if regional else 0
+        previous = char
+    if not 1 <= length <= 50:
+        raise ValueError
+    with closing(sqlite3.connect(database)) as connection, connection:
+        cursor = connection.execute("""
+            INSERT INTO wall_message (number, text)
+            SELECT number, ? FROM record_number WHERE request_id = ?
+            ON CONFLICT(number) DO UPDATE SET text = excluded.text
+        """, (text, request_id))
+        return cursor.rowcount == 1
+
+
+def wall_messages(database):
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("BEGIN")
+        total = connection.execute("SELECT COUNT(*) FROM wall_message").fetchone()[0]
+        if total <= WALL_PAGE_SIZE:
+            rows = connection.execute("SELECT id, text FROM wall_message ORDER BY id DESC").fetchall()
+        else:
+            rows = connection.execute("SELECT id, text FROM wall_message ORDER BY RANDOM() LIMIT ?",
+                                      (WALL_PAGE_SIZE,)).fetchall()
+    return {"messages": [{"id": id_, "text": text} for id_, text in rows], "total": total}
 
 
 def initialize_visits(database):
@@ -179,6 +229,11 @@ class RecordHandler(SimpleHTTPRequestHandler):
             self.wfile.write(data)
 
     def do_GET(self):
+        if self.endpoint == WALL_PATH:
+            try:
+                return self.respond(200, wall_messages(self.server.database))
+            except sqlite3.Error:
+                return self.respond(503, {"error": "temporarily_unavailable"})
         if self.endpoint == STATS_PATH:
             key = self.server.stats_key
             auth = self.headers.get("Authorization", "").encode()
@@ -200,12 +255,12 @@ class RecordHandler(SimpleHTTPRequestHandler):
         self.respond(200, {"latest": latest})
 
     def do_HEAD(self):
-        if self.endpoint not in (API_PATH, STATS_PATH, VISIT_PATH) and self.server.serve_static:
+        if self.endpoint not in (API_PATH, STATS_PATH, VISIT_PATH, WALL_PATH) and self.server.serve_static:
             return super().do_HEAD()
         self.do_GET()
 
     def do_OPTIONS(self):
-        if self.endpoint not in (API_PATH, VISIT_PATH):
+        if self.endpoint not in (API_PATH, VISIT_PATH, WALL_PATH):
             return self.respond(404, {"error": "not_found"})
         if self.headers.get("Origin") not in self.server.allowed_origins:
             return self.respond(403, {"error": "origin_not_allowed"})
@@ -213,7 +268,7 @@ class RecordHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         endpoint = self.endpoint
-        if endpoint not in (API_PATH, VISIT_PATH):
+        if endpoint not in (API_PATH, VISIT_PATH, WALL_PATH):
             return self.respond(404, {"error": "not_found"})
         origin = self.headers.get("Origin")
         if origin not in self.server.allowed_origins:
@@ -222,7 +277,7 @@ class RecordHandler(SimpleHTTPRequestHandler):
             return self.respond(415, {"error": "json_required"})
         try:
             size = int(self.headers.get("Content-Length", "0"))
-            if not 1 <= size <= 128:
+            if not 1 <= size <= (1200 if endpoint == WALL_PATH else 128):
                 raise ValueError
             payload = json.loads(self.rfile.read(size))
             if not isinstance(payload, dict):
@@ -231,7 +286,15 @@ class RecordHandler(SimpleHTTPRequestHandler):
                 log_visit(self.server.visits_database, origin, payload)
                 return self.respond(204)
             request_id = payload.get("requestId")
-            if not isinstance(request_id, str) or not REQUEST_ID.fullmatch(request_id) or len(payload) != 1:
+            if not isinstance(request_id, str) or not REQUEST_ID.fullmatch(request_id):
+                raise ValueError
+            if endpoint == WALL_PATH:
+                if set(payload) != {"requestId", "text"}:
+                    raise ValueError
+                if not publish_message(self.server.database, request_id, payload["text"]):
+                    return self.respond(404, {"error": "record_not_found"})
+                return self.respond(204)
+            if set(payload) != {"requestId"}:
                 raise ValueError
             number = issue(self.server.database, request_id)
         except (ValueError, TimeoutError):
