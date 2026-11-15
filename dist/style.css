@@ -562,12 +562,16 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
   font-variant-numeric: tabular-nums;
   text-shadow: 0 1px #130e08, 0 0 16px #d59e403c;
 }
+.keepsake-issued { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; column-gap: 8px; }
+.keepsake-issued > .record-ticket, .keepsake-issued > .keepsake-actions { grid-column: 1 / -1; }
 #edit-keepsake {
   border: 0;
   background: none;
   color: #d6c59e;
   font-size: 12px;
-  padding: 7px 4px 1px;
+  min-height: 35px;
+  margin-top: 9px;
+  padding: 0 4px;
 }
 #record-finale .keepsake-status { min-height: 15px; margin: 7px 0; font-size: 11px; line-height: 1.4; }
 #continue-record { gap: 8px; }
@@ -610,6 +614,10 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
 @media (max-width: 520px) {
   .keepsake-footer { flex-wrap: wrap; }
   .keepsake-extras { order: -1; width: 100%; }
+}
+@media (max-height: 550px) and (orientation: landscape) {
+  #record-finale h2 { margin-bottom: 8px; }
+  .record-ticket { padding-block: 7px; }
 }
 
 #message-wall-dialog {
