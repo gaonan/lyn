@@ -77,6 +77,23 @@ function paintFilmStrip(ctx, y, width) {
   }
 }
 
+function paintRecordNumber(ctx, x, y) {
+  const serial = `No.${String(1 + Math.floor(Math.random() * 999999)).padStart(6, '0')}`;
+  const foil = ctx.createLinearGradient(x, y - 23, x + 22, y + 3);
+  foil.addColorStop(0, '#b68b48');
+  foil.addColorStop(.38, '#f8df9f');
+  foil.addColorStop(.58, '#ebc67c');
+  foil.addColorStop(1, '#b98a42');
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.font = '600 26px "IBM Plex Mono", "Courier New", monospace';
+  ctx.fillStyle = '#100c07';
+  ctx.fillText(serial, x, y + 1);
+  ctx.fillStyle = foil;
+  ctx.fillText(serial, x, y);
+  ctx.restore();
+}
+
 export function paintFilmPhoto(out, render, { label, album, text, date = new Date() }) {
   const ctx = out.getContext('2d');
   const width = out.width / FILM_SCALE, height = out.height / FILM_SCALE;
@@ -118,6 +135,7 @@ export function paintFilmPhoto(out, render, { label, album, text, date = new Dat
     ctx.drawImage(album, ax, ay, aw, ah);
     ctx.strokeStyle = '#cbad76';
     ctx.strokeRect(ax - .5, ay - .5, aw + 1, ah + 1);
+    paintRecordNumber(ctx, ax + aw / 2, ay + ah + 46);
     ctx.strokeStyle = '#b28c557a';
     ctx.beginPath();
     ctx.moveTo(ax + aw + 28, ay);
