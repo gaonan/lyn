@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r47';
-import { roleInReach } from './roles.js?v=20261113-r47';
+import { magazineInReach } from './magazines.js?v=20261113-r48';
+import { roleInReach } from './roles.js?v=20261113-r48';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
@@ -207,7 +207,11 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     }
     showAchievement(record.claimed);
   }
-  roleFinale.addEventListener('close', unlockRecord);
+  roleFinale.addEventListener('close', () => {
+    const alreadyUnlocked = record.unlocked;
+    unlockRecord();
+    if (!alreadyUnlocked) options.onChallenge('record');
+  });
   record.ready.then(ready => {
     if (ready || !record.unlocked || record.claimed) return;
     options.toast('唱片暂未加载成功。可重新加载，已解锁的唱片会保留。');
@@ -407,23 +411,26 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       options.openKeepsake();
       options.rewardSounds.play('record');
       rememberAchievement('record-pending');
+      options.onChallenge('record', true);
       showModal(recordFinale);
       playCelebration();
       return true;
     }
     if (roleUnlocked) {
       if (!roles.receive(id)) return true;
-      options.onCollect('roles', id);
+      roleCount++;
+      options.onCollect('roles', id, roleCount === roles.entries.length);
       options.rewardSounds.play('role');
-      rolePanel.querySelector('b').textContent = ++roleCount;
+      rolePanel.querySelector('b').textContent = roleCount;
       if (roleCount === roles.entries.length) celebrateRoles();
       else options.toast(`✦ 已领取 ${name}`);
       return true;
     }
     if (!magazines.light(id)) return true;
-    options.onCollect('magazines', id);
+    count++;
+    options.onCollect('magazines', id, count === total);
     options.rewardSounds.play('magazine');
-    counter.textContent = ++count;
+    counter.textContent = count;
     if (count === total) {
       celebrateMagazines();
     } else if (count === total - 1) {

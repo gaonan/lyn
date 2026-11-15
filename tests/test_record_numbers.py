@@ -132,6 +132,30 @@ class RecordNumbersTests(unittest.TestCase):
             self.assertEqual(stats["days"][-1]["first_collection"], 1)
             self.assertEqual(request(url)[2], {"latest": 1})
 
+    def test_challenge_funnels_are_independent_and_deduplicate_across_page_reloads(self):
+        key = "a" * 64
+        with running_server(self.database, stats_key=key.encode()) as url:
+            visit_url = url.replace(API_PATH, "/api/visit")
+            for visitor, page, event, origin in (
+                ("a", "1", "heart-start", MAIN), ("a", "2", "heart-start", MAIN),
+                ("b", "3", "heart-done", MAIN), ("b", "4", "heart-done", MAIN),
+                ("a", "5", "heart-start", MIRROR), ("a", "1", "magazine-done", MAIN),
+                ("a", "1", "role-start", MAIN), ("a", "1", "record-done", MAIN),
+                ("a", "2", "record-start", MAIN),
+            ):
+                payload = {"visitorId": visitor * 32, "pageId": page * 32, "event": event, "v": 2}
+                self.assertEqual(request(visit_url, origin=origin, method="POST", payload=payload)[0], 204)
+            stats = request(url.replace(API_PATH, "/api/visitor-stats"), key=key)[2]
+            for challenge, (started, completed) in {
+                "heart": (3, 1), "magazine": (1, 1), "role": (1, 0), "record": (1, 1),
+            }.items():
+                self.assertEqual(stats["challenges"][challenge], {
+                    "started": started, "completed": completed,
+                    "today_started": started, "today_completed": completed,
+                })
+            self.assertEqual(stats["total"]["opens"], 0)
+            self.assertEqual(request(url)[2], {"latest": None})
+
 
 if __name__ == "__main__":
     unittest.main()

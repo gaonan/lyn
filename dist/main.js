@@ -1,25 +1,25 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r47';
-import { buildBotanicals } from './botanicals.js?v=20261113-r47';
-import { createHearts } from './hearts.js?v=20261113-r47';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r47';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r47';
-import { setupMusic } from './music.js?v=20261113-r47';
-import { setupCollection } from './collection.js?v=20261113-r47';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r47';
-import { prepareOffline } from './offline.js?v=20261113-r47';
-import { buildMagazines } from './magazines.js?v=20261113-r47';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r47';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r47';
-import { buildRolePortraits } from './roles.js?v=20261113-r47';
-import { buildRecord } from './record.js?v=20261113-r47';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r47';
-import { createArtworkQueue } from './artwork.js?v=20261113-r47';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r47';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r47';
-import { setupKeepsake } from './keepsake.js?v=20261113-r47';
-import { createPlaySave } from './play-save.js?v=20261113-r47';
-const VERSION = '20261113-r47';
+import { buildArchitecture } from './architecture.js?v=20261113-r48';
+import { buildBotanicals } from './botanicals.js?v=20261113-r48';
+import { createHearts } from './hearts.js?v=20261113-r48';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r48';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r48';
+import { setupMusic } from './music.js?v=20261113-r48';
+import { setupCollection } from './collection.js?v=20261113-r48';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r48';
+import { prepareOffline } from './offline.js?v=20261113-r48';
+import { buildMagazines } from './magazines.js?v=20261113-r48';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r48';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r48';
+import { buildRolePortraits } from './roles.js?v=20261113-r48';
+import { buildRecord } from './record.js?v=20261113-r48';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r48';
+import { createArtworkQueue } from './artwork.js?v=20261113-r48';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r48';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r48';
+import { setupKeepsake } from './keepsake.js?v=20261113-r48';
+import { createPlaySave } from './play-save.js?v=20261113-r48';
+const VERSION = '20261113-r48';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -163,11 +163,19 @@ scene.add(daimiShadow);
 let entered=false,modelReady=false,p=spawnPlayer({x:0,y:0,z:6.8}),yaw=0,pitch=.08,eye=1.65,night=true;
 const rewardSounds = createRewardSounds(VERSION);
 const hearts = createHearts(THREE, scene, playSave.random('hearts'));
-function saveCollection(group, id) {
-  playSave.collect(group, id);
-  window.dispatchEvent(new Event('bloom-collected'));
+const collectionChallenges = { hearts: 'heart', magazines: 'magazine', roles: 'role' };
+function reportChallenge(challenge, complete = false) {
+  if (playSave.state.testRun) return;
+  const event = `${challenge}-${complete ? 'done' : 'start'}`;
+  window.dispatchEvent(new CustomEvent('bloom-challenge', { detail: event }));
 }
-const collection = setupCollection(hearts, () => p, rewardSounds, id => saveCollection('hearts', id));
+function saveCollection(group, id, complete) {
+  playSave.collect(group, id);
+  if (!playSave.state.testRun) window.dispatchEvent(new Event('bloom-collected'));
+  reportChallenge(collectionChallenges[group], complete);
+}
+const collection = setupCollection(hearts, () => p, rewardSounds,
+  (id, complete) => saveCollection('hearts', id, complete));
 collection.restore(playSave.state.hearts);
 const openGroupPhoto = setupGroupPhoto($('#group-photo-dialog'), renderKeepsake, VERSION, () => daimi.ready);
 const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, openGroupPhoto);
@@ -248,6 +256,7 @@ function renderKeepsake(ctx, x, y, width, height, pixelScale, guestPortrait, pos
 const magazineQuest = setupMagazineQuest(magazines, roles, dogSeat, record, () => p, {
   playSave,
   onCollect: saveCollection,
+  onChallenge: reportChallenge,
   openKeepsake,
   dogPhoto: `${DAIMI_VIEWS.front.url}?v=${VERSION}`,
   artworkProgress: artwork.progress,
@@ -362,6 +371,7 @@ testCorner.addEventListener('click', () => {
   lastTestTap = now;
   if (testTaps !== 10) return;
   testTaps = 0;
+  playSave.mark('testRun');
   collection.completeForTesting();
   magazineQuest.completeForTesting();
   playSave.collect('hearts', ...hearts.items.map(heart => heart.id));

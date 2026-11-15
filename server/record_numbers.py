@@ -21,6 +21,9 @@ STATS_PATH = "/api/visitor-stats"
 PUBLIC_ORIGINS = {"https://lyn.lipopo.org", "https://gaonan.github.io"}
 REQUEST_ID = re.compile(r"[0-9a-f]{32}")
 SHANGHAI = timezone(timedelta(hours=8))
+CHALLENGES = ("heart", "magazine", "role", "record")
+CHALLENGE_EVENTS = {f"{challenge}-{stage}": (challenge, stage == "done")
+                    for challenge in CHALLENGES for stage in ("start", "done")}
 
 
 def initialize(database):
@@ -66,6 +69,15 @@ def initialize_visits(database):
                 first_collection INTEGER NOT NULL
             ) WITHOUT ROWID
         """)
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS challenge_progress (
+                visitor TEXT NOT NULL,
+                challenge TEXT NOT NULL,
+                started_day TEXT NOT NULL,
+                completed_day TEXT,
+                PRIMARY KEY (visitor, challenge)
+            ) WITHOUT ROWID
+        """)
         connection.execute("CREATE TABLE IF NOT EXISTS visit_start (day TEXT NOT NULL)")
         connection.execute(
             "INSERT INTO visit_start SELECT ? WHERE NOT EXISTS (SELECT 1 FROM visit_start)",
@@ -81,12 +93,24 @@ def log_visit(database, origin, payload):
     visitor_id, page_id, event = (payload[key] for key in ("visitorId", "pageId", "event"))
     if not all(isinstance(value, str) and REQUEST_ID.fullmatch(value) for value in (visitor_id, page_id)):
         raise ValueError
-    if event not in (("open", "enter", "ready", "load-failed", "first-collection") if tracked else ("open", "enter")):
+    if not isinstance(event, str):
+        raise ValueError
+    challenge_event = CHALLENGE_EVENTS.get(event) if tracked else None
+    if not challenge_event and event not in (("open", "enter", "ready", "load-failed", "first-collection")
+                                            if tracked else ("open", "enter")):
         raise ValueError
     visitor = sha256(f"{origin}:{visitor_id}".encode()).hexdigest()
     page = sha256(page_id.encode()).hexdigest()
     day = datetime.now(SHANGHAI).date().isoformat()
     with closing(sqlite3.connect(database)) as connection, connection:
+        if challenge_event:
+            challenge, completed = challenge_event
+            connection.execute("""
+                INSERT INTO challenge_progress VALUES (?, ?, ?, ?)
+                ON CONFLICT(visitor, challenge) DO UPDATE SET
+                    completed_day = COALESCE(challenge_progress.completed_day, excluded.completed_day)
+            """, (visitor, challenge, day, day if completed else None))
+            return
         cursor = connection.execute("""
             INSERT INTO visit VALUES (?, ?, ?, ?)
             ON CONFLICT(page_id) DO UPDATE SET entered = MAX(visit.entered, excluded.entered)
@@ -113,13 +137,21 @@ def visitor_stats(database):
         COALESCE(SUM(entered * m.ready), 0), COALESCE(SUM(m.first_collection), 0)
     """
     visits = "visit LEFT JOIN visit_milestone AS m USING (page_id)"
+    challenge_fields = ("started", "completed", "today_started", "today_completed")
+    challenges = {name: dict.fromkeys(challenge_fields, 0) for name in CHALLENGES}
     with closing(sqlite3.connect(database)) as connection:
         start = connection.execute("SELECT day FROM visit_start").fetchone()[0]
         total = dict(zip(fields, connection.execute(f"SELECT {counters} FROM {visits}").fetchone()))
         recent = {day: dict(zip(fields, row)) for day, *row in connection.execute(
             f"SELECT day, {counters} FROM {visits} WHERE day >= ? GROUP BY day", (days[0],)
         )}
-    return {"total": total, "days": [
+        for name, *counts in connection.execute("""
+            SELECT challenge, COUNT(*), COUNT(completed_day), SUM(started_day = ?),
+                SUM(started_day = ? AND completed_day IS NOT NULL)
+            FROM challenge_progress GROUP BY challenge
+        """, (days[-1], days[-1])):
+            challenges[name] = dict(zip(challenge_fields, counts))
+    return {"total": total, "challenges": challenges, "days": [
         {"day": day, **recent.get(day, dict.fromkeys(fields, 0))} for day in days if day >= start
     ]}
 

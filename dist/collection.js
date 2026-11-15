@@ -17,7 +17,23 @@ export function setupCollection(hearts, getPlayer, rewardSounds, onCollect) {
   function update(now,active){lastTime=now;const p=getPlayer();hearts.update(now/1000,p);if(celebrating)celebrate(now);if(!active||celebrating){button.hidden=true;cancel();return;}
     near=hearts.items.filter(h=>!h.collected&&Math.abs(p.y-h.floorY)<.7&&Math.hypot(p.x-h.footPosition.x,p.z-h.footPosition.z)<1.6).sort((a,b)=>Math.hypot(p.x-a.footPosition.x,p.z-a.footPosition.z)-Math.hypot(p.x-b.footPosition.x,p.z-b.footPosition.z))[0]||null;
     button.hidden=!near;if(holding&&(!near||holding.id!==near.id))cancel();
-    if(holding){const progress=Math.min(1,(now-holding.start)/2000);ring.style.strokeDashoffset=length*(1-progress);if(progress===1){const id=holding.id;cancel();if(hearts.collect(id)){onCollect?.(id);rewardSounds?.play('heart');count++;counter.textContent=count;message.classList.add('show');setTimeout(()=>message.classList.remove('show'),1600);button.hidden=true;if(navigator.vibrate)navigator.vibrate([30,25,60]);if(count===5)setTimeout(finish,850);}}}
+    if (!holding) return;
+    const progress = Math.min(1, (now - holding.start) / 2000);
+    ring.style.strokeDashoffset = length * (1 - progress);
+    if (progress < 1) return;
+    const { id } = holding;
+    cancel();
+    if (!hearts.collect(id)) return;
+    count++;
+    const complete = count === hearts.items.length;
+    onCollect?.(id, complete);
+    rewardSounds?.play('heart');
+    counter.textContent = count;
+    message.classList.add('show');
+    setTimeout(() => message.classList.remove('show'), 1600);
+    button.hidden = true;
+    if (navigator.vibrate) navigator.vibrate([30, 25, 60]);
+    if (complete) setTimeout(finish, 850);
   }
   function restore(ids) {
     for (const id of ids) hearts.collect(id, true);

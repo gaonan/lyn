@@ -16,6 +16,7 @@ function readSave(storage) {
       dogSeen: saved.dogSeen === true,
       dogGreeted: saved.dogGreeted === true,
       invitationSeen: saved.invitationSeen === true,
+      testRun: saved.testRun === true,
     };
   } catch { return null; }
 }
@@ -23,7 +24,7 @@ function readSave(storage) {
 export function createPlaySave(storage = () => globalThis.localStorage) {
   const state = readSave(storage) ?? {
     version: 1, seed: Math.floor(Math.random() * 0x100000000), position: null,
-    hearts: [], magazines: [], roles: [], dogSeen: false, dogGreeted: false, invitationSeen: false,
+    hearts: [], magazines: [], roles: [], dogSeen: false, dogGreeted: false, invitationSeen: false, testRun: false,
   };
   function write(update) {
     const latest = readSave(storage);
@@ -33,6 +34,7 @@ export function createPlaySave(storage = () => globalThis.localStorage) {
       state.dogSeen ||= latest.dogSeen;
       state.dogGreeted ||= latest.dogGreeted;
       state.invitationSeen ||= latest.invitationSeen;
+      state.testRun ||= latest.testRun;
     }
     update(state);
     try { storage()?.setItem(SAVE_KEY, JSON.stringify(state)); } catch {}

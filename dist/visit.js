@@ -44,4 +44,11 @@
       else pendingEvents.push(event);
     }, { once: true });
   }
+  const challengeEvents = new Set();
+  window.addEventListener('bloom-challenge', ({ detail: event }) => {
+    if (challengeEvents.has(event)) return;
+    challengeEvents.add(event);
+    if (opened) report(event);
+    else pendingEvents.push(event);
+  });
 })();
