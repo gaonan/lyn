@@ -36,6 +36,26 @@
   .key-row { display: flex; gap: 8px; }
   input { flex: 1; min-width: 0; width: 100%; padding: 6px 9px; background: #101910; }
   .definition { color: #b9c1aa; font-size: 12px; }
+  .section-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 10px; }
+  .section-heading h2 { margin: 0; }
+  .period { display: flex; padding: 3px; gap: 3px; border: 1px solid #c7a46e55; border-radius: 7px; }
+  .period button { min-height: 31px; padding: 0 9px; font-size: 12px; color: #d8d0b8; background: transparent; border-color: transparent; }
+  .period button[aria-pressed="true"] { color: #29271c; background: #edd6a2; }
+  .challenge-cards { display: grid; gap: 8px; }
+  @media (min-width: 540px) { .challenge-cards { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+  .challenge-card { --accent: #efc49d; padding: 11px 12px; border: 1px solid #c7a46e55; border-radius: 6px; background: #f1e2b30a; }
+  .challenge-card[data-challenge="heart"] { --accent: #e9a6a6; }
+  .challenge-card[data-challenge="magazine"] { --accent: #f0cc87; }
+  .challenge-card[data-challenge="role"] { --accent: #d4bce9; }
+  .challenge-card[data-challenge="record"] { --accent: #b9d7a9; }
+  .challenge-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .challenge-title h3 { margin: 0; font-size: 14px; }
+  .challenge-rate { color: var(--accent); font-size: 12px; }
+  .challenge-stages { display: grid; grid-template-columns: 3.5em minmax(0,1fr) minmax(4ch,max-content); gap: 7px 9px; align-items: center; font-size: 12px; }
+  .challenge-count { text-align: right; font: 550 13px ui-monospace,monospace; }
+  .chart-track { height: 8px; overflow: hidden; border-radius: 6px; background: #f1e2b318; }
+  .chart-fill { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+  .start-bar { opacity: .50; }
 </style>
 <main>
   <header><p>康乃馨 7.0</p><h1>访问统计</h1></header>
@@ -59,6 +79,17 @@
       <table id="funnel"><thead><tr><th scope="col">新版本事件</th><th scope="col">今天</th><th scope="col">累计</th></tr></thead><tbody></tbody></table>
       <p class="definition">加载失败含启动报错和出现停滞提示后离开。首次收集按页面去重，恢复存档和测试通关不计。</p>
     </section>
+    <section id="challenges" aria-labelledby="challenges-title" hidden>
+      <div class="section-heading">
+        <h2 id="challenges-title">挑战漏斗</h2>
+        <div class="period" role="group" aria-label="挑战统计时段">
+          <button type="button" data-period="total" aria-pressed="true">累计</button>
+          <button type="button" data-period="today" aria-pressed="false">今日开始</button>
+        </div>
+      </div>
+      <div class="challenge-cards" aria-live="polite"></div>
+      <p class="definition">各挑战独立按浏览器和站点去重。完成率以该时段开始挑战的玩家为分母。统计从本版上线后开始。</p>
+    </section>
     <section aria-labelledby="history-title">
       <h2 id="history-title">近 7 天</h2>
       <div class="history-table"><table id="history"><thead><tr><th scope="col">日期</th><th scope="col">访客</th><th scope="col">打开</th><th scope="col">进场</th><th scope="col">就绪</th><th scope="col">失败</th><th scope="col">首收集</th></tr></thead><tbody></tbody></table></div>
@@ -66,13 +97,25 @@
     <p class="definition">访客按同一浏览器、同一站点去重。进场按点过「开始收集」的页面计数。日期以北京时间为准。</p>
   </div>
 </main>
+<template id="challenge-card">
+  <article class="challenge-card">
+    <div class="challenge-title"><h3></h3><span class="challenge-rate"></span></div>
+    <div class="challenge-stages">
+      <span class="start-label"></span><span class="chart-track" aria-hidden="true"><span class="chart-fill start-bar"></span></span><span class="challenge-count start-count"></span>
+      <span class="complete-label"></span><span class="chart-track" aria-hidden="true"><span class="chart-fill complete-bar"></span></span><span class="challenge-count complete-count"></span>
+    </div>
+  </article>
+</template>
 <script>
   const $ = selector => document.querySelector(selector);
   const form = $('#access'), status = $('#status'), refresh = $('#refresh'), stats = $('#statistics');
   const format = new Intl.NumberFormat('zh-CN');
+  const percent = new Intl.NumberFormat('zh-CN', { style: 'percent', maximumFractionDigits: 1 });
   const clock = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit' });
   let key = location.hash.slice(1);
   let loading = false;
+  let challengeStats = null;
+  let challengePeriod = 'total';
   if (!key) {
     try { key = sessionStorage.getItem('carnation7-stats-key'); } catch {}
   }
@@ -91,6 +134,39 @@
   function milestoneCount(data, name) {
     return data.tracked ? format.format(data[name]) : '—';
   }
+  const challengeLabels = [
+    ['heart', '心心', '首颗', '集齐'], ['magazine', '杂志', '首本', '集齐'],
+    ['role', '影视角色', '首个', '集齐'], ['record', '唱片', '解锁', '领取'],
+  ];
+  function renderChallenges() {
+    $('#challenges').hidden = !challengeStats;
+    if (!challengeStats) return;
+    const today = challengePeriod === 'today';
+    const cards = challengeLabels.map(([name, title, startLabel, completeLabel]) => {
+      const card = $('#challenge-card').content.firstElementChild.cloneNode(true);
+      const data = challengeStats[name];
+      const started = (today ? data?.today_started : data?.started) ?? 0;
+      const completed = (today ? data?.today_completed : data?.completed) ?? 0;
+      const rate = started > 0 ? completed / started : 0;
+      card.dataset.challenge = name;
+      card.querySelector('h3').textContent = title;
+      card.querySelector('.start-label').textContent = startLabel;
+      card.querySelector('.complete-label').textContent = completeLabel;
+      card.querySelector('.start-count').textContent = format.format(started);
+      card.querySelector('.complete-count').textContent = format.format(completed);
+      card.querySelector('.challenge-rate').textContent = started ? `${percent.format(rate)} 完成` : '暂无开始记录';
+      card.querySelector('.start-bar').style.width = started ? '100%' : '0';
+      card.querySelector('.complete-bar').style.width = `${rate * 100}%`;
+      return card;
+    });
+    $('.challenge-cards').replaceChildren(...cards);
+  }
+  const periodButtons = [...document.querySelectorAll('[data-period]')];
+  for (const button of periodButtons) button.onclick = () => {
+    challengePeriod = button.dataset.period;
+    for (const choice of periodButtons) choice.setAttribute('aria-pressed', String(choice === button));
+    renderChallenges();
+  };
   async function load() {
     if (loading) return;
     if (!/^[a-f0-9]{64}$/.test(key)) return unlock('请输入密钥，或打开你的私密统计链接。');
@@ -101,7 +177,9 @@
       const response = await fetch('/api/visitor-stats', { headers: { Authorization: 'Bearer ' + key }, cache: 'no-store' });
       if (response.status === 401) return unlock('统计密钥无效，请检查后重试。');
       if (!response.ok) throw new Error('Statistics unavailable');
-      const { total, days } = await response.json();
+      const { total, days, challenges } = await response.json();
+      challengeStats = challenges;
+      renderChallenges();
       const fill = (selector, data) => document.querySelectorAll(selector + ' dd')
         .forEach((cell, index) => { cell.textContent = values(data)[index]; });
       const today = days.at(-1);
