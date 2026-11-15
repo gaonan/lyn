@@ -1,25 +1,26 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r49';
-import { buildBotanicals } from './botanicals.js?v=20261113-r49';
-import { createHearts } from './hearts.js?v=20261113-r49';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r49';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r49';
-import { setupMusic } from './music.js?v=20261113-r49';
-import { setupCollection } from './collection.js?v=20261113-r49';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r49';
-import { prepareOffline } from './offline.js?v=20261113-r49';
-import { buildMagazines } from './magazines.js?v=20261113-r49';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r49';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r49';
-import { buildRolePortraits } from './roles.js?v=20261113-r49';
-import { buildRecord } from './record.js?v=20261113-r49';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r49';
-import { createArtworkQueue } from './artwork.js?v=20261113-r49';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r49';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r49';
-import { setupKeepsake } from './keepsake.js?v=20261113-r49';
-import { createPlaySave } from './play-save.js?v=20261113-r49';
-const VERSION = '20261113-r49';
+import { buildArchitecture } from './architecture.js?v=20261113-r50';
+import { buildBotanicals } from './botanicals.js?v=20261113-r50';
+import { createHearts } from './hearts.js?v=20261113-r50';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r50';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r50';
+import { setupMusic } from './music.js?v=20261113-r50';
+import { setupCollection } from './collection.js?v=20261113-r50';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r50';
+import { prepareOffline } from './offline.js?v=20261113-r50';
+import { buildMagazines } from './magazines.js?v=20261113-r50';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r50';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r50';
+import { buildRolePortraits } from './roles.js?v=20261113-r50';
+import { buildRecord } from './record.js?v=20261113-r50';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r50';
+import { createArtworkQueue } from './artwork.js?v=20261113-r50';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r50';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r50';
+import { setupKeepsake } from './keepsake.js?v=20261113-r50';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r50';
+import { createPlaySave } from './play-save.js?v=20261113-r50';
+const VERSION = '20261113-r50';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -178,7 +179,31 @@ const collection = setupCollection(hearts, () => p, rewardSounds,
   (id, complete) => saveCollection('hearts', id, complete));
 collection.restore(playSave.state.hearts);
 const openGroupPhoto = setupGroupPhoto($('#group-photo-dialog'), renderKeepsake, VERSION, () => daimi.ready);
-const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, openGroupPhoto);
+const wallProjection = buildWallProjection(THREE, scene);
+const messageWall = setupMessageWall($('#message-wall-dialog'), wallProjection, renderWallView);
+const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, openGroupPhoto, messageWall);
+
+function renderWallView(target) {
+  if (rendererSuspended) return;
+  const halfWidth = 9.1;
+  const halfHeight = halfWidth * target.height / target.width;
+  const wallCamera = new THREE.OrthographicCamera(-halfWidth, halfWidth, halfHeight, -halfHeight, .025, 6);
+  wallCamera.position.set(0, 1.68, 8.7);
+  wallCamera.lookAt(0, 1.68, 9.04);
+  const context = target.getContext('2d');
+  try {
+    lighting.setNight(true);
+    renderer.setDrawingBufferSize(target.width, target.height, 1);
+    renderer.render(scene, wallCamera);
+    context.clearRect(0, 0, target.width, target.height);
+    context.drawImage(canvas, 0, 0, target.width, target.height);
+  } finally {
+    lighting.setNight(night);
+    renderWidth = 0;
+    resizeRenderer();
+    renderer.render(scene, camera);
+  }
+}
 function renderKeepsake(ctx, x, y, width, height, pixelScale, guestPortrait, pose) {
   const photoCamera = new THREE.PerspectiveCamera(guestPortrait ? 43 : 44, width / height, .07, 65);
   photoCamera.position.set(guestPortrait ? .26 : .15, 1.28, 2.96);
@@ -326,7 +351,7 @@ function updateLocation() {
   document.querySelectorAll('[data-spot]').forEach(el => el.classList.toggle('active', Number(el.dataset.spot) === activeSpot));
 }
 let toastTimer;
-function toast(t){clearTimeout(toastTimer);$('#toast').textContent=t;$('#toast').style.opacity=1;toastTimer=setTimeout(()=>$('#toast').style.opacity=0,2400)}
+function toast(t, duration = 2400){clearTimeout(toastTimer);$('#toast').textContent=t;$('#toast').style.opacity=1;toastTimer=setTimeout(()=>$('#toast').style.opacity=0,duration)}
 const landscapeReminder = $('#landscape-reminder');
 const portraitViewport = matchMedia('(orientation: portrait)');
 let portraitReminderTimer;
@@ -355,6 +380,7 @@ function enter() {
   alignViewStick();
   const saved = playSave.state.position;
   placePlayer(saved && canRestorePosition(saved, world.surfaces, colliders) ? saved : destinations[0]);
+  if (record.claimed) messageWall.refresh();
   setTimeout(() => { $('#hint').style.opacity = 0; }, 9000);
 }
 $('#enter').onclick=enter;$('.brand').onclick=e=>{e.preventDefault();if(entered)setSpot(0)};

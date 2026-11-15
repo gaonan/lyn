@@ -230,7 +230,7 @@ async function getRecordNumber(requestId) {
   }
 }
 
-export function setupKeepsake(dialog, record, render, openGroupPhoto) {
+export function setupKeepsake(dialog, record, render, openGroupPhoto, messageWall) {
   const key = 'carnation7-wall-note';
   const pendingKey = 'carnation7-pending-record-request';
   const input = dialog.querySelector('textarea');
@@ -248,11 +248,17 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
   const groupPhoto = dialog.querySelector('#open-group-photo');
   const confirmSaved = dialog.querySelector('#confirm-keepsake-saved');
   groupPhoto.addEventListener('click', openGroupPhoto);
+  const wallButton = dialog.querySelector('#open-message-wall');
+  wallButton.addEventListener('click', messageWall.open);
+  const publishPanel = dialog.querySelector('.keepsake-publish');
+  const publishButton = dialog.querySelector('#publish-wall-note');
+  const publishStatus = publishPanel.querySelector('[role=status]');
   const status = dialog.querySelector('.keepsake-status');
   let savedText = '';
   try { savedText = keepsakeText(localStorage.getItem(key) || ''); } catch {}
   record.setMessage(savedText);
   let file, url, requestId, generating = false, generation = 0;
+  let publishable;
   try { requestId = sessionStorage.getItem(pendingKey); } catch {}
   if (!/^[0-9a-f]{32}$/.test(requestId)) requestId = undefined;
 
@@ -265,6 +271,8 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
     album.hidden = false;
     preview.removeAttribute('src');
     issued.hidden = groupPhoto.hidden = confirmSaved.hidden = true;
+    publishPanel.hidden = true;
+    publishable = undefined;
     compose.hidden = false;
     title.textContent = '恭喜发现彩蛋，你好厉害！';
     download.removeAttribute('href');
@@ -322,6 +330,11 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
       if (attempt !== generation || !dialog.open) return;
       file = new File([blob], `康乃馨7.0-唱片留影-${recordNumber}.jpg`, { type: 'image/jpeg' });
       url = URL.createObjectURL(blob);
+      if (text) {
+        publishable = { requestId, text };
+        publishPanel.hidden = publishButton.disabled = false;
+        publishStatus.textContent = '';
+      }
       requestId = undefined;
       try { sessionStorage.removeItem(pendingKey); } catch {}
       serialLabel.textContent = recordNumber;
@@ -341,6 +354,23 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
     }
   });
 
+  publishButton.addEventListener('click', async () => {
+    if (!publishable) return;
+    const note = publishable;
+    publishButton.disabled = true;
+    publishStatus.textContent = '正在发布…';
+    try {
+      await messageWall.publish(note);
+      if (note !== publishable) return;
+      publishable = undefined;
+      publishStatus.textContent = '已发布，留言会参与墙面抽选。';
+    } catch {
+      if (note !== publishable) return;
+      publishButton.disabled = false;
+      publishStatus.textContent = '暂时没能发布，联网后可以重试。';
+    }
+  });
+
   function showGroupPhotoStep(message) {
     groupPhoto.hidden = false;
     confirmSaved.hidden = true;
@@ -348,17 +378,17 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
   }
 
   download.addEventListener('click', () => {
-    if (file) showGroupPhotoStep('已发起留影下载，可以继续合影。');
+    if (file) showGroupPhotoStep('已发起留影下载。');
   });
   confirmSaved.addEventListener('click', () => {
-    if (file) showGroupPhotoStep('可以继续合影。');
+    if (file) showGroupPhotoStep('');
   });
   save.addEventListener('click', async () => {
     if (!file) return;
     const attempt = generation;
     const result = await shareImage(file, '康乃馨 7.0 · 花房留影');
     if (attempt !== generation || !dialog.open) return;
-    if (result === 'shared') showGroupPhotoStep('可以继续合影。');
+    if (result === 'shared') showGroupPhotoStep('');
     if (result === 'unavailable') {
       status.textContent = '可长按图片保存，保存后点「我已保存」，也可以下载图片。';
     }
@@ -368,5 +398,6 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto) {
     input.value = savedText;
     updateLimit();
     status.textContent = '';
+    messageWall.refresh();
   };
 }
