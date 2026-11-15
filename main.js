@@ -1,24 +1,24 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r45';
-import { buildBotanicals } from './botanicals.js?v=20261113-r45';
-import { createHearts } from './hearts.js?v=20261113-r45';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r45';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r45';
-import { setupMusic } from './music.js?v=20261113-r45';
-import { setupCollection } from './collection.js?v=20261113-r45';
-import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r45';
-import { prepareOffline } from './offline.js?v=20261113-r45';
-import { buildMagazines } from './magazines.js?v=20261113-r45';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r45';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r45';
-import { buildRolePortraits } from './roles.js?v=20261113-r45';
-import { buildRecord } from './record.js?v=20261113-r45';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r45';
-import { createArtworkQueue } from './artwork.js?v=20261113-r45';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r45';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r45';
-import { setupKeepsake } from './keepsake.js?v=20261113-r45';
-const VERSION = '20261113-r45';
+import { buildArchitecture } from './architecture.js?v=20261113-r46';
+import { buildBotanicals } from './botanicals.js?v=20261113-r46';
+import { createHearts } from './hearts.js?v=20261113-r46';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r46';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r46';
+import { setupMusic } from './music.js?v=20261113-r46';
+import { setupCollection } from './collection.js?v=20261113-r46';
+import { spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r46';
+import { prepareOffline } from './offline.js?v=20261113-r46';
+import { buildMagazines } from './magazines.js?v=20261113-r46';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r46';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r46';
+import { buildRolePortraits } from './roles.js?v=20261113-r46';
+import { buildRecord } from './record.js?v=20261113-r46';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r46';
+import { createArtworkQueue } from './artwork.js?v=20261113-r46';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r46';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r46';
+import { setupKeepsake } from './keepsake.js?v=20261113-r46';
+const VERSION = '20261113-r46';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const touchDevice = matchMedia('(any-pointer: coarse)').matches || navigator.maxTouchPoints > 0;
@@ -285,6 +285,22 @@ function updateLocation() {
 }
 let toastTimer;
 function toast(t){clearTimeout(toastTimer);$('#toast').textContent=t;$('#toast').style.opacity=1;toastTimer=setTimeout(()=>$('#toast').style.opacity=0,2400)}
+const landscapeReminder = $('#landscape-reminder');
+const portraitViewport = matchMedia('(orientation: portrait)');
+let portraitReminderTimer;
+function updateLandscapeReminder() {
+  clearTimeout(portraitReminderTimer);
+  if (!entered || document.hidden || !portraitViewport.matches) {
+    landscapeReminder.textContent = '';
+    return;
+  }
+  portraitReminderTimer = setTimeout(() => {
+    landscapeReminder.textContent = '横屏体验效果更佳哦';
+  }, 5000);
+}
+portraitViewport.addEventListener('change', updateLandscapeReminder);
+document.addEventListener('visibilitychange', updateLandscapeReminder);
+
 function enter() {
   if (entered || !modelReady || rendererSuspended) return;
   entered = true;
@@ -293,6 +309,7 @@ function enter() {
   document.body.classList.add('entered');
   window.dispatchEvent(new Event('bloom-entered'));
   $('#hud').hidden = false;
+  updateLandscapeReminder();
   alignViewStick();
   setSpot(0);
   setTimeout(() => { $('#hint').style.opacity = 0; }, 9000);

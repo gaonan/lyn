@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r45") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r46") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r45") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r46") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -653,6 +653,11 @@ dialog[open] {
   max-height: calc(var(--visible-height, 100vh) - 30px);
 }
 
+#landscape-reminder { position: fixed; visibility: hidden; pointer-events: none; }
+@keyframes landscape-reminder-pulse {
+  50% { opacity: .65; }
+}
+
 @media (orientation: portrait) {
   header {
     left: max(20px, env(safe-area-inset-left));
@@ -670,6 +675,22 @@ dialog[open] {
   #look-joystick { right: max(clamp(18px, 5vw, 48px), env(safe-area-inset-right)); }
   .destinations { bottom: max(18px, calc(env(safe-area-inset-bottom) + 8px)); }
   #hint { top: auto; bottom: max(62px, calc(env(safe-area-inset-bottom) + 52px)); letter-spacing: 1px; }
+  #landscape-reminder { visibility: visible; }
+  #landscape-reminder:not(:empty) {
+    z-index: 4;
+    left: 50%;
+    bottom: max(69px, calc(env(safe-area-inset-bottom) + 59px));
+    transform: translateX(-50%);
+    padding: 6px 11px;
+    border: 1px solid #e5c88f8c;
+    border-radius: 24px;
+    background: #20352a;
+    color: #fff0cf;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  #landscape-reminder:not(:empty) + #hint { visibility: hidden; }
   #hud-artwork { left: 50%; bottom: auto; top: 22%; transform: translateX(-50%); }
   #map-panel {
     max-width: calc(100% - 36px);
@@ -677,6 +698,10 @@ dialog[open] {
     overflow: auto;
   }
   #map { max-width: 100%; height: auto; }
+}
+
+@media (orientation: portrait) and (prefers-reduced-motion: no-preference) {
+  #landscape-reminder:not(:empty) { animation: landscape-reminder-pulse 1.2s ease-in-out 3; }
 }
 
 @media (max-width: 620px) {
