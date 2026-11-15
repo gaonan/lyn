@@ -44,9 +44,9 @@ export async function loadFilmFont() {
   ).catch(() => {});
 }
 
-export function photoTimestamp(date) {
+function photoDate(date) {
   const two = value => String(value).padStart(2, '0');
-  return `${date.getFullYear()}.${two(date.getMonth() + 1)}.${two(date.getDate())}  ${two(date.getHours())}:${two(date.getMinutes())}`;
+  return `${date.getFullYear()}.${two(date.getMonth() + 1)}.${two(date.getDate())}`;
 }
 
 function fillSprocket(ctx, x, y, width, height, radius, color) {
@@ -180,7 +180,7 @@ export function paintFilmPhoto(out, render, { label, album, text, date = new Dat
   ctx.fillText(label, right - 29, footerY + (album ? 123 : 106));
   ctx.font = '500 25px "IBM Plex Mono", "Courier New", monospace';
   ctx.fillStyle = '#ecc68f';
-  ctx.fillText(photoTimestamp(date), right - 29, footerBottom - 32);
+  ctx.fillText(photoDate(date), right - 29, footerBottom - 32);
   ctx.textAlign = 'left';
 
   paintFilmStrip(ctx, 0, width);
