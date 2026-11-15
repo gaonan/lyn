@@ -39,7 +39,7 @@ npm start
 
 ```sh
 npm run check
-python3 scripts/package_release.py pack --build 20261113-r45
+python3 scripts/package_release.py pack --build 20261113-r46
 ```
 
 测试覆盖楼层和楼梯可达性、收集交互、人物照片展示和离线缓存。打包脚本根据 `dist/` 生成发布归档和 SHA-256 清单。
