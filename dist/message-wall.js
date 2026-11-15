@@ -102,7 +102,7 @@ function visibleNotes(messages) {
     .filter(note => note.text).slice(0, POSITIONS.length);
 }
 
-export function setupMessageWall(dialog, projection, drawView) {
+export function setupMessageWall(dialog, projection, drawView, recordReady) {
   const canvas = dialog.querySelector('canvas');
   const status = dialog.querySelector('[role=status]');
   const list = dialog.querySelector('.wall-readings');
@@ -110,6 +110,9 @@ export function setupMessageWall(dialog, projection, drawView) {
   const shuffle = dialog.querySelector('#shuffle-wall');
   const retry = dialog.querySelector('#retry-wall');
   let revision = 0;
+  recordReady.then(ready => {
+    if (ready && dialog.open) drawView(canvas);
+  });
 
   function showNotes(notes) {
     projection.paint(notes);

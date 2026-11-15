@@ -180,7 +180,7 @@ const collection = setupCollection(hearts, () => p, rewardSounds,
 collection.restore(playSave.state.hearts);
 const openGroupPhoto = setupGroupPhoto($('#group-photo-dialog'), renderKeepsake, VERSION, () => daimi.ready);
 const wallProjection = buildWallProjection(THREE, scene);
-const messageWall = setupMessageWall($('#message-wall-dialog'), wallProjection, renderWallView);
+const messageWall = setupMessageWall($('#message-wall-dialog'), wallProjection, renderWallView, record.ready);
 const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, openGroupPhoto, messageWall);
 
 function renderWallView(target) {
