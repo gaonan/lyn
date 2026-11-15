@@ -1,4 +1,4 @@
-import { keepsakeText, textLines } from './keepsake.js?v=20261113-r50';
+import { keepsakeText, textLines } from './keepsake.js?v=20261113-r51';
 
 const WIDTH = 2048;
 const HEIGHT = 384;
@@ -15,12 +15,15 @@ const rightSlots = [
   [1175, 294, 182], [1388, 316, 162], [1574, 302, 176], [1815, 319, 174],
   [1802, 158, 178], [1777, 230, 208],
 ];
+const middleSlots = [
+  [944, 155, 143], [870, 278, 133], [1014, 33, 147],
+  [1008, 327, 145], [1013, 222, 143], [877, 92, 145],
+];
 const leftOrder = [6, 9, 0, 14, 5, 11, 3, 12, 2, 15, 8, 1, 13, 4, 7, 10];
 const rightOrder = [2, 9, 5, 13, 0, 11, 6, 4, 1, 12, 3, 8, 7, 10];
-const POSITIONS = leftOrder.flatMap((slot, index) => {
-  const right = rightSlots[rightOrder[index]];
-  return right ? [leftSlots[slot], right] : [leftSlots[slot]];
-});
+const POSITIONS = leftOrder.flatMap((slot, index) => [
+  leftSlots[slot], rightSlots[rightOrder[index]], index % 2 === 0 ? middleSlots[index / 2] : undefined,
+].filter(Boolean));
 const INK = ['#ffda98', '#dbe6c3', '#f3cfc8', '#e0d5ee', '#f9e8be'];
 const WALL_FONT = '"Kaiti SC", STKaiti, KaiTi, "Songti SC", "Noto Serif SC", serif';
 
