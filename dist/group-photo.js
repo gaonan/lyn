@@ -1,5 +1,5 @@
-import { createFilmCanvas, loadFilmFont, paintFilmPhoto, shareImage } from './keepsake.js?v=20261113-r38';
-import { cheekColors, matchFaceLighting } from './portrait-color.js?v=20261113-r38';
+import { createFilmCanvas, loadFilmFont, paintFilmPhoto, shareImage } from './keepsake.js?v=20261113-r39';
+import { cheekColors, matchFaceLighting } from './portrait-color.js?v=20261113-r39';
 
 // All player image data stays in this dialog's memory until it is closed.
 const GUIDE_SIZE = 300;
@@ -8,22 +8,22 @@ const FIT = { x: .5, y: .42, zoom: 1.38, angle: 0 };
 // Head crops use normalized coordinates. Masks and eye/mouth guides use the editor's 300px view.
 const POSES = {
   front: {
-    file: 'white-dress-guest.webp',
-    head: [253 / 600, 44 / 900, 100 / 600, 100 / 900],
-    contour: 'M151 30 C181 31 204 52 221 86 C225 100 227 111 234 125 C242 158 219 196 199 225 C180 249 164 263 148 264 C125 262 101 245 83 223 C61 196 43 159 51 128 C51 111 64 99 69 81 C87 51 112 33 151 30 Z',
-    eyes: [[88, 105], [198, 105]],
-    mouth: [[113, 216], [190, 216]],
-    cheeks: [[.303, .51, .060, .058], [.70, .51, .060, .058]],
+    file: 'stagewear-front.webp',
+    head: [435 / 1024, 57 / 1536, 152 / 1024, 191 / 1536],
+    contour: 'M150 29 C194 29 222 63 244 91 C253 105 254 121 260 136 C271 162 250 208 226 237 C204 263 171 283 153 283 C129 283 97 260 75 235 C52 206 31 164 39 138 C45 118 47 105 56 89 C75 61 100 28 150 29 Z',
+    eyes: [[99, 120], [214, 120]],
+    mouth: [[115, 220], [199, 220]],
+    cheeks: [[.29, .55, .064, .060], [.74, .55, .067, .060]],
     instruction: '选一张清晰的正脸照。',
   },
   duet: {
-    file: 'white-dress-duet.webp',
-    head: [244 / 600, 36 / 900, 86 / 600, 96 / 900],
-    contour: 'M103 82 Q120 73 133 68 Q145 68 154 78 Q167 72 177 59 Q190 49 204 45 C221 51 239 74 251 94 C264 113 269 127 265 144 C258 161 257 183 255 202 C251 224 250 234 234 247 C220 260 204 275 186 276 C165 276 140 263 119 244 C95 223 76 202 65 178 C59 160 65 143 78 126 C92 110 92 97 103 82 Z',
-    eyes: [[146, 106], [229, 77]],
-    mouth: [[179, 207], [243, 189]],
-    cheeks: [[.454, .52, .067, .065], [.83, .431, .038, .056]],
-    keep: 'M217 291 C218 278 226 271 240 265 C254 258 267 263 275 275 L300 300 H210 Z',
+    file: 'stagewear-duet.webp',
+    head: [425 / 1024, 54 / 1536, 150 / 1024, 165 / 1536],
+    contour: 'M79 98 C93 86 110 84 127 82 Q136 82 140 92 Q153 81 172 77 C182 74 184 59 195 51 C209 57 218 78 223 91 C225 104 237 115 245 131 C257 154 244 175 238 191 C231 213 242 231 236 251 C224 265 205 284 178 286 C150 285 123 272 104 255 C78 235 54 210 47 187 C40 167 54 146 60 130 C65 114 70 107 79 98 Z',
+    eyes: [[127, 122], [200, 95]],
+    mouth: [[157, 221], [221, 203]],
+    cheeks: [[.38, .575, .074, .058], [.737, .449, .046, .059]],
+    keep: 'M195 300 C200 288 211 275 227 271 C248 265 268 278 287 300 Z',
     instruction: '选一张脸朝照片右侧约 25–35° 的照片，最好双眼都能看到。朝左的照片可用「左右翻转」。',
   },
 };
@@ -176,7 +176,7 @@ function drawEditor(editor, template, photo, fit, layer, showSource) {
 }
 
 function makePortrait(template, photo, fit, layer) {
-  const scale = 2;
+  const scale = Math.max(1, 1200 / template.naturalWidth);
   const result = canvas(template.naturalWidth * scale, template.naturalHeight * scale);
   const ctx = result.getContext('2d');
   ctx.imageSmoothingQuality = 'high';
