@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r64';
-import { roleInReach } from './roles.js?v=20261113-r64';
+import { magazineInReach } from './magazines.js?v=20261113-r66';
+import { roleInReach } from './roles.js?v=20261113-r66';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
@@ -29,7 +29,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   const rolePanel = document.querySelector('#role-counter');
   const barks = document.querySelector('#daimi-barks');
   const total = magazines.items.length;
-  panel.querySelector('em').textContent = `/ ${total}`;
+  panel.querySelector('.progress-total').textContent = total;
   magazineFinale.querySelector('p').textContent = `${total} / ${total}`;
   let count = 0;
   let magazinesCelebrated = false;
