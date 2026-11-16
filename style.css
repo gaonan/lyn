@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r60") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r61") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r60") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r61") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -980,12 +980,14 @@ dialog[open] {
   }
 }
 
-#pure-view-toggle {
+#pure-view-toggle, #exit-pure-view {
   position: fixed;
   z-index: 5;
-  top: max(25px, env(safe-area-inset-top));
-  left: 50%;
-  translate: -50% 0;
+  left: max(16px, calc(env(safe-area-inset-left) + 8px));
+  touch-action: manipulation;
+}
+#pure-view-toggle {
+  top: max(195px, 37%);
   min-width: 68px;
   min-height: 44px;
   padding: 8px 15px 8px 18px;
@@ -995,35 +997,35 @@ dialog[open] {
   color: #ffe8b7;
   font-size: 13px;
   letter-spacing: .2em;
-  touch-action: manipulation;
 }
 
-@media (max-width: 1179px) {
-  #pure-view-toggle { top: calc(max(28px, env(safe-area-inset-top)) + 49px); }
-}
 @media (max-height: 550px) and (orientation: landscape) {
-  #pure-view-toggle { top: calc(max(14px, env(safe-area-inset-top)) + 46px); }
-  #pure-view-toggle:not([hidden]) ~ #hint { top: calc(max(14px, env(safe-area-inset-top)) + 96px); }
-}
-@media (max-width: 620px) {
-  #pure-view-toggle { top: calc(max(22px, env(safe-area-inset-top)) + 84px); }
-}
-@media (max-width: 440px) and (orientation: portrait) {
-  body:has(#pure-view-toggle:not([hidden])) {
-    --pure-button-space: calc(36px + max(0px, env(safe-area-inset-top) - 22px));
-  }
+  body.entered #achievement-badge { top: 100px; }
+  #pure-view-toggle { top: 136px; min-height: 38px; }
 }
 
 /* Keep toolbar bounds for aligning the look joystick across viewport changes. */
 .pure-view header { visibility: hidden; }
-.pure-view #hud > :not(#joystick, #look-joystick, #pure-view-toggle),
+.pure-view #hud > :not(#joystick, #look-joystick, #exit-pure-view),
 .pure-view :is(.creator-credit, #achievement-badge, #hud-artwork, #heart-counter,
   #magazine-counter, #role-counter, #collect-heart, #collected-message, #finale, .quest-action, #toast),
 .pure-view #joystick :is(small, .guide-gesture),
 .pure-view #look-joystick > :not(#look-stick) {
   display: none;
 }
-.pure-view #pure-view-toggle { opacity: 0; }
+#exit-pure-view {
+  display: none;
+  top: 43%;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #f2eddf59;
+  border-radius: 50%;
+  background: #1720199c;
+  color: #f2eddf;
+}
+#exit-pure-view svg { width: 21px; height: 21px; }
+.pure-view #exit-pure-view { display: grid; }
 .pure-view #look-joystick {
   --look-pad-opacity: .60;
   --look-pad-active-opacity: .78;
