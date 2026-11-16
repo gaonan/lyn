@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r59';
-import { roleInReach } from './roles.js?v=20261113-r59';
+import { magazineInReach } from './magazines.js?v=20261113-r60';
+import { roleInReach } from './roles.js?v=20261113-r60';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
@@ -24,6 +24,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   const roleFinale = document.querySelector('#role-finale');
   const achievementCelebration = document.querySelector('#achievement-celebration');
   const achievementBadge = document.querySelector('#achievement-badge');
+  const pureViewToggle = document.querySelector('#pure-view-toggle');
   const recordFinale = document.querySelector('#record-finale');
   const rolePanel = document.querySelector('#role-counter');
   const barks = document.querySelector('#daimi-barks');
@@ -113,6 +114,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   } catch {}
   function showAchievement(claimed) {
     achievementBadge.hidden = false;
+    pureViewToggle.hidden = false;
     achievementBadge.disabled = !claimed;
     achievementBadge.setAttribute('aria-label', claimed ? '全成就，查看花房留影' : '全成就');
   }

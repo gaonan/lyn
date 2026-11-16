@@ -1,5 +1,5 @@
-import { createFilmCanvas, loadFilmFont, paintFilmPhoto, shareImage } from './keepsake.js?v=20261113-r59';
-import { cheekColors, matchFaceLighting } from './portrait-color.js?v=20261113-r59';
+import { createFilmCanvas, loadFilmFont, paintFilmPhoto, shareImage } from './keepsake.js?v=20261113-r60';
+import { cheekColors, matchFaceLighting } from './portrait-color.js?v=20261113-r60';
 
 // All player image data stays in this dialog's memory until it is closed.
 const GUIDE_SIZE = 300;

@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r59") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r60") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r59") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r60") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -937,13 +937,13 @@ dialog[open] {
   .tools { max-width: 100%; flex-wrap: wrap; }
   .tools button { padding-inline: clamp(7px, 2.1vw, 11px); }
   .location { top: 130px; }
-  #heart-counter { top: 119px; right: 14px; }
-  #magazine-counter { top: 161px; right: 14px; }
-  #role-counter { top: 195px; right: 14px; }
-  #map-toggle { top: 197px; right: 14px; }
-  .roles-unlocked #map-toggle { top: 230px; }
-  #map-panel { top: 236px; right: 14px; }
-  .roles-unlocked #map-panel { top: 268px; }
+  #heart-counter { top: calc(119px + var(--pure-button-space, 0px)); right: 14px; }
+  #magazine-counter { top: calc(161px + var(--pure-button-space, 0px)); right: 14px; }
+  #role-counter { top: calc(195px + var(--pure-button-space, 0px)); right: 14px; }
+  #map-toggle { top: calc(197px + var(--pure-button-space, 0px)); right: 14px; }
+  .roles-unlocked #map-toggle { top: calc(230px + var(--pure-button-space, 0px)); }
+  #map-panel { top: calc(236px + var(--pure-button-space, 0px)); right: 14px; }
+  .roles-unlocked #map-panel { top: calc(268px + var(--pure-button-space, 0px)); }
   body.entered #achievement-badge { top: 155px; left: 20px; }
 }
 
@@ -954,7 +954,7 @@ dialog[open] {
   }
   .destinations button { flex: 1; padding: 10px 4px; }
   #collect-heart, .quest-action { bottom: max(210px, calc(env(safe-area-inset-bottom) + 185px)); }
-  #map-panel { max-height: min(calc(var(--visible-height, 100vh) - 280px), 314px); }
+  #map-panel { max-height: min(calc(var(--visible-height, 100vh) - 280px - var(--pure-button-space, 0px)), 314px); }
   #record-finale[open], #group-photo-dialog[open] { grid-template-columns: minmax(0, 1fr); }
   #record-finale img { max-height: min(32vh, 230px); }
   .group-photo-picture canvas, .group-photo-picture img { max-height: min(36vh, 280px); object-fit: contain; }
@@ -978,4 +978,61 @@ dialog[open] {
     overflow: auto;
     transform-origin: top left;
   }
+}
+
+#pure-view-toggle {
+  position: fixed;
+  z-index: 5;
+  top: max(25px, env(safe-area-inset-top));
+  left: 50%;
+  translate: -50% 0;
+  min-width: 68px;
+  min-height: 44px;
+  padding: 8px 15px 8px 18px;
+  border: 1px solid #efd59a80;
+  border-radius: 30px;
+  background: #26352bd9;
+  color: #ffe8b7;
+  font-size: 13px;
+  letter-spacing: .2em;
+  touch-action: manipulation;
+}
+
+@media (max-width: 1179px) {
+  #pure-view-toggle { top: calc(max(28px, env(safe-area-inset-top)) + 49px); }
+}
+@media (max-height: 550px) and (orientation: landscape) {
+  #pure-view-toggle { top: calc(max(14px, env(safe-area-inset-top)) + 46px); }
+  #pure-view-toggle:not([hidden]) ~ #hint { top: calc(max(14px, env(safe-area-inset-top)) + 96px); }
+}
+@media (max-width: 620px) {
+  #pure-view-toggle { top: calc(max(22px, env(safe-area-inset-top)) + 84px); }
+}
+@media (max-width: 440px) and (orientation: portrait) {
+  body:has(#pure-view-toggle:not([hidden])) {
+    --pure-button-space: calc(36px + max(0px, env(safe-area-inset-top) - 22px));
+  }
+}
+
+/* Keep toolbar bounds for aligning the look joystick across viewport changes. */
+.pure-view header { visibility: hidden; }
+.pure-view #hud > :not(#joystick, #look-joystick, #pure-view-toggle),
+.pure-view :is(.creator-credit, #achievement-badge, #hud-artwork, #heart-counter,
+  #magazine-counter, #role-counter, #collect-heart, #collected-message, #finale, .quest-action, #toast),
+.pure-view #joystick :is(small, .guide-gesture),
+.pure-view #look-joystick > :not(#look-stick) {
+  display: none;
+}
+.pure-view #pure-view-toggle { opacity: 0; }
+.pure-view #look-joystick {
+  --look-pad-opacity: .60;
+  --look-pad-active-opacity: .78;
+  border-color: #f2eddf70;
+  background: #f2eddf0c;
+  box-shadow: none;
+}
+.pure-view #look-stick {
+  border-color: #f2eddf94;
+  background: #f2eddf27;
+  box-shadow: none;
 }

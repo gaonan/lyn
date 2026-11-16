@@ -1,29 +1,31 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r59';
-import { buildBotanicals } from './botanicals.js?v=20261113-r59';
-import { createHearts } from './hearts.js?v=20261113-r59';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r59';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r59';
-import { setupMusic } from './music.js?v=20261113-r59';
-import { setupCollection } from './collection.js?v=20261113-r59';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r59';
-import { prepareOffline } from './offline.js?v=20261113-r59';
-import { buildMagazines } from './magazines.js?v=20261113-r59';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r59';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r59';
-import { buildRolePortraits } from './roles.js?v=20261113-r59';
-import { buildRecord } from './record.js?v=20261113-r59';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r59';
-import { createArtworkQueue } from './artwork.js?v=20261113-r59';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r59';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r59';
-import { setupKeepsake } from './keepsake.js?v=20261113-r59';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r59';
-import { createPlaySave } from './play-save.js?v=20261113-r59';
-const VERSION = '20261113-r59';
+import { buildArchitecture } from './architecture.js?v=20261113-r60';
+import { buildBotanicals } from './botanicals.js?v=20261113-r60';
+import { createHearts } from './hearts.js?v=20261113-r60';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r60';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r60';
+import { setupMusic } from './music.js?v=20261113-r60';
+import { setupCollection } from './collection.js?v=20261113-r60';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r60';
+import { prepareOffline } from './offline.js?v=20261113-r60';
+import { buildMagazines } from './magazines.js?v=20261113-r60';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r60';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r60';
+import { buildRolePortraits } from './roles.js?v=20261113-r60';
+import { buildRecord } from './record.js?v=20261113-r60';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r60';
+import { createArtworkQueue } from './artwork.js?v=20261113-r60';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r60';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r60';
+import { setupKeepsake } from './keepsake.js?v=20261113-r60';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r60';
+import { createPlaySave } from './play-save.js?v=20261113-r60';
+const VERSION = '20261113-r60';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
+const pureViewToggle = $('#pure-view-toggle');
+let pureView = false;
 const touchDevice = matchMedia('(any-pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 document.body.classList.toggle('touch-device', touchDevice);
 function createRenderer() {
@@ -45,7 +47,8 @@ let openingArtworkReady = false;
 canvas.addEventListener('webglcontextlost', event => {
   event.preventDefault();
   rendererSuspended = true;
-  resetInput();
+  if (pureView) setPureView(false);
+  else resetInput();
   rendererNotice.hidden = false;
 });
 canvas.addEventListener('webglcontextrestored', () => {
@@ -391,7 +394,7 @@ function startJoystickGuide() {
   $('#hint').hidden = true;
 }
 function guideMovement() {
-  if (joystickGuide.hidden || !guideDismiss.hidden) return;
+  if (pureView || joystickGuide.hidden || !guideDismiss.hidden) return;
   guideGesture.parentElement.classList.remove('guide-target');
   const movePad = $('#joystick');
   movePad.append(guideGesture);
@@ -476,10 +479,27 @@ const movementKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'A
 function canMove() {
   return entered && !rendererSuspended && !document.querySelector('dialog[open]') && !collection.celebrating;
 }
+function setPureView(enabled) {
+  resetInput();
+  pureView = enabled;
+  document.body.classList.toggle('pure-view', enabled);
+  pureViewToggle.setAttribute('aria-pressed', String(enabled));
+  pureViewToggle.title = enabled ? '' : '再次点屏幕上方中央或按 Esc 退出';
+}
+pureViewToggle.addEventListener('click', event => {
+  if (pureViewToggle.hidden || !canMove()) return;
+  setPureView(!pureView);
+  if (pureView && event.detail) pureViewToggle.blur();
+});
 window.addEventListener('keydown', event => {
   if (event.defaultPrevented || !canMove() || event.target.closest?.('input,textarea,[contenteditable]')) return;
+  if (pureView && event.key === 'Escape') {
+    event.preventDefault();
+    setPureView(false);
+    return;
+  }
   if (event.code === 'Space') {
-    if (event.target.closest?.('#share-record')) return;
+    if (event.target.closest?.('#share-record, #pure-view-toggle')) return;
     event.preventDefault();
     if (!event.repeat) jumpRequested = true;
   } else if (movementKeys.includes(event.code)) {
@@ -602,7 +622,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
   drawMap();
  }
  else if(!entered){introTime+=dt;camera.position.set(5.1+Math.sin(introTime*.06)*.22,5.6,7.5);camera.lookAt(-1.1,2.7,-2.8)}
- const active=entered&&p.grounded&&!document.querySelector('#help-dialog[open], #music-dialog[open]');
+ const active=entered&&!pureView&&p.grounded&&!document.querySelector('#help-dialog[open], #music-dialog[open]');
  const magazineEngaged=magazineQuest.update(now,active&&!collection.celebrating);
  performer.update(now/1000,camera);
  if(daimi.object.visible)daimi.update(now/1000,camera);
