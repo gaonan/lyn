@@ -1,5 +1,5 @@
 (() => {
-  if (!globalThis.crypto?.getRandomValues) return;
+  if (window.bloomLoading?.repairRequested || !globalThis.crypto?.getRandomValues) return;
   const endpoint = location.hostname === 'gaonan.github.io'
     ? 'https://lyn.lipopo.org/api/visit' : '/api/visit';
   const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)),

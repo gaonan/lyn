@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r54") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r55") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r54") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r55") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -403,7 +403,9 @@ body:not(.entered) #reload { display: none; }
 #load-progress::-webkit-progress-value { background: #e2c997; border-radius: 8px; }
 #load-progress::-moz-progress-bar { background: #e2c997; border-radius: 8px; }
 #load-detail { margin-top: 10px; font-size: 12px; line-height: 1.5; color: #e1e3d3; }
-#intro-reload { min-height: 42px; margin-top: 10px; gap: 32px; }
+#load-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; }
+#intro-reload { min-height: 40px; margin: 0; padding-inline: 12px; gap: 8px; font-size: 12px; letter-spacing: .03em; }
+#load-mirror { color: #f3e1bc; text-underline-offset: 3px; font-size: 12px; }
 .artwork-status {
   font-size: 11px;
   line-height: 1.5;

@@ -1,12 +1,26 @@
-const CACHE='carnation7-20261113-r54';
-const VERSION='20261113-r54';
+const CACHE='carnation7-20261113-r55';
+const VERSION='20261113-r55';
 const BARKS='assets/daimi/two-barks.m4a';
 const FILES=['./','index.html','manifest.webmanifest','assets/icon.svg','vendor/three.module.min.js','vendor/three.core.min.js',...['style.css','main.js','architecture.js','atrium-light.js','surface-maps.js','botanicals.js','performer-photo.js','performer-views.js','offline.js','hearts.js','collection.js','navigation.js','music.js','magazines.js','magazine-quest.js','daimi-views.js','roles.js','record.js','keepsake.js','group-photo.js','portrait-color.js','reward-sounds.js','artwork.js','visit.js','play-save.js','message-wall.js','assets/fonts/noto-serif-sc-title.woff2','assets/fonts/noto-serif-sc-film.woff2',BARKS, ...['heart','magazine','role','record','celebration'].map(cue=>`assets/sounds/${cue}.m4a`)].map(path=>`${path}?v=${VERSION}`)];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('carnation7-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+function isRecoveryURL(url) {
+  return url.searchParams.get('repair') === '1' || url.searchParams.has('recover');
+}
 self.addEventListener('fetch',event=>{
   const url=new URL(event.request.url);
   if(event.request.method!=='GET'||url.origin!==location.origin||url.pathname.startsWith('/api/')||url.pathname.startsWith('/stats/')||!url.pathname.startsWith(new URL(self.registration.scope).pathname))return;
+  const recoveryNavigation = event.request.mode === 'navigate' && isRecoveryURL(url);
+  const fromRecoveryPage = event.request.referrer && isRecoveryURL(new URL(event.request.referrer));
+  if (recoveryNavigation || fromRecoveryPage) {
+    event.respondWith(fetch(event.request, { cache: 'reload' }));
+    return;
+  }
+  // A retry gets a fresh response without making the temporary URL an offline entry.
+  if (url.searchParams.has('asset-retry')) {
+    event.respondWith(fetch(event.request, { cache: 'reload' }));
+    return;
+  }
   event.respondWith((async()=>{
     // Artwork textures are immutable within a release.
     const texture=/\/assets\/(performer|magazines|daimi|roles|record)\/[^/]+\.webp$/.test(url.pathname)&&url.searchParams.get('v')===VERSION;

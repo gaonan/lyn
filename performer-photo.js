@@ -70,7 +70,7 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
   const root = new T.Group(); root.name = options.name || 'Photographic multi-view performer'; root.position.set(...(options.position || [0, 0, -1])); scene.add(root);
   const facing = new T.Group(); facing.name = 'Camera-facing photo'; root.add(facing);
   const state = root.userData;
-  Object.assign(state, { technology: 'multi-view photographic 2.5D', textureStatus: 'loading', height, reference: options.reference || 'Image 8 standing singing pose', progress: 0, loadedViews: 0, currentView: 'front', night: false });
+  Object.assign(state, { technology: 'multi-view photographic 2.5D', textureStatus: 'loading', height, reference: options.reference || 'Image 8 standing singing pose', progress: 0, loadedViews: 0, currentView: 'front', night: false, textures: [], frames: {} });
   const loader = options.loader || new T.TextureLoader(), entries = new Array(4), trackedTextures = new Set(), disposedTextures = new Set();
   const fadeSeconds = clamp(options.fadeSeconds ?? .18, .05, .5), hysteresis = clamp(options.hysteresisDegrees ?? 7, 0, 20) * Math.PI / 180;
   const nightTint = options.nightTint || [.68, .72, .78];
@@ -93,8 +93,14 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
   }
   function samples(a, b, blend) { setSample('From', a); setSample('To', b); uniforms.photoBlend.value = blend; state.fromView = PHOTO_VIEWS[a]; state.currentView = PHOTO_VIEWS[b]; state.blend = blend; }
   function build() {
-    commonLeft = Math.min(...entries.map(v => v.frame.left));
-    commonWidth = Math.max(...entries.map(v => v.frame.right)) - commonLeft;
+    // Reserve the other angles' geometry before their textures arrive.
+    const frames = PHOTO_VIEWS.map((name, index) => {
+      if (entries[index]) return entries[index].frame;
+      const config = options.views[name];
+      return photographicFrame(config.width, config.height, config, baseHeight);
+    });
+    commonLeft = Math.min(...frames.map(frame => frame.left));
+    commonWidth = Math.max(...frames.map(frame => frame.right)) - commonLeft;
     const geometry = new T.PlaneGeometry(commonWidth, height, 1, lowerBodyExtension ? 2 : 1);
     const positions = geometry.getAttribute('position'), uv = geometry.getAttribute('uv');
     for (let i = 0; i < positions.count; i++) {
@@ -120,7 +126,7 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
     material.customProgramCacheKey = () => 'photographic-performer-premultiplied-v1';
     mesh = new T.Mesh(geometry, material); mesh.name = 'Photographic performer surface'; mesh.castShadow = false; mesh.receiveShadow = false; facing.add(mesh);
     samples(0, 0, 0); setNight(night);
-    Object.assign(state, { textureStatus: 'loaded', progress: 1, loadedViews: 4, triangles: geometry.index.count / 3, textures: entries.map(v => [v.frame.width, v.frame.height]), frames: Object.fromEntries(entries.map(v => [v.name, { ...v.frame, url: v.url }])), material: 'MeshBasicMaterial', commonLeft, commonWidth, lowerBodyExtension });
+    Object.assign(state, { triangles: geometry.index.count / 3, material: 'MeshBasicMaterial', commonLeft, commonWidth, lowerBodyExtension });
   }
   const ready = new Promise(resolve => {
     function fail(name, reason) {
@@ -134,9 +140,14 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
     PHOTO_VIEWS.forEach((name, index) => {
       if (settled) return;
       const config = options.views?.[name] || {}, url = versioned(config.url || `./assets/performer/photo-${name}.webp`, options.version);
+      const deferredLoader = index > 0 && options.deferredLoader;
+      function failed(reason) {
+        if (deferredLoader) console.warn(`Photo angle ${name} is unavailable`, reason);
+        else fail(name, reason);
+      }
       try {
-        const requested = loader.load(url, texture => {
-          if (settled) { if (!success) disposeTexture(texture); return; }
+        const requested = (deferredLoader || loader).load(url, texture => {
+          if (settled && !success) { disposeTexture(texture); return; }
           if (entries[index]) return;
           try {
             trackedTextures.add(texture);
@@ -147,12 +158,21 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
             // Filtering is performed in premultiplied linear color by our shader.
             texture.minFilter = T.NearestFilter; texture.magFilter = T.NearestFilter; texture.generateMipmaps = false; texture.needsUpdate = true;
             entries[index] = { name, url, frame, texture, mirror: config.mirror }; state.loadedViews++;
-            if (state.loadedViews === 4) { build(); success = true; settled = true; resolve(true); notify('onProgress', 1); }
-            else { state.progress = state.loadedViews / 4; notify('onProgress', state.progress); }
-          } catch (error) { fail(name, error); }
-        }, undefined, error => fail(name, error));
+            state.textures[index] = [width, height];
+            state.frames[name] = { ...frame, url };
+            state.progress = state.loadedViews / 4;
+            if (!settled && (state.loadedViews === 4 || (index === 0 && options.deferredLoader))) {
+              build(); success = true; settled = true; resolve(true);
+            }
+            if (success) state.textureStatus = state.loadedViews === 4 ? 'loaded' : 'partial';
+            notify('onProgress', state.progress);
+          } catch (error) {
+            if (deferredLoader) disposeTexture(texture);
+            failed(error);
+          }
+        }, undefined, failed);
         if (requested?.isTexture) { trackedTextures.add(requested); if (settled && !success) disposeTexture(requested); }
-      } catch (error) { fail(name, error); }
+      } catch (error) { failed(error); }
     });
   });
 
@@ -164,8 +184,13 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
       const dx = cameraPoint.x - actorPoint.x, dz = cameraPoint.z - actorPoint.z;
       if (dx * dx + dz * dz > 1e-10) {
         const angle = wrapped(Math.atan2(dx, dz) - actorEuler.y);
-        if (!initialized) { selected = photographicViewIndex(angle); from = selected; initialized = true; samples(selected, selected, 0); }
-        const desired = photographicViewIndex(angle, selected, hysteresis);
+        if (!initialized) {
+          const initial = photographicViewIndex(angle);
+          selected = entries[initial] ? initial : 0;
+          from = selected; initialized = true; samples(selected, selected, 0);
+        }
+        const direction = photographicViewIndex(angle, selected, hysteresis);
+        const desired = entries[direction] ? direction : 0;
         if (options.fixedViewPlanes) {
           // Each photo represents a fixed orientation of the same seated body.
           facing.rotation.y = desired * QUARTER;
