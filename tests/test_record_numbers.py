@@ -157,7 +157,8 @@ class RecordNumbersTests(unittest.TestCase):
             self.assertEqual(request(url)[2], {"latest": None})
 
     def test_wall_requires_issued_number_and_samples_a_shared_pool(self):
-        with running_server(self.database) as url:
+        key = "1" * 64
+        with running_server(self.database, stats_key=key.encode()) as url:
             wall_url = url.replace(API_PATH, "/api/wall-messages")
             self.assertEqual(request(wall_url)[2], {"messages": [], "total": 0})
             self.assertEqual(request(wall_url, origin=MIRROR, method="OPTIONS")[0], 204)
@@ -181,6 +182,13 @@ class RecordNumbersTests(unittest.TestCase):
             self.assertEqual(len({entry['id'] for entry in wall['messages']}), 70)
             self.assertTrue(all(set(entry) == {"id", "text"} for entry in wall["messages"]))
             self.assertEqual(request(url)[2], {"latest": 75})
+            register = url.replace(API_PATH, "/api/visitor-stats?view=messages")
+            self.assertEqual(request(register)[0], 401)
+            self.assertEqual(request(register, key="2" * 64)[0], 401)
+            self.assertEqual(request(register, key=key)[2], {"messages": [
+                {"number": number, "text": f"留言 {number}" if number < 75 else emoji_at_limit}
+                for number in range(1, 76)
+            ]})
 
 
 if __name__ == "__main__":

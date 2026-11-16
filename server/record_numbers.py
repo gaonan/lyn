@@ -99,6 +99,12 @@ def wall_messages(database):
     return {"messages": [{"id": id_, "text": text} for id_, text in rows], "total": total}
 
 
+def wall_message_register(database):
+    with closing(sqlite3.connect(database)) as connection:
+        rows = connection.execute("SELECT number, text FROM wall_message ORDER BY number").fetchall()
+    return {"messages": [{"number": number, "text": text} for number, text in rows]}
+
+
 def initialize_visits(database):
     with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute("PRAGMA journal_mode = WAL")
@@ -240,6 +246,8 @@ class RecordHandler(SimpleHTTPRequestHandler):
             if not key or not compare_digest(auth, b"Bearer " + key):
                 return self.respond(401, {"error": "key_required"})
             try:
+                if urlsplit(self.path).query == "view=messages":
+                    return self.respond(200, wall_message_register(self.server.database))
                 return self.respond(200, visitor_stats(self.server.visits_database))
             except sqlite3.Error:
                 return self.respond(503, {"error": "temporarily_unavailable"})

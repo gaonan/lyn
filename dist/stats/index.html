@@ -9,6 +9,7 @@
 <style>
   :root { color-scheme: dark; font: 16px/1.55 system-ui, sans-serif; background: #17231c; color: #f5eedc; }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at top left,#343725,#17231c 55%); }
   main { max-width: 680px; margin: auto; padding: max(32px,env(safe-area-inset-top)) 20px 36px; }
   header { border-bottom: 1px solid #b8975566; padding: 0 0 18px; }
@@ -56,6 +57,14 @@
   .chart-track { height: 8px; overflow: hidden; border-radius: 6px; background: #f1e2b318; }
   .chart-fill { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
   .start-bar { opacity: .50; }
+  .view-tabs { display: flex; gap: 6px; margin-top: 14px; }
+  .view-tabs button { background: transparent; color: #ebd9b5; }
+  .view-tabs button[aria-pressed="true"] { background: #edd6a2; color: #29271c; }
+  .messages-count { color: #d8d0b8; font-size: 12px; }
+  #messages-table th, #messages-table td { padding: 10px 8px; text-align: left; vertical-align: top; }
+  #messages-table th:first-child, #messages-table td:first-child { width: 9ch; }
+  #messages-table td:first-child { font-family: ui-monospace, monospace; color: #f1d6a2; }
+  #messages-table td:last-child { white-space: normal; overflow-wrap: anywhere; }
 </style>
 <main>
   <header><p>康乃馨 7.0</p><h1>访问统计</h1></header>
@@ -64,6 +73,10 @@
     <div class="key-row"><input type="password" id="key" required autocomplete="off"><button>打开</button></div>
   </form>
   <div class="toolbar"><p id="status" role="status">正在读取…</p><button id="refresh" type="button" hidden>刷新</button></div>
+  <div class="view-tabs" id="data-views" role="group" aria-label="查看统计或留言" hidden>
+    <button type="button" data-view="statistics" aria-controls="statistics" aria-pressed="true">访问统计</button>
+    <button type="button" data-view="messages" aria-controls="messages" aria-pressed="false">全部留言</button>
+  </div>
   <div id="statistics" hidden>
     <section aria-labelledby="today-title">
       <h2 id="today-title">今天</h2>
@@ -96,6 +109,13 @@
     </section>
     <p class="definition">访客按同一浏览器、同一站点去重。进场按点过「开始收集」的页面计数。日期以北京时间为准。</p>
   </div>
+  <section id="messages" aria-labelledby="messages-title" hidden>
+    <div class="section-heading">
+      <h2 id="messages-title">全部留言</h2>
+      <span class="messages-count" id="messages-count"></span>
+    </div>
+    <table id="messages-table"><thead><tr><th scope="col">唱片编号</th><th scope="col">留言</th></tr></thead><tbody></tbody></table>
+  </section>
 </main>
 <template id="challenge-card">
   <article class="challenge-card">
@@ -109,11 +129,15 @@
 <script>
   const $ = selector => document.querySelector(selector);
   const form = $('#access'), status = $('#status'), refresh = $('#refresh'), stats = $('#statistics');
+  const viewTabs = $('#data-views'), messagePanel = $('#messages');
+  const messageRows = $('#messages-table tbody'), messageCount = $('#messages-count');
+  const viewButtons = [...viewTabs.querySelectorAll('button')];
   const format = new Intl.NumberFormat('zh-CN');
   const percent = new Intl.NumberFormat('zh-CN', { style: 'percent', maximumFractionDigits: 1 });
   const clock = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit' });
   let key = location.hash.slice(1);
-  let loading = false;
+  let view = 'statistics';
+  let pending;
   let challengeStats = null;
   let challengePeriod = 'total';
   if (!key) {
@@ -121,7 +145,9 @@
   }
   function unlock(message) {
     form.hidden = false;
-    refresh.hidden = stats.hidden = true;
+    refresh.hidden = stats.hidden = viewTabs.hidden = messagePanel.hidden = true;
+    messageRows.replaceChildren();
+    messageCount.textContent = '';
     status.textContent = message;
   }
   function values({ visitors, opens, enters }) {
@@ -167,48 +193,87 @@
     for (const choice of periodButtons) choice.setAttribute('aria-pressed', String(choice === button));
     renderChallenges();
   };
+  function renderStatistics({ total, days, challenges }) {
+    challengeStats = challenges;
+    renderChallenges();
+    const fill = (selector, data) => document.querySelectorAll(selector + ' dd')
+      .forEach((cell, index) => { cell.textContent = values(data)[index]; });
+    const today = days.at(-1);
+    fill('#today', today);
+    fill('#total', total);
+    $('#funnel tbody').replaceChildren(...milestones.map(([label, name]) => {
+      const row = document.createElement('tr');
+      row.insertCell().textContent = label;
+      row.insertCell().textContent = format.format(today[name] ?? 0);
+      row.insertCell().textContent = format.format(total[name] ?? 0);
+      return row;
+    }));
+    $('#history tbody').replaceChildren(...[...days].reverse().map(day => {
+      const row = document.createElement('tr');
+      [day.day.slice(5), ...values(day), ...['ready', 'failed', 'first_collection'].map(name => milestoneCount(day, name))]
+        .forEach(value => { row.insertCell().textContent = value; });
+      return row;
+    }));
+    fetch('/api/record-number', { cache: 'no-store' }).then(result => result.json()).then(({ latest }) => {
+      $('#number').textContent = Number.isSafeInteger(latest) ? 'No.' + String(latest).padStart(6, '0') : '尚未发号';
+    }).catch(() => { $('#number').textContent = '暂时无法查询'; });
+  }
+  function renderMessages({ messages }) {
+    messageRows.replaceChildren(...messages.map(({ number, text }) => {
+      const row = document.createElement('tr');
+      row.insertCell().textContent = 'No.' + String(number).padStart(6, '0');
+      row.insertCell().textContent = text;
+      return row;
+    }));
+    messageCount.textContent = messages.length ? `共 ${format.format(messages.length)} 条` : '还没有公开留言';
+  }
+  function showView() {
+    stats.hidden = view !== 'statistics';
+    messagePanel.hidden = view !== 'messages';
+    for (const button of viewButtons) button.setAttribute('aria-pressed', String(view === button.dataset.view));
+  }
+  for (const button of viewButtons) button.onclick = () => {
+    if (view === button.dataset.view) return;
+    view = button.dataset.view;
+    showView();
+    load();
+  };
   async function load() {
-    if (loading) return;
+    pending?.abort();
+    pending = undefined;
     if (!/^[a-f0-9]{64}$/.test(key)) return unlock('请输入密钥，或打开你的私密统计链接。');
-    status.textContent = '正在读取…';
+    const controller = new AbortController();
+    pending = controller;
+    const messages = view === 'messages';
+    status.textContent = messages ? '正在读取留言…' : '正在读取…';
     refresh.hidden = false;
-    loading = refresh.disabled = true;
+    refresh.disabled = true;
     try {
-      const response = await fetch('/api/visitor-stats', { headers: { Authorization: 'Bearer ' + key }, cache: 'no-store' });
+      const endpoint = messages ? '/api/visitor-stats?view=messages' : '/api/visitor-stats';
+      const response = await fetch(endpoint, {
+        headers: { Authorization: 'Bearer ' + key },
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (pending !== controller) return;
       if (response.status === 401) return unlock('统计密钥无效，请检查后重试。');
-      if (!response.ok) throw new Error('Statistics unavailable');
-      const { total, days, challenges } = await response.json();
-      challengeStats = challenges;
-      renderChallenges();
-      const fill = (selector, data) => document.querySelectorAll(selector + ' dd')
-        .forEach((cell, index) => { cell.textContent = values(data)[index]; });
-      const today = days.at(-1);
-      fill('#today', today);
-      fill('#total', total);
-      $('#funnel tbody').replaceChildren(...milestones.map(([label, name]) => {
-        const row = document.createElement('tr');
-        row.insertCell().textContent = label;
-        row.insertCell().textContent = format.format(today[name] ?? 0);
-        row.insertCell().textContent = format.format(total[name] ?? 0);
-        return row;
-      }));
-      $('#history tbody').replaceChildren(...[...days].reverse().map(day => {
-        const row = document.createElement('tr');
-        [day.day.slice(5), ...values(day), ...['ready', 'failed', 'first_collection'].map(name => milestoneCount(day, name))]
-          .forEach(value => { row.insertCell().textContent = value; });
-        return row;
-      }));
+      if (!response.ok) throw new Error('Dashboard data unavailable');
+      const data = await response.json();
+      if (pending !== controller) return;
+      if (messages) renderMessages(data);
+      else renderStatistics(data);
       try { sessionStorage.setItem('carnation7-stats-key', key); } catch {}
       form.hidden = true;
-      stats.hidden = false;
+      viewTabs.hidden = false;
+      showView();
       status.textContent = '更新于 ' + clock.format(new Date()) + '（北京时间）';
-      fetch('/api/record-number', { cache: 'no-store' }).then(result => result.json()).then(({ latest }) => {
-        $('#number').textContent = Number.isSafeInteger(latest) ? 'No.' + String(latest).padStart(6, '0') : '尚未发号';
-      }).catch(() => { $('#number').textContent = '暂时无法查询'; });
     } catch {
-      status.textContent = '暂时无法读取统计，请刷新重试。';
+      if (pending === controller) status.textContent = messages ? '暂时无法读取留言，请刷新重试。' : '暂时无法读取统计，请刷新重试。';
     } finally {
-      loading = refresh.disabled = false;
+      if (pending === controller) {
+        pending = undefined;
+        refresh.disabled = false;
+      }
     }
   }
   refresh.onclick = load;
@@ -219,6 +284,7 @@
   };
   window.addEventListener('hashchange', () => {
     key = location.hash.slice(1);
+    unlock('正在核对密钥…');
     load();
   });
   load();
