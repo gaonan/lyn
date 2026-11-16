@@ -1,4 +1,4 @@
-import { keepsakeText, textLines } from './keepsake.js?v=20261113-r53';
+import { keepsakeText, textLines } from './keepsake.js?v=20261113-r54';
 
 const WIDTH = 2048;
 const HEIGHT = 640;

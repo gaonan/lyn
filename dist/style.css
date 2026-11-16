@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r53") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r54") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r53") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r54") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -25,11 +25,12 @@
 /* The right thumb has a fixed base and a separate moving cap. */
 #joystick, #look-joystick { --joystick-size: clamp(112px, 15vw, 148px); }
 #look-joystick {
+  --look-pad-size: calc(var(--joystick-size) * var(--look-pad-scale, 1));
   position: fixed;
-  right: calc(var(--look-right-center, 26vw) - var(--joystick-size) / 2);
+  right: calc(var(--look-right-center, 26vw) - var(--look-pad-size) / 2);
   top: 50%;
   transform: translateY(-50%);
-  width: var(--joystick-size);
+  width: var(--look-pad-size);
   aspect-ratio: 1;
   z-index: 4;
   border-radius: 50%;
@@ -38,10 +39,17 @@
   box-shadow: 0 4px 18px #12251a55, inset 0 0 0 5px #f5eacc10;
   touch-action: none;
   user-select: none;
-  opacity: .46;
+  opacity: var(--look-pad-opacity, .46);
   transition: opacity .15s ease;
 }
-#look-joystick:active { opacity: .78; border-color: #f0d79bcc; }
+#look-joystick.stick-held { opacity: var(--look-pad-active-opacity, .78); border-color: #f0d79bcc; }
+@media (hover: hover), (min-width: 740px) and (min-height: 550px), (min-width: 600px) and (min-height: 820px) {
+  #look-joystick {
+    --look-pad-scale: 1.2;
+    --look-pad-opacity: .30;
+    --look-pad-active-opacity: .58;
+  }
+}
 #look-stick {
   position: absolute;
   width: 32%;
