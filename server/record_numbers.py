@@ -20,7 +20,7 @@ API_PATH = "/api/record-number"
 VISIT_PATH = "/api/visit"
 STATS_PATH = "/api/visitor-stats"
 WALL_PATH = "/api/wall-messages"
-WALL_CAPACITY = 36
+WALL_CAPACITY = 70
 PUBLIC_ORIGINS = {"https://lyn.lipopo.org", "https://gaonan.github.io"}
 REQUEST_ID = re.compile(r"[0-9a-f]{32}")
 SHANGHAI = timezone(timedelta(hours=8))

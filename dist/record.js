@@ -1,4 +1,4 @@
-import { keepsakeText, textLines } from './keepsake.js?v=20261113-r56';
+import { keepsakeText, textLines } from './keepsake.js?v=20261113-r57';
 
 export const RECORD_POSITION = { x: -2.85, y: 1.53, z: 8.87 };
 
@@ -78,6 +78,9 @@ export function buildRecord(T, scene, version, loader = new T.TextureLoader()) {
     },
     inReach(player) {
       return loaded && unlocked && !claimed && recordInReach(player);
+    },
+    canShare(player) {
+      return loaded && claimed && recordInReach(player);
     },
     claim() { claimed = true; },
     setMessage,
