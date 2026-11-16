@@ -190,6 +190,9 @@ export function paintFilmPhoto(out, render, { label, album, text, recordNumber, 
   ctx.font = '500 25px "IBM Plex Mono", "Courier New", monospace';
   ctx.fillStyle = '#ecc68f';
   ctx.fillText(photoDate(date), right - 29, footerBottom - 32);
+  ctx.font = '500 16px "IBM Plex Mono", "Courier New", monospace';
+  ctx.fillStyle = '#ecdaB37a';
+  ctx.fillText('By MD_Leah', right - 29, footerBottom - 14);
   ctx.textAlign = 'left';
 
   paintFilmStrip(ctx, 0, width);
