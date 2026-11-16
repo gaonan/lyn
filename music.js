@@ -3,12 +3,14 @@ export function setupMusic(){
  const trigger=document.getElementById('music'),dialog=document.createElement('dialog');dialog.id='music-dialog';dialog.innerHTML=`<button class="close" aria-label="关闭音乐设置">×</button><span class="eyebrow">A SONG FOR THIS MOMENT</span><h2>该相逢的人会再相逢</h2><p>刘宇宁 · 现场演唱</p><p class="music-note">现场原声来自微博回放，建议在 Wi-Fi 下播放。<br>也可以选择手机中的音频，更省流量。</p><button id="play-live" class="primary">播放现场原声 <span>♪</span></button><label class="audio-file">选择本机音频<input id="audio-file" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav"></label><p id="music-status" role="status"></p><a class="source-link" href="https://weibo.com/l/wblive/p/show/1022:2321325332684670370133" target="_blank" rel="noopener">查看原现场 ↗</a>`;document.body.append(dialog);
  const audio=document.createElement('video');audio.id='bgm-player';audio.setAttribute('aria-hidden','true');audio.tabIndex=-1;audio.playsInline=true;audio.setAttribute('playsinline','');audio.setAttribute('webkit-playsinline','');audio.preload='none';audio.volume=.48;audio.style.cssText='position:fixed;width:1px;height:1px;left:-10px;top:-10px;pointer-events:none';document.body.append(audio);
  const url='https://live.video.weibocdn.com/5332684667626135_index.m3u8',startTime=8455,endTime=8734;let hls=null,source=null,localUrl=null,loading=false;const status=dialog.querySelector('#music-status');
- const label=trigger.querySelector('.music-label'),icon=trigger.querySelector('.music-icon');
+ const label=trigger.querySelector('.music-label');
  function sync(){
   const on=!audio.paused;
   trigger.classList.toggle('music-on',on);
-  label.textContent=on?'暂停音乐':'播放音乐';
-  icon.textContent=on?'♫':'♪';
+  label.textContent=on?'暂停':'唱歌';
+  const action=on?'暂停背景音乐':'播放背景音乐';
+  trigger.setAttribute('aria-label',action);
+  trigger.title=action;
  }
  audio.addEventListener('play',sync);audio.addEventListener('pause',sync);audio.addEventListener('playing',()=>{status.textContent='正在播放';dialog.close()});audio.addEventListener('error',()=>{status.textContent='现场音源暂时无法连接。可以选择本机音频或查看原现场。';source=null;loading=false});
  audio.addEventListener('timeupdate',()=>{if(source==='live'&&audio.currentTime>=endTime){audio.currentTime=startTime;audio.play().catch(()=>{})}});

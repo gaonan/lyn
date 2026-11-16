@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r64") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r66") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r64") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r66") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -370,9 +370,20 @@ body.entered #achievement-badge { top: 148px; }
   .quest-action { bottom: max(73px, calc(env(safe-area-inset-bottom) + 44px)); min-height: 62px; }
 }
 
-#reload { gap: 4px; white-space: nowrap; }
 body:not(.entered) #reload { display: none; }
-#reload span { font-size: 1.2em; }
+.tools button:not(#help) { gap: 5px; }
+.tool-icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.45;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#music:not(.music-on) .music-pause-icon, #music.music-on .music-note-icon,
+#light:not(.day-mode) .day-icon, #light.day-mode .night-icon { display: none; }
 @media (max-height: 550px) and (orientation: landscape) {
   .destinations button { padding-inline: clamp(6px, 1.5vw, 13px); }
 }
@@ -1093,7 +1104,28 @@ body.entered #achievement-badge {
   gap: 5px;
   padding: 0 10px;
 }
-.entered :is(#heart-counter, #magazine-counter, #role-counter) b { margin-inline-start: auto; }
+.entered :is(#heart-counter, #magazine-counter, #role-counter) :is(b, em) {
+  flex: none;
+  font-size: var(--progress-number-size, 14px);
+  line-height: 1;
+  text-align: right;
+}
+.entered :is(#heart-counter, #magazine-counter, #role-counter) b {
+  width: 2ch;
+  margin-inline-start: auto;
+}
+.entered :is(#heart-counter, #magazine-counter, #role-counter) em {
+  width: 3.5ch;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.entered :is(#heart-counter, #magazine-counter, #role-counter) .progress-total {
+  flex: none;
+  margin-inline-start: auto;
+  font: inherit;
+  color: inherit;
+}
 .entered #heart-counter label { margin-inline-end: 0; letter-spacing: 0; }
 .entered #heart-counter { top: var(--hud-progress-top); }
 .entered #magazine-counter { top: calc(var(--hud-progress-top) + var(--hud-row)); }
@@ -1181,7 +1213,7 @@ body.entered #achievement-badge {
   }
   .entered #heart-counter label { font-size: 10px; }
   .entered #heart-counter span { font-size: 19px; }
-  .entered :is(#heart-counter, #magazine-counter, #role-counter) b { font-size: 12px; }
+  .entered { --progress-number-size: 12px; }
 }
 @media (max-width: 620px) and (orientation: portrait) {
   .entered :is(#joystick, #look-joystick) small { top: auto; bottom: calc(100% + 8px); }
