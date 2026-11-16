@@ -91,7 +91,7 @@ test('actual crop aspect ratios and asymmetric foot anchors stay correct in ever
 });
 
 test('Daimi stays on four fixed views with the whole silhouette inside the stool footprint', async () => {
-  const f = await fixture({ views: DAIMI_VIEWS, height: .345, fixedViewPlanes: true });
+  const f = await fixture({ views: DAIMI_VIEWS, height: .345 * 1.10, fixedViewPlanes: true });
   const facing = f.mesh.parent;
   for (const [angle, orientation, name] of [[30, 0, 'front'], [58, 90, 'right'],
     [123, 90, 'right'], [157, 180, 'back'], [241, 270, 'left'], [301, 270, 'left']]) {
@@ -102,7 +102,7 @@ test('Daimi stays on four fixed views with the whole silhouette inside the stool
     const frame = f.performer.object.userData.frames[name];
     for (const edge of [frame.left, frame.right]) {
       assert.ok(Math.abs(edge * Math.cos(facing.rotation.y)) < .365 / 2 - .008);
-      assert.ok(Math.abs(.012 - edge * Math.sin(facing.rotation.y)) < .34 / 2 - .008);
+      assert.ok(Math.abs(.008 - edge * Math.sin(facing.rotation.y)) < .34 / 2 - .008);
     }
     near(f.mesh.geometry.boundingBox.min.y, 0, 'bottom edge remains on the seat');
   }

@@ -238,7 +238,7 @@ async function getRecordNumber(requestId) {
   }
 }
 
-export function setupKeepsake(dialog, record, render, openGroupPhoto, messageWall) {
+export function setupKeepsake(dialog, record, render, openGroupPhoto, messageWall, dogReady) {
   const key = 'carnation7-wall-note';
   const pendingKey = 'carnation7-pending-record-request';
   const input = dialog.querySelector('textarea');
@@ -318,8 +318,12 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto, messageWal
     status.textContent = '正在准备留影…';
     let stage = 'image';
     try {
-      await Promise.all([loadFilmFont(), album.complete && album.naturalWidth ? undefined : album.decode()]);
+      const [dogLoaded] = await Promise.all([dogReady, loadFilmFont(), album.complete && album.naturalWidth ? undefined : album.decode()]);
       if (attempt !== generation || !dialog.open) return;
+      if (!dogLoaded) {
+        status.textContent = '呆米的素材暂未加载成功。留言已保留，请重新加载花房后再试。';
+        return;
+      }
       if (!requestId) {
         requestId = Array.from(crypto.getRandomValues(new Uint8Array(16)),
           byte => byte.toString(16).padStart(2, '0')).join('');
