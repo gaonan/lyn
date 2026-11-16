@@ -1,30 +1,31 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r60';
-import { buildBotanicals } from './botanicals.js?v=20261113-r60';
-import { createHearts } from './hearts.js?v=20261113-r60';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r60';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r60';
-import { setupMusic } from './music.js?v=20261113-r60';
-import { setupCollection } from './collection.js?v=20261113-r60';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r60';
-import { prepareOffline } from './offline.js?v=20261113-r60';
-import { buildMagazines } from './magazines.js?v=20261113-r60';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r60';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r60';
-import { buildRolePortraits } from './roles.js?v=20261113-r60';
-import { buildRecord } from './record.js?v=20261113-r60';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r60';
-import { createArtworkQueue } from './artwork.js?v=20261113-r60';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r60';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r60';
-import { setupKeepsake } from './keepsake.js?v=20261113-r60';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r60';
-import { createPlaySave } from './play-save.js?v=20261113-r60';
-const VERSION = '20261113-r60';
+import { buildArchitecture } from './architecture.js?v=20261113-r61';
+import { buildBotanicals } from './botanicals.js?v=20261113-r61';
+import { createHearts } from './hearts.js?v=20261113-r61';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r61';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r61';
+import { setupMusic } from './music.js?v=20261113-r61';
+import { setupCollection } from './collection.js?v=20261113-r61';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r61';
+import { prepareOffline } from './offline.js?v=20261113-r61';
+import { buildMagazines } from './magazines.js?v=20261113-r61';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r61';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r61';
+import { buildRolePortraits } from './roles.js?v=20261113-r61';
+import { buildRecord } from './record.js?v=20261113-r61';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r61';
+import { createArtworkQueue } from './artwork.js?v=20261113-r61';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r61';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r61';
+import { setupKeepsake } from './keepsake.js?v=20261113-r61';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r61';
+import { createPlaySave } from './play-save.js?v=20261113-r61';
+const VERSION = '20261113-r61';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
 const pureViewToggle = $('#pure-view-toggle');
+const exitPureView = $('#exit-pure-view');
 let pureView = false;
 const touchDevice = matchMedia('(any-pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 document.body.classList.toggle('touch-device', touchDevice);
@@ -483,13 +484,15 @@ function setPureView(enabled) {
   resetInput();
   pureView = enabled;
   document.body.classList.toggle('pure-view', enabled);
-  pureViewToggle.setAttribute('aria-pressed', String(enabled));
-  pureViewToggle.title = enabled ? '' : '再次点屏幕上方中央或按 Esc 退出';
 }
 pureViewToggle.addEventListener('click', event => {
   if (pureViewToggle.hidden || !canMove()) return;
-  setPureView(!pureView);
-  if (pureView && event.detail) pureViewToggle.blur();
+  setPureView(true);
+  if (!event.detail) exitPureView.focus({ preventScroll: true });
+});
+exitPureView.addEventListener('click', event => {
+  setPureView(false);
+  if (!event.detail) pureViewToggle.focus({ preventScroll: true });
 });
 window.addEventListener('keydown', event => {
   if (event.defaultPrevented || !canMove() || event.target.closest?.('input,textarea,[contenteditable]')) return;
@@ -499,7 +502,7 @@ window.addEventListener('keydown', event => {
     return;
   }
   if (event.code === 'Space') {
-    if (event.target.closest?.('#share-record, #pure-view-toggle')) return;
+    if (event.target.closest?.('#share-record, #pure-view-toggle, #exit-pure-view')) return;
     event.preventDefault();
     if (!event.repeat) jumpRequested = true;
   } else if (movementKeys.includes(event.code)) {
