@@ -1,26 +1,26 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r55';
-import { buildBotanicals } from './botanicals.js?v=20261113-r55';
-import { createHearts } from './hearts.js?v=20261113-r55';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r55';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r55';
-import { setupMusic } from './music.js?v=20261113-r55';
-import { setupCollection } from './collection.js?v=20261113-r55';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r55';
-import { prepareOffline } from './offline.js?v=20261113-r55';
-import { buildMagazines } from './magazines.js?v=20261113-r55';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r55';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r55';
-import { buildRolePortraits } from './roles.js?v=20261113-r55';
-import { buildRecord } from './record.js?v=20261113-r55';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r55';
-import { createArtworkQueue } from './artwork.js?v=20261113-r55';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r55';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r55';
-import { setupKeepsake } from './keepsake.js?v=20261113-r55';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r55';
-import { createPlaySave } from './play-save.js?v=20261113-r55';
-const VERSION = '20261113-r55';
+import { buildArchitecture } from './architecture.js?v=20261113-r56';
+import { buildBotanicals } from './botanicals.js?v=20261113-r56';
+import { createHearts } from './hearts.js?v=20261113-r56';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r56';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r56';
+import { setupMusic } from './music.js?v=20261113-r56';
+import { setupCollection } from './collection.js?v=20261113-r56';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r56';
+import { prepareOffline } from './offline.js?v=20261113-r56';
+import { buildMagazines } from './magazines.js?v=20261113-r56';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r56';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r56';
+import { buildRolePortraits } from './roles.js?v=20261113-r56';
+import { buildRecord } from './record.js?v=20261113-r56';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r56';
+import { createArtworkQueue } from './artwork.js?v=20261113-r56';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r56';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r56';
+import { setupKeepsake } from './keepsake.js?v=20261113-r56';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r56';
+import { createPlaySave } from './play-save.js?v=20261113-r56';
+const VERSION = '20261113-r56';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -141,11 +141,12 @@ const music = setupMusic();
 const magazines = buildMagazines(THREE, scene, VERSION, playSave.random('magazines'), openingArtwork.loaderFor('magazines'));
 const dogSeat = world.stoolSeat.getCenter(new THREE.Vector3());
 dogSeat.y = world.stoolSeat.max.y + .001;
-dogSeat.z += .012;
+dogSeat.z += .008;
+const daimiScale = 1.10;
 performer.setNight(true);
 const daimi = buildPhotographicPerformer(THREE, scene, {
   name: '呆米', reference: '呆米照片', position: dogSeat.toArray(),
-  views: DAIMI_VIEWS, version: VERSION, height: .345, sway: false, fixedViewPlanes: true, loader: artwork.loaderFor('dog'),
+  views: DAIMI_VIEWS, version: VERSION, height: .345 * daimiScale, sway: false, fixedViewPlanes: true, loader: artwork.loaderFor('dog'),
 });
 const roles = buildRolePortraits(THREE, scene, VERSION, artwork.loaderFor('roles'), playSave.random('roles'));
 const record = buildRecord(THREE, scene, VERSION, artwork.loaderFor('record'));
@@ -156,7 +157,7 @@ const colliders=[...world.colliders,...flowers.colliders,performer.collider];
 const shadowCanvas=document.createElement('canvas');shadowCanvas.width=shadowCanvas.height=128;const sx=shadowCanvas.getContext('2d');const grad=sx.createRadialGradient(64,64,10,64,64,64);grad.addColorStop(0,'rgba(15,27,16,.36)');grad.addColorStop(1,'rgba(15,27,16,0)');sx.fillStyle=grad;sx.fillRect(0,0,128,128);const shadowMaterial=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(shadowCanvas),transparent:true,depthWrite:false});
 for(const c of flowers.colliders){if(c.minY>.1)continue;const m=new THREE.Mesh(new THREE.PlaneGeometry((c.maxX-c.minX)*1.65,(c.maxZ-c.minZ)*1.65),shadowMaterial);m.rotation.x=-Math.PI/2;m.position.set((c.minX+c.maxX)/2,.015,(c.minZ+c.maxZ)/2);scene.add(m)}
 const performerShadow=new THREE.Mesh(new THREE.PlaneGeometry(.72,.48),shadowMaterial);performerShadow.rotation.x=-Math.PI/2;performerShadow.position.set(0,.018,-1.12);scene.add(performerShadow);
-const daimiShadow = new THREE.Mesh(new THREE.PlaneGeometry(.255, .205), shadowMaterial);
+const daimiShadow = new THREE.Mesh(new THREE.PlaneGeometry(.255 * daimiScale, .205 * daimiScale), shadowMaterial);
 daimiShadow.rotation.x = -Math.PI / 2;
 daimiShadow.position.copy(dogSeat);
 daimiShadow.position.y += .0005;
@@ -182,7 +183,7 @@ collection.restore(playSave.state.hearts);
 const openGroupPhoto = setupGroupPhoto($('#group-photo-dialog'), renderKeepsake, VERSION, () => daimi.ready);
 const wallProjection = buildWallProjection(THREE, scene);
 const messageWall = setupMessageWall($('#message-wall-dialog'), wallProjection, renderWallView, record.ready);
-const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, openGroupPhoto, messageWall);
+const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, openGroupPhoto, messageWall, daimi.ready);
 
 function renderWallView(target) {
   if (rendererSuspended) return;
@@ -212,14 +213,12 @@ function renderKeepsake(ctx, x, y, width, height, pixelScale, guestPortrait, pos
   photoCamera.updateMatrixWorld();
   const props = [...hearts.items.map(heart => heart.object), daimi.object, daimiShadow];
   const visible = props.map(object => object.visible);
-  props.forEach(object => { object.visible = false; });
-  if (guestPortrait) {
+  let guest, guestShadow;
+  try {
+    for (const heart of hearts.items) heart.object.visible = false;
     daimi.object.visible = daimiShadow.visible = true;
     daimi.setNight(true);
     daimi.update(performance.now() / 1000, photoCamera);
-  }
-  let guest, guestShadow;
-  try {
     if (guestPortrait) {
       const templateHeight = 1.82;
       const guestHeight = performer.object.userData.height - .25;
