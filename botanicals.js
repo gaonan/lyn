@@ -389,7 +389,12 @@ export function buildBotanicals(THREE, scene, railPaths = []) {
     }
   }
 
-  const counts = { mounds: beds.length + loungeBeds.length, livingWalls: 2, vineSegments, drawCalls: 0, instances: 0, triangles: 0 };
+  // Keep the message-wall corner open above ankle-height flower banks.
+  const wallBeds = [[-8.19, 8.14, .50, .33, 3], [-7.49, 8.34, .44, .28, 4],
+    [-8.33, 7.46, .41, .27, 0], [-8.41, 6.86, .30, .22, 6]];
+  wallBeds.forEach(([x, z, radius, height, tone]) => mound(x, z, radius, height, palette[tone]));
+
+  const counts = { mounds: beds.length + loungeBeds.length + wallBeds.length, livingWalls: 2, vineSegments, drawCalls: 0, instances: 0, triangles: 0 };
   for (const [name, data] of Object.entries(batches)) {
     if (!data.items.length) continue;
     const mesh = new THREE.InstancedMesh(data.geo, data.mat, data.items.length);
