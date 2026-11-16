@@ -1,4 +1,4 @@
-import { keepsakeText, textLines } from './keepsake.js?v=20261113-r54';
+import { keepsakeText, textLines } from './keepsake.js?v=20261113-r55';
 
 export const RECORD_POSITION = { x: -2.85, y: 1.53, z: 8.87 };
 

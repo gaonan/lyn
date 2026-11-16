@@ -4,6 +4,8 @@ export function createArtworkQueue(loader, report, { concurrency = 4 } = {}) {
   const waiting = [];
   let active = 0;
   let started = false;
+  let onIdle;
+  const idle = new Promise(resolve => { onIdle = resolve; });
   const inFlight = new Map();
 
   function progress(group) {
@@ -20,6 +22,7 @@ export function createArtworkQueue(loader, report, { concurrency = 4 } = {}) {
       active++;
       attempt(job, true);
     }
+    if (started && active === 0) onIdle();
   }
 
   function attempt(job, retry) {
@@ -47,7 +50,12 @@ export function createArtworkQueue(loader, report, { concurrency = 4 } = {}) {
       report(progress());
       pump();
     }
-    loader.load(job.url, settle, undefined, () => settle());
+    const url = retry ? job.url : job.url + (job.url.includes('?') ? '&' : '?') + 'asset-retry=' + Date.now();
+    try {
+      loader.load(url, settle, undefined, () => settle());
+    } catch {
+      settle();
+    }
   }
 
   return {
@@ -56,6 +64,7 @@ export function createArtworkQueue(loader, report, { concurrency = 4 } = {}) {
       started = true;
       report(progress());
       pump();
+      return idle;
     },
     loaderFor(name) {
       const group = { total: 0, ready: 0, failed: false };

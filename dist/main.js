@@ -1,26 +1,26 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r54';
-import { buildBotanicals } from './botanicals.js?v=20261113-r54';
-import { createHearts } from './hearts.js?v=20261113-r54';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r54';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r54';
-import { setupMusic } from './music.js?v=20261113-r54';
-import { setupCollection } from './collection.js?v=20261113-r54';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r54';
-import { prepareOffline } from './offline.js?v=20261113-r54';
-import { buildMagazines } from './magazines.js?v=20261113-r54';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r54';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r54';
-import { buildRolePortraits } from './roles.js?v=20261113-r54';
-import { buildRecord } from './record.js?v=20261113-r54';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r54';
-import { createArtworkQueue } from './artwork.js?v=20261113-r54';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r54';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r54';
-import { setupKeepsake } from './keepsake.js?v=20261113-r54';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r54';
-import { createPlaySave } from './play-save.js?v=20261113-r54';
-const VERSION = '20261113-r54';
+import { buildArchitecture } from './architecture.js?v=20261113-r55';
+import { buildBotanicals } from './botanicals.js?v=20261113-r55';
+import { createHearts } from './hearts.js?v=20261113-r55';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r55';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r55';
+import { setupMusic } from './music.js?v=20261113-r55';
+import { setupCollection } from './collection.js?v=20261113-r55';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r55';
+import { prepareOffline } from './offline.js?v=20261113-r55';
+import { buildMagazines } from './magazines.js?v=20261113-r55';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r55';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r55';
+import { buildRolePortraits } from './roles.js?v=20261113-r55';
+import { buildRecord } from './record.js?v=20261113-r55';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r55';
+import { createArtworkQueue } from './artwork.js?v=20261113-r55';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r55';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r55';
+import { setupKeepsake } from './keepsake.js?v=20261113-r55';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r55';
+import { createPlaySave } from './play-save.js?v=20261113-r55';
+const VERSION = '20261113-r55';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -64,7 +64,7 @@ const qualityLevels = [
   { label: '普通', maxPixelRatio: 1.4, maxPixels: 1050000 },
 ];
 const qualityButton = $('#quality');
-let qualityIndex = touchDevice ? 1 : 0;
+let qualityIndex = loading.recovering ? 2 : touchDevice ? 1 : 0;
 let renderWidth = 0, renderHeight = 0;
 function resizeRenderer() {
   const width = canvas.clientWidth;
@@ -135,6 +135,7 @@ const openingArtwork = createArtworkQueue(loader, ({ percent }) => {
 const artwork = createArtworkQueue(loader, updateArtworkProgress);
 const performer = buildPhotographicPerformer(THREE, scene, {
   views: PERFORMER_VIEWS, version: VERSION, nightTint: [.84, .87, .91], lowerBodyExtension: .299, loader: openingArtwork.loaderFor('performer'),
+  deferredLoader: artwork.loaderFor('performer-angles'),
 });
 const music = setupMusic();
 const magazines = buildMagazines(THREE, scene, VERSION, playSave.random('magazines'), openingArtwork.loaderFor('magazines'));
@@ -623,9 +624,8 @@ window.bloomDebug={build:VERSION,get offline(){return offline},artworkProgress:a
 };
 requestAnimationFrame(frame);
 openingArtwork.start();
-prepareOffline().then(result => { offline = result; });
 function checkOpeningArtwork(ready) {
-  if (!ready) loading.fail('人物或杂志尚未加载完整，请重新加载。');
+  if (!ready) loading.fail('人物或杂志未加载完整。点下方按钮重试，会保留你的收集进度。');
   return ready;
 }
 function finishOpening() {
@@ -637,7 +637,10 @@ function finishOpening() {
   window.bloomReady = modelReady = loading.finish();
   if (!modelReady) return;
   updateArtworkProgress(artwork.progress());
-  setTimeout(() => artwork.start(), 100);
+  setTimeout(async () => {
+    await artwork.start();
+    offline = await prepareOffline();
+  }, 100);
 }
 Promise.all([performer.ready.then(checkOpeningArtwork), magazines.ready.then(checkOpeningArtwork)]).then(ready => {
   openingArtworkReady = ready.every(Boolean);

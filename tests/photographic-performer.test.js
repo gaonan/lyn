@@ -50,6 +50,31 @@ test('ready waits for all four decoded photos and versioned URLs, not just the f
   assert.deepEqual(progress, [.25, .5, .75, 1]);
 });
 
+test('the front photo can open the garden while side and rear angles load independently', async t => {
+  t.mock.method(console, 'warn', () => {});
+  const loader = controlledLoader(), deferredLoader = controlledLoader();
+  const performer = buildPhotographicPerformer(THREE, new THREE.Scene(), { loader, deferredLoader, views: PERFORMER_VIEWS });
+  assert.equal(loader.requests.length, 1);
+  assert.equal(deferredLoader.requests.length, 3);
+  const [front] = loader.requests;
+  front.loaded(front.texture);
+  assert.equal(await performer.ready, true);
+  const state = performer.object.userData;
+  assert.equal(state.textureStatus, 'partial');
+  const geometry = performer.object.getObjectByName('Photographic performer surface').geometry;
+  const camera = new THREE.PerspectiveCamera();
+  camera.position.set(2, 1.7, -1);
+  performer.update(0, camera);
+  assert.equal(state.currentView, 'front');
+  const [right, back] = deferredLoader.requests;
+  back.failed(new Error('404'));
+  right.loaded(right.texture);
+  performer.update(1, camera);
+  assert.equal(state.currentView, 'right');
+  assert.equal(state.loadedViews, 2);
+  assert.equal(performer.object.getObjectByName('Photographic performer surface').geometry, geometry);
+});
+
 test('actual crop aspect ratios and asymmetric foot anchors stay correct in every view', async () => {
   const f = await fixture();
   near(f.performer.object.userData.frames.front.displayWidth, 1.92 * 538 / 1519, 'front source ratio');

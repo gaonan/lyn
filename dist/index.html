@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><meta property="og:title" content="康乃馨 7.0"><meta property="og:description" content="如果我拥有一座花园，邀请你常来停歇。"><meta name="demo-build" content="20261113-r54"><meta name="theme-color" content="#222d26"><meta name="description" content="走进鲜花与书页之间。一个可以上下楼、自由探索的花园咖啡厅。"><title>康乃馨 7.0</title><link rel="manifest" href="manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/svg+xml" href="assets/icon.svg"><link rel="stylesheet" href="style.css?v=20261113-r54"></head><body>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><meta property="og:title" content="康乃馨 7.0"><meta property="og:description" content="如果我拥有一座花园，邀请你常来停歇。"><meta name="demo-build" content="20261113-r55"><meta name="theme-color" content="#222d26"><meta name="description" content="走进鲜花与书页之间。一个可以上下楼、自由探索的花园咖啡厅。"><title>康乃馨 7.0</title><link rel="manifest" href="manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/svg+xml" href="assets/icon.svg"><link rel="stylesheet" href="style.css?v=20261113-r55"></head><body>
 <canvas id="world" aria-label="可以自由走动的多层花园咖啡厅"></canvas><div class="vignette"></div>
 <div class="creator-credit" aria-hidden="true">By MD_Leah</div>
 <header><a class="brand" href="#" aria-label="康乃馨 7.0 首页"><span class="brand-mark">✳</span><span>康乃馨 7.0</span></a><div class="tools"><button id="music" title="背景音乐"><span class="music-label">播放音乐</span><span class="music-icon" aria-hidden="true">♪</span></button><button id="light" aria-label="切换日光" title="切换灯光">☾<span>夜色</span></button><button id="quality" aria-label="画质：超清，点击切换" title="切换画质"><span>超清</span></button><button id="reload" title="重新加载" onclick="location.reload()"><span aria-hidden="true">↻</span>重新加载</button><button id="help" aria-label="操作说明">?</button></div></header>
@@ -6,7 +6,10 @@
   <div class="load-heading"><span id="load-label">正在布置花房…</span><span id="load-percent" aria-hidden="true">0%</span></div>
   <progress id="load-progress" max="100" value="0" aria-label="花房启动进度"></progress>
   <div id="load-detail" role="status" hidden></div>
-  <button id="intro-reload" type="button" class="primary" hidden><span>重新加载</span><span aria-hidden="true">↻</span></button>
+  <div id="load-actions" hidden>
+    <button id="intro-reload" type="button" class="primary"><span>修复并重新加载</span><span aria-hidden="true">↻</span></button>
+    <a id="load-mirror" href="https://gaonan.github.io/lyn/">打开备用站</a>
+  </div>
 </div>
 <div id="intro-artwork" class="artwork-status" hidden><span></span><progress max="100" value="0" aria-label="花房素材加载进度"></progress></div>
 <button id="enter" class="primary" hidden disabled><span>开始收集</span><span aria-hidden="true">↗</span></button>
@@ -168,8 +171,8 @@
     <button type="button" id="back-from-group-photo">返回留影</button>
   </div>
 </dialog>
-<audio id="daimi-barks" preload="none" src="assets/daimi/two-barks.m4a?v=20261113-r54"></audio>
-<div id="toast" role="status"></div><div id="error" hidden role="alert"><h2>画面暂停了</h2><p>正在等待浏览器恢复画面。若持续停在这里，可以重新加载。</p><button onclick="location.reload()">重新加载</button></div>
+<audio id="daimi-barks" preload="none" src="assets/daimi/two-barks.m4a?v=20261113-r55"></audio>
+<div id="toast" role="status"></div><div id="error" hidden role="alert"><h2>画面暂停了</h2><p>正在等待浏览器恢复画面。若持续停在这里，可以重新加载。</p><button id="render-reload" type="button">修复并重新加载</button></div>
 <script>
 (() => {
   const panel = document.getElementById('intro-loading');
@@ -177,21 +180,31 @@
   const progress = document.getElementById('load-progress');
   const percent = document.getElementById('load-percent');
   const detail = document.getElementById('load-detail');
+  const actions = document.getElementById('load-actions');
   const retry = document.getElementById('intro-reload');
+  const renderRetry = document.getElementById('render-reload');
+  const mirror = document.getElementById('load-mirror');
   const enter = document.getElementById('enter');
+  const pageURL = new URL(location.href);
+  const repairRequested = pageURL.searchParams.get('repair') === '1';
+  if (pageURL.hostname === 'gaonan.github.io') {
+    mirror.href = 'https://lyn.lipopo.org/';
+    mirror.textContent = '打开主站';
+  }
   let timer;
   let state = 'loading';
   let stalled = false;
+  let repairing = false;
   function showDetail(message) {
     detail.textContent = message;
-    detail.hidden = retry.hidden = !message;
+    detail.hidden = actions.hidden = !message;
   }
   function watch() {
     clearTimeout(timer);
     stalled = false;
     timer = setTimeout(() => {
       stalled = true;
-      showDetail('加载暂时停滞，可以继续等待或重新加载。');
+      showDetail('花房还在加载。也可以修复缓存后重试，收集进度会保留。');
     }, 10000);
   }
   function write(value) {
@@ -206,37 +219,80 @@
     showDetail(message);
     window.dispatchEvent(new Event('bloom-load-failed'));
   }
+  async function clearGameCache() {
+    try {
+      const registration = await navigator.serviceWorker?.getRegistration(pageURL.href);
+      const workerPath = new URL('./sw.js', pageURL).pathname;
+      if ([registration?.active, registration?.waiting, registration?.installing]
+        .some(worker => worker && new URL(worker.scriptURL).pathname === workerPath)) {
+        await registration.unregister();
+      }
+    } catch {}
+    try {
+      if (!window.caches) return;
+      const keys = await caches.keys();
+      await Promise.allSettled(keys.filter(key => key.startsWith('carnation7-')).map(key => caches.delete(key)));
+    } catch {}
+  }
+  async function repair(button, setMessage) {
+    if (navigator.onLine === false) {
+      setMessage('网络已断开。联网后再试，你的收集进度已保留。');
+      return;
+    }
+    repairing = true;
+    clearTimeout(timer);
+    button.disabled = true;
+    setMessage('正在修复花房资源并以普通画质重新加载…');
+    await Promise.race([clearGameCache(), new Promise(resolve => setTimeout(resolve, 2500))]);
+    pageURL.searchParams.delete('repair');
+    pageURL.searchParams.set('recover', Date.now());
+    location.replace(pageURL.href);
+  }
   window.bloomLoading = {
+    repairRequested,
+    recovering: pageURL.searchParams.has('recover'),
     update(percentLoaded) {
       const next = Math.min(99, Math.floor(percentLoaded));
-      if (state !== 'loading' || next <= progress.value) return;
+      if (state !== 'loading' || repairing || next <= progress.value) return;
       write(next);
-      if (!retry.hidden) showDetail('');
+      if (!actions.hidden) showDetail('');
       watch();
     },
     finish() {
-      if (state !== 'loading') return false;
+      if (state !== 'loading' || repairing) return false;
       state = 'ready';
       clearTimeout(timer);
       write(100);
       panel.hidden = true;
       enter.disabled = enter.hidden = false;
+      if (pageURL.searchParams.has('recover')) {
+        pageURL.searchParams.delete('recover');
+        try { history.replaceState(history.state, '', pageURL.href); } catch {}
+      }
       window.dispatchEvent(new Event('bloom-ready'));
       return true;
     },
     fail,
   };
-  retry.onclick = () => location.reload();
+  retry.onclick = () => repair(retry, showDetail);
+  renderRetry.onclick = () => repair(renderRetry, message => { renderRetry.previousElementSibling.textContent = message; });
   window.addEventListener('pagehide', event => {
     if (!event.persisted && state === 'loading' && stalled) window.dispatchEvent(new Event('bloom-load-failed'));
   });
   const startupError = () => fail('页面初始化失败，请重新加载。');
   window.addEventListener('error', event => {
-    if (event.target === window || event.target?.id === 'game-startup') startupError();
+    if (event.target === window) startupError();
   }, true);
   window.addEventListener('unhandledrejection', startupError);
-  watch();
+  if (repairRequested) repair(retry, showDetail);
+  else watch();
 })();
 </script>
-<script defer src="visit.js?v=20261113-r54"></script>
-<script id="game-startup" type="module" src="main.js?v=20261113-r54"></script></body></html>
+<script defer src="visit.js?v=20261113-r55"></script>
+<script type="module">
+  if (!window.bloomLoading.repairRequested) {
+    import('./main.js?v=20261113-r55').catch(() => {
+      window.bloomLoading.fail('页面初始化失败。请修复缓存后重试，或切换站点。');
+    });
+  }
+</script></body></html>
