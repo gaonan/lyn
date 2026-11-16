@@ -1,5 +1,5 @@
-const CACHE='carnation7-20261113-r63';
-const VERSION='20261113-r63';
+const CACHE='carnation7-20261113-r64';
+const VERSION='20261113-r64';
 const BARKS='assets/daimi/two-barks.m4a';
 const FILES=['./','index.html','manifest.webmanifest','assets/icon.svg','vendor/three.module.min.js','vendor/three.core.min.js',...['style.css','main.js','architecture.js','atrium-light.js','surface-maps.js','botanicals.js','performer-photo.js','performer-views.js','offline.js','hearts.js','collection.js','navigation.js','music.js','magazines.js','magazine-quest.js','daimi-views.js','roles.js','record.js','keepsake.js','group-photo.js','portrait-color.js','reward-sounds.js','artwork.js','visit.js','play-save.js','message-wall.js','assets/fonts/noto-serif-sc-title.woff2','assets/fonts/noto-serif-sc-film.woff2',BARKS, ...['heart','magazine','role','record','celebration'].map(cue=>`assets/sounds/${cue}.m4a`)].map(path=>`${path}?v=${VERSION}`)];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting()))});
