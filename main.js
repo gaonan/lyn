@@ -1,26 +1,26 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r58';
-import { buildBotanicals } from './botanicals.js?v=20261113-r58';
-import { createHearts } from './hearts.js?v=20261113-r58';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r58';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r58';
-import { setupMusic } from './music.js?v=20261113-r58';
-import { setupCollection } from './collection.js?v=20261113-r58';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r58';
-import { prepareOffline } from './offline.js?v=20261113-r58';
-import { buildMagazines } from './magazines.js?v=20261113-r58';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r58';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r58';
-import { buildRolePortraits } from './roles.js?v=20261113-r58';
-import { buildRecord } from './record.js?v=20261113-r58';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r58';
-import { createArtworkQueue } from './artwork.js?v=20261113-r58';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r58';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r58';
-import { setupKeepsake } from './keepsake.js?v=20261113-r58';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r58';
-import { createPlaySave } from './play-save.js?v=20261113-r58';
-const VERSION = '20261113-r58';
+import { buildArchitecture } from './architecture.js?v=20261113-r59';
+import { buildBotanicals } from './botanicals.js?v=20261113-r59';
+import { createHearts } from './hearts.js?v=20261113-r59';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r59';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r59';
+import { setupMusic } from './music.js?v=20261113-r59';
+import { setupCollection } from './collection.js?v=20261113-r59';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r59';
+import { prepareOffline } from './offline.js?v=20261113-r59';
+import { buildMagazines } from './magazines.js?v=20261113-r59';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r59';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r59';
+import { buildRolePortraits } from './roles.js?v=20261113-r59';
+import { buildRecord } from './record.js?v=20261113-r59';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r59';
+import { createArtworkQueue } from './artwork.js?v=20261113-r59';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r59';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r59';
+import { setupKeepsake } from './keepsake.js?v=20261113-r59';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r59';
+import { createPlaySave } from './play-save.js?v=20261113-r59';
+const VERSION = '20261113-r59';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -188,10 +188,10 @@ const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, 
 function renderWallView(target) {
   if (rendererSuspended) return;
   const views = [
-    { width: 18.2, position: [0, 3.17, 8.7], lookAt: [0, 3.17, 9.04] },
-    { width: 6.8, position: [-8.68, 3.17, 5.51], lookAt: [-9.05, 3.17, 5.51] },
+    { width: 18.2, position: [0, 4.7, 8.7], lookAt: [0, 4.7, 9.04] },
+    { width: 12.65, position: [-8.68, 4.7, 2.61], lookAt: [-9.05, 4.7, 2.61] },
   ];
-  const panoramaWidth = 25;
+  const panoramaWidth = views.reduce((total, view) => total + view.width, 0);
   const halfHeight = panoramaWidth * target.height / target.width / 2;
   const context = target.getContext('2d');
   try {
