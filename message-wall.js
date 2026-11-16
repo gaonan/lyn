@@ -1,4 +1,4 @@
-import { keepsakeText, textLines } from './keepsake.js?v=20261113-r61';
+import { keepsakeText, paintCreatorCredit, shareImage, textLines } from './keepsake.js?v=20261113-r63';
 
 const WIDTH = 2048;
 const BASE_HEIGHT = 640;
@@ -75,14 +75,18 @@ export function buildWallProjection(T, scene) {
   const centerY = .12 + planeHeight / 2;
   const back = { pixels: WIDTH, width: 17.36, x: 0, z: 8.908, yaw: Math.PI, slots: BACK_POSITIONS };
   const side = { pixels: 1463, width: 12.35, x: -8.893, z: 2.61, yaw: Math.PI / 2, slots: SIDE_POSITIONS };
+  function createMap(surface, scale = 1) {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(surface.pixels * scale);
+    canvas.height = Math.ceil(HEIGHT * scale);
+    const map = new T.CanvasTexture(canvas);
+    map.colorSpace = T.SRGBColorSpace;
+    return map;
+  }
   function paintSurface(surface, notes) {
     if (!surface.panel && !notes.length) return;
     if (!surface.panel) {
-      const canvas = document.createElement('canvas');
-      canvas.width = surface.pixels;
-      canvas.height = HEIGHT;
-      const map = new T.CanvasTexture(canvas);
-      map.colorSpace = T.SRGBColorSpace;
+      const map = createMap(surface);
       const panel = new T.Mesh(new T.PlaneGeometry(surface.width, planeHeight), new T.MeshBasicMaterial({
         map, transparent: true, depthWrite: false, toneMapped: false, blending: T.AdditiveBlending,
       }));
@@ -92,12 +96,16 @@ export function buildWallProjection(T, scene) {
       scene.add(panel);
       surface.panel = panel;
     }
-    const { panel } = surface;
-    const map = panel.material.map;
+    surface.notes = notes;
+    surface.panel.visible = notes.length > 0;
+    paintText(surface, surface.panel.material.map, 1);
+  }
+  function paintText(surface, map, scale) {
     const ctx = map.image.getContext('2d');
-    ctx.clearRect(0, 0, surface.pixels, HEIGHT);
-    panel.visible = notes.length > 0;
-    for (const [index, { id, text }] of notes.entries()) {
+    ctx.clearRect(0, 0, map.image.width, map.image.height);
+    ctx.save();
+    ctx.scale(map.image.width / surface.pixels, map.image.height / HEIGHT);
+    for (const [index, { id, text }] of surface.notes.entries()) {
       const [x, y, width] = surface.slots[index];
       const color = INK[id % INK.length];
       ctx.save();
@@ -113,11 +121,12 @@ export function buildWallProjection(T, scene) {
       }
       ctx.fillStyle = color;
       ctx.shadowColor = color;
-      ctx.shadowBlur = 7;
+      ctx.shadowBlur = 7 * scale;
       ctx.globalAlpha = .93;
       lines.forEach((line, row) => ctx.fillText(line, 0, row * size * 1.15, width));
       ctx.restore();
     }
+    ctx.restore();
     map.needsUpdate = true;
   }
   return {
@@ -126,6 +135,27 @@ export function buildWallProjection(T, scene) {
       const split = notes.length - sideCount;
       paintSurface(back, notes.slice(0, split));
       paintSurface(side, notes.slice(split));
+    },
+    capture(render) {
+      const originals = [];
+      try {
+        for (const surface of [back, side]) {
+          if (!surface.panel?.visible) continue;
+          const { material } = surface.panel;
+          const scale = 1.5;
+          const map = createMap(surface, scale);
+          originals.push({ material, original: material.map, map });
+          paintText(surface, map, scale);
+          material.map = map;
+        }
+        return render();
+      } finally {
+        for (const { material, original, map } of originals) {
+          material.map = original;
+          map.dispose();
+          map.image.width = map.image.height = 1;
+        }
+      }
     },
   };
 }
@@ -164,7 +194,16 @@ export function setupMessageWall(dialog, projection, drawView, recordReady) {
   const count = dialog.querySelector('.wall-count');
   const shuffle = dialog.querySelector('#shuffle-wall');
   const retry = dialog.querySelector('#retry-wall');
+  const save = dialog.querySelector('#save-wall-image');
+  const download = dialog.querySelector('#download-wall-image');
   let revision = 0;
+  let imageFile;
+  function discardImage() {
+    if (download.hasAttribute('href')) URL.revokeObjectURL(download.href);
+    download.removeAttribute('href');
+    download.hidden = true;
+    imageFile = undefined;
+  }
   recordReady.then(ready => {
     if (ready && dialog.open) drawView(canvas);
   });
@@ -181,6 +220,8 @@ export function setupMessageWall(dialog, projection, drawView, recordReady) {
 
   async function loadSelection() {
     const attempt = ++revision;
+    discardImage();
+    save.disabled = true;
     shuffle.disabled = true;
     retry.hidden = true;
     status.textContent = '正在读取留言…';
@@ -189,6 +230,7 @@ export function setupMessageWall(dialog, projection, drawView, recordReady) {
       if (!dialog.open || attempt !== revision) return;
       const notes = visibleNotes(data.messages);
       showNotes(notes);
+      save.disabled = !notes.length;
       shuffle.hidden = data.total <= CAPACITY;
       count.textContent = data.total ? `墙上 ${notes.length} 条 · 共 ${data.total} 条留言` : '';
       status.textContent = notes.length ? '' : '还没有公开留言。';
@@ -201,8 +243,41 @@ export function setupMessageWall(dialog, projection, drawView, recordReady) {
     }
   }
   dialog.querySelector('#back-from-message-wall').onclick = () => dialog.close();
-  dialog.addEventListener('close', () => { revision++; });
+  dialog.addEventListener('close', () => {
+    revision++;
+    discardImage();
+  });
   shuffle.onclick = retry.onclick = loadSelection;
+  save.onclick = async () => {
+    const attempt = revision;
+    const title = '康乃馨 7.0 · 花房留言墙';
+    save.disabled = shuffle.disabled = true;
+    let output;
+    try {
+      if (!imageFile) {
+        output = document.createElement('canvas');
+        output.width = canvas.width * 2;
+        output.height = canvas.height * 2;
+        if (!projection.capture(() => drawView(output))) throw new Error('Wall render unavailable');
+        paintCreatorCredit(output.getContext('2d'), output.width - 50, output.height - 36, 30);
+        const blob = await new Promise(resolve => output.toBlob(resolve, 'image/jpeg', .97));
+        if (!dialog.open || attempt !== revision) return;
+        if (!blob) throw new Error('Wall image unavailable');
+        imageFile = new File([blob], `${title}.jpg`, { type: blob.type });
+        download.href = URL.createObjectURL(imageFile);
+        download.download = imageFile.name;
+        download.hidden = false;
+      }
+      const result = await shareImage(imageFile, title);
+      if (!dialog.open || attempt !== revision) return;
+      if (result === 'unavailable') download.click();
+    } catch {
+      if (dialog.open && attempt === revision) status.textContent = '暂时无法保存图片，请再试一次。';
+    } finally {
+      if (output) output.width = output.height = 1;
+      if (dialog.open && attempt === revision) save.disabled = shuffle.disabled = false;
+    }
+  };
   async function refresh() {
     if (dialog.open) return;
     const attempt = ++revision;
