@@ -1,26 +1,26 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r52';
-import { buildBotanicals } from './botanicals.js?v=20261113-r52';
-import { createHearts } from './hearts.js?v=20261113-r52';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r52';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r52';
-import { setupMusic } from './music.js?v=20261113-r52';
-import { setupCollection } from './collection.js?v=20261113-r52';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r52';
-import { prepareOffline } from './offline.js?v=20261113-r52';
-import { buildMagazines } from './magazines.js?v=20261113-r52';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r52';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r52';
-import { buildRolePortraits } from './roles.js?v=20261113-r52';
-import { buildRecord } from './record.js?v=20261113-r52';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r52';
-import { createArtworkQueue } from './artwork.js?v=20261113-r52';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r52';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r52';
-import { setupKeepsake } from './keepsake.js?v=20261113-r52';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r52';
-import { createPlaySave } from './play-save.js?v=20261113-r52';
-const VERSION = '20261113-r52';
+import { buildArchitecture } from './architecture.js?v=20261113-r53';
+import { buildBotanicals } from './botanicals.js?v=20261113-r53';
+import { createHearts } from './hearts.js?v=20261113-r53';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r53';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r53';
+import { setupMusic } from './music.js?v=20261113-r53';
+import { setupCollection } from './collection.js?v=20261113-r53';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r53';
+import { prepareOffline } from './offline.js?v=20261113-r53';
+import { buildMagazines } from './magazines.js?v=20261113-r53';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r53';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r53';
+import { buildRolePortraits } from './roles.js?v=20261113-r53';
+import { buildRecord } from './record.js?v=20261113-r53';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r53';
+import { createArtworkQueue } from './artwork.js?v=20261113-r53';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r53';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r53';
+import { setupKeepsake } from './keepsake.js?v=20261113-r53';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r53';
+import { createPlaySave } from './play-save.js?v=20261113-r53';
+const VERSION = '20261113-r53';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -188,8 +188,8 @@ function renderWallView(target) {
   const halfWidth = 9.1;
   const halfHeight = halfWidth * target.height / target.width;
   const wallCamera = new THREE.OrthographicCamera(-halfWidth, halfWidth, halfHeight, -halfHeight, .025, 6);
-  wallCamera.position.set(0, 1.68, 8.7);
-  wallCamera.lookAt(0, 1.68, 9.04);
+  wallCamera.position.set(0, 2.80, 8.7);
+  wallCamera.lookAt(0, 2.80, 9.04);
   const context = target.getContext('2d');
   try {
     lighting.setNight(true);
@@ -368,6 +368,34 @@ function updateLandscapeReminder() {
 portraitViewport.addEventListener('change', updateLandscapeReminder);
 document.addEventListener('visibilitychange', updateLandscapeReminder);
 
+const joystickGuideKey = 'carnation7-joystick-guide';
+const joystickGuide = $('#joystick-guide');
+const guideGesture = $('.guide-gesture');
+const guideDismiss = $('#dismiss-joystick-guide');
+function startJoystickGuide() {
+  if (!touchDevice) return;
+  try { if (localStorage.getItem(joystickGuideKey)) return; } catch {}
+  joystickGuide.hidden = false;
+  guideGesture.hidden = false;
+  guideGesture.parentElement.classList.add('guide-target');
+  $('#hint').hidden = true;
+}
+function guideMovement() {
+  if (joystickGuide.hidden || !guideDismiss.hidden) return;
+  guideGesture.parentElement.classList.remove('guide-target');
+  const movePad = $('#joystick');
+  movePad.append(guideGesture);
+  movePad.classList.add('guide-target');
+  joystickGuide.querySelector('p').textContent = '左手大拇指拖动摇杆，控制移动方向';
+  guideDismiss.hidden = false;
+}
+guideDismiss.onclick = () => {
+  joystickGuide.hidden = true;
+  guideGesture.hidden = true;
+  guideGesture.parentElement.classList.remove('guide-target');
+  try { localStorage.setItem(joystickGuideKey, 'complete'); } catch {}
+};
+
 function enter() {
   if (entered || !modelReady || rendererSuspended) return;
   entered = true;
@@ -378,6 +406,7 @@ function enter() {
   $('#hud').hidden = false;
   updateLandscapeReminder();
   alignViewStick();
+  startJoystickGuide();
   const saved = playSave.state.position;
   placePlayer(saved && canRestorePosition(saved, world.surfaces, colliders) ? saved : destinations[0]);
   if (record.claimed) messageWall.refresh();
@@ -460,7 +489,7 @@ canvas.addEventListener('pointermove', e => {
   look.y = e.clientY;
 });
 for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,e=>{if(look?.id===e.pointerId)look=null});
-function bindStick(pad, cap) {
+function bindStick(pad, cap, onStart) {
   let pointer = null;
   let centerX = 0, centerY = 0, travel = 1;
   const input = { x: 0, y: 0, get active() { return pointer !== null; }, reset };
@@ -489,6 +518,7 @@ function bindStick(pad, cap) {
     pointer = event.pointerId;
     pad.setPointerCapture(pointer);
     update(event);
+    onStart?.();
   });
   pad.addEventListener('pointermove', event => {
     if (event.pointerId === pointer) update(event);
@@ -502,7 +532,7 @@ function bindStick(pad, cap) {
 }
 
 const moveStick = bindStick($('#joystick'), $('#stick'));
-const viewStick = bindStick($('#look-joystick'), $('#look-stick'));
+const viewStick = bindStick($('#look-joystick'), $('#look-stick'), guideMovement);
 function viewSpeed(axis) {
   const deadZone = .10;
   const magnitude = Math.max(0, (Math.abs(axis) - deadZone) / (1 - deadZone));

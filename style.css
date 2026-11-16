@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r52") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r53") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r52") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r53") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -749,6 +749,109 @@ dialog[open] {
   pointer-events: none;
   user-select: none;
 }
+
+#joystick-guide {
+  position: fixed;
+  z-index: 6;
+  left: 50%;
+  top: 36%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 14px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 7px 9px 7px 16px;
+  border: 1px solid #f3d39773;
+  border-radius: 13px;
+  background: #1c2e25ed;
+  box-shadow: 0 5px 24px #111b1580;
+  color: #fff0d0;
+  text-align: center;
+  pointer-events: none;
+}
+#joystick-guide p {
+  margin: 0;
+  padding: 6px 3px;
+  font-size: clamp(13px, 2.1vw, 16px);
+  line-height: 1.45;
+}
+#dismiss-joystick-guide {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 7px;
+  background: #f3e6c9;
+  color: #26392b;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: auto;
+}
+#joystick.guide-target, #look-joystick.guide-target {
+  opacity: 1;
+  border-color: #f3d397a6;
+  box-shadow: 0 0 0 4px #f3d39720;
+}
+.guide-gesture {
+  --guide-drag-x: -28px;
+  --guide-drag-y: 0px;
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+  animation: guide-thumb-drag 2.4s ease-in-out infinite;
+}
+#joystick .guide-gesture {
+  --guide-drag-x: 4px;
+  --guide-drag-y: -28px;
+}
+.guide-gesture::before {
+  content: '';
+  position: absolute;
+  inset: -14px auto auto -14px;
+  width: 26px;
+  height: 26px;
+  border: 2px solid #fff3c4b3;
+  border-radius: 50%;
+  animation: guide-thumb-contact 2.4s ease-in-out infinite;
+}
+.guide-thumb {
+  position: absolute;
+  top: -11px;
+  left: -12px;
+  width: 78px;
+  height: 88px;
+  opacity: .68;
+  transform-origin: 12px 11px;
+  filter: drop-shadow(0 2px 3px #15150b88);
+}
+.guide-thumb::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(130deg, #fff5d6 15%, #e3b98b 62%, #b88866);
+  clip-path: path('M 0 12 C 1 2 10 -3 18 4 C 25 10 26 23 33 31 C 38 25 46 27 49 34 C 55 31 61 35 63 43 C 72 43 77 50 77 60 C 77 71 71 79 71 88 L 45 88 C 43 79 33 74 26 66 C 18 58 17 47 14 39 C 10 29 0 23 0 12 Z');
+}
+#joystick .guide-thumb { transform: scaleX(-1); }
+@keyframes guide-thumb-drag {
+  0%, 100% { transform: translate(0, 9px) scale(1.08); opacity: .32; }
+  23%, 34% { transform: translate(0, 0) scale(.95); opacity: 1; }
+  63%, 75% { transform: translate(var(--guide-drag-x), var(--guide-drag-y)) scale(.95); opacity: 1; }
+}
+@keyframes guide-thumb-contact {
+  0%, 100% { opacity: 0; transform: scale(.7); }
+  26% { opacity: .92; transform: scale(1); }
+  73% { opacity: .5; transform: scale(1.07); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide-gesture, .guide-gesture::before { animation: none; }
+}
+@media (orientation: portrait) {
+  #joystick-guide { top: 48%; }
+}
+
 @media (orientation: portrait), (max-width: 540px) {
   .entered .creator-credit {
     right: max(5px, env(safe-area-inset-right));

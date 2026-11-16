@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><meta property="og:title" content="康乃馨 7.0"><meta property="og:description" content="如果我拥有一座花园，邀请你常来停歇。"><meta name="demo-build" content="20261113-r52"><meta name="theme-color" content="#222d26"><meta name="description" content="走进鲜花与书页之间。一个可以上下楼、自由探索的花园咖啡厅。"><title>康乃馨 7.0</title><link rel="manifest" href="manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/svg+xml" href="assets/icon.svg"><link rel="stylesheet" href="style.css?v=20261113-r52"></head><body>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><meta property="og:title" content="康乃馨 7.0"><meta property="og:description" content="如果我拥有一座花园，邀请你常来停歇。"><meta name="demo-build" content="20261113-r53"><meta name="theme-color" content="#222d26"><meta name="description" content="走进鲜花与书页之间。一个可以上下楼、自由探索的花园咖啡厅。"><title>康乃馨 7.0</title><link rel="manifest" href="manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/svg+xml" href="assets/icon.svg"><link rel="stylesheet" href="style.css?v=20261113-r53"></head><body>
 <canvas id="world" aria-label="可以自由走动的多层花园咖啡厅"></canvas><div class="vignette"></div>
 <div class="creator-credit" aria-hidden="true">By MD_Leah</div>
 <header><a class="brand" href="#" aria-label="康乃馨 7.0 首页"><span class="brand-mark">✳</span><span>康乃馨 7.0</span></a><div class="tools"><button id="music" title="背景音乐"><span class="music-label">播放音乐</span><span class="music-icon" aria-hidden="true">♪</span></button><button id="light" aria-label="切换日光" title="切换灯光">☾<span>夜色</span></button><button id="quality" aria-label="画质：超清，点击切换" title="切换画质"><span>超清</span></button><button id="reload" title="重新加载" onclick="location.reload()"><span aria-hidden="true">↻</span>重新加载</button><button id="help" aria-label="操作说明">?</button></div></header>
@@ -19,8 +19,14 @@
   <span class="look-left" aria-hidden="true">‹</span>
   <span class="look-right" aria-hidden="true">›</span>
   <div id="look-stick" aria-hidden="true"></div>
+  <div class="guide-gesture" aria-hidden="true" hidden><div class="guide-thumb"></div></div>
   <small>视角</small>
-</div><button id="map-toggle" aria-label="显示导览地图">⌘ <span>导览</span></button><div id="map-panel" hidden><div class="map-title">场景导览 <small id="map-floor">1F</small></div><canvas id="map" width="240" height="220" aria-label="场景地图"></canvas>
+</div>
+<div id="joystick-guide" hidden>
+  <p role="status">右手大拇指拖动摇杆，控制视角</p>
+  <button id="dismiss-joystick-guide" type="button" hidden>我知道了</button>
+</div>
+<button id="map-toggle" aria-label="显示导览地图">⌘ <span>导览</span></button><div id="map-panel" hidden><div class="map-title">场景导览 <small id="map-floor">1F</small></div><canvas id="map" width="240" height="220" aria-label="场景地图"></canvas>
 <div class="map-magazines"><span><i class="ground">◆</i> 一楼剩 <b id="map-ground-magazines"></b> 本</span><span><i class="walk">◆</i> 下层书廊剩 <b id="map-walk-magazines"></b> 本</span></div><p>从三层走廊下短梯到沙发区，通道尽头右转下楼</p></div></div>
 <dialog id="help-dialog"><button class="close" aria-label="关闭说明">×</button><span class="eyebrow">TAKE YOUR TIME</span><h2>慢慢走，收集心意。</h2><div class="instructions"><div><b>01 / 移动</b><p>左手拖动摇杆，前后左右走动。<br>电脑使用 W A S D 或方向键。<br>电脑按空格跳跃，空中再按一次可二段跳。</p></div><div><b>02 / 看看四周</b><p>右手推摇杆转头，松手停住。<br>也可拖动画面转头。</p></div><div><b>03 / 上楼看花</b><p>从三层走廊下短梯到沙发旁。<br>沿通道走到底，右转下楼。</p></div></div><p class="fineprint">依据现场照片与视频进行空间演绎；未拍到的连接和尺寸为推定，人物为参考造型的多视角照片式呈现。非官方个人 Demo。</p><button class="primary close-help">开始探索 <span>↗</span></button></dialog>
 <div id="magazine-counter" aria-live="polite"><span aria-hidden="true">✦</span><span>杂志点亮度：</span><b>0</b><em></em></div>
@@ -117,7 +123,7 @@
     <button type="button" id="back-from-message-wall">返回留影</button>
   </div>
   <figure class="wall-projection">
-    <canvas width="1500" height="354" aria-label="一楼唱片墙上的留言投影"></canvas>
+    <canvas width="1500" height="470" aria-label="一楼唱片墙上的留言投影"></canvas>
   </figure>
   <div class="wall-toolbar">
     <span class="wall-count"></span>
@@ -162,7 +168,7 @@
     <button type="button" id="back-from-group-photo">返回留影</button>
   </div>
 </dialog>
-<audio id="daimi-barks" preload="none" src="assets/daimi/two-barks.m4a?v=20261113-r52"></audio>
+<audio id="daimi-barks" preload="none" src="assets/daimi/two-barks.m4a?v=20261113-r53"></audio>
 <div id="toast" role="status"></div><div id="error" hidden role="alert"><h2>画面暂停了</h2><p>正在等待浏览器恢复画面。若持续停在这里，可以重新加载。</p><button onclick="location.reload()">重新加载</button></div>
 <script>
 (() => {
@@ -232,5 +238,5 @@
   watch();
 })();
 </script>
-<script defer src="visit.js?v=20261113-r52"></script>
-<script id="game-startup" type="module" src="main.js?v=20261113-r52"></script></body></html>
+<script defer src="visit.js?v=20261113-r53"></script>
+<script id="game-startup" type="module" src="main.js?v=20261113-r53"></script></body></html>
