@@ -1,9 +1,10 @@
-import { keepsakeText, textLines } from './keepsake.js?v=20261113-r58';
+import { keepsakeText, textLines } from './keepsake.js?v=20261113-r59';
 
 const WIDTH = 2048;
 const BASE_HEIGHT = 640;
 const UPPER_BAND = 88;
-const HEIGHT = BASE_HEIGHT + UPPER_BAND;
+const CEILING_BANDS = 368;
+const HEIGHT = BASE_HEIGHT + UPPER_BAND + CEILING_BANDS;
 const TOP_ROW = [
   [870, 37, 149], [1388, 32, 172], [467, 45, 170], [1788, 38, 177],
   [257, 29, 174], [1192, 52, 163], [1579, 44, 172], [54, 47, 173],
@@ -21,13 +22,20 @@ const LOWER_POSITIONS = [
   [265, 92, 155], [1052, 376, 129], [868, 49, 148], [1033, 112, 139],
   [1392, 239, 174], [1600, 558, 178], [1190, 62, 163], [1790, 325, 175],
 ];
-const POSITIONS = LOWER_POSITIONS.flatMap(([x, y, width], index) => {
+const BACK_UPPER = [
+  [51, 82, 185], [305, 178, 195], [548, 288, 183], [804, 69, 174],
+  [1057, 189, 190], [1280, 276, 189], [1542, 88, 187], [1797, 169, 191],
+  [68, 277, 176], [290, 72, 183], [564, 194, 190], [795, 286, 192],
+  [1038, 79, 177], [1301, 170, 184], [1527, 276, 197], [1815, 73, 174],
+  [39, 185, 188], [317, 283, 179], [537, 83, 194], [816, 163, 180],
+  [1048, 295, 174], [1287, 65, 199], [1554, 187, 179], [1789, 290, 193],
+];
+const BACK_LOWER = LOWER_POSITIONS.flatMap(([x, y, width], index) => {
   const position = [x, y + UPPER_BAND, width];
-  // Use a few upper slots even when there are too few messages to fill the wall.
   const top = index % 3 === 0 ? TOP_ROW[index / 3] : undefined;
   return top ? [position, top] : [position];
 });
-const SIDE_POSITIONS = [
+const SIDE_LOWER = [
   [39, 138, 149], [388, 49, 158], [218, 335, 151], [572, 253, 162],
   [31, 459, 154], [390, 355, 160], [208, 58, 153], [575, 570, 166],
   [46, 241, 142], [392, 480, 152], [213, 154, 158], [572, 76, 156],
@@ -35,7 +43,29 @@ const SIDE_POSITIONS = [
   [35, 352, 147], [400, 578, 151], [221, 442, 147], [577, 468, 162],
   [47, 568, 144], [384, 151, 159], [216, 250, 151], [577, 157, 165],
 ];
-const CAPACITY = POSITIONS.length + SIDE_POSITIONS.length;
+const SIDE_UPPER = [
+  [44, 79, 152], [218, 166, 153], [380, 283, 159], [572, 69, 162],
+  [32, 183, 155], [204, 285, 156], [396, 78, 148], [572, 187, 168],
+  [47, 278, 150], [215, 73, 155], [386, 188, 154], [581, 284, 163],
+];
+// Toward the right the upper stair slopes down and the lower rail slopes up.
+const BETWEEN_STAIRS = [
+  [799, 371, 137], [958, 515, 130], [1115, 470, 134], [1280, 633, 131],
+  [788, 594, 142], [952, 407, 139], [1110, 685, 140], [1275, 549, 136],
+  [795, 810, 134], [962, 625, 132], [1120, 575, 131], [1287, 710, 124],
+  [793, 481, 139], [956, 820, 133], [801, 703, 136], [950, 725, 138],
+];
+
+function interleave(first, second) {
+  return first.flatMap((slot, index) => index < second.length ? [slot, second[index]] : [slot])
+    .concat(second.slice(first.length));
+}
+
+const liftCanvas = ([x, y, width]) => [x, y + CEILING_BANDS, width];
+// Spread small selections across the full visible surface as well.
+const BACK_POSITIONS = interleave(BACK_LOWER.map(liftCanvas), BACK_UPPER);
+const SIDE_POSITIONS = interleave(SIDE_LOWER.map(liftCanvas), interleave(BETWEEN_STAIRS, SIDE_UPPER));
+const CAPACITY = BACK_POSITIONS.length + SIDE_POSITIONS.length;
 const INK = ['#ffda98', '#dbe6c3', '#f3cfc8', '#e0d5ee', '#f9e8be'];
 const WALL_FONT = '"Kaiti SC", STKaiti, KaiTi, "Songti SC", "Noto Serif SC", serif';
 
@@ -43,8 +73,8 @@ export function buildWallProjection(T, scene) {
   // Both walls share the same scale and leave open floor space around the corner.
   const planeHeight = 5.43 * HEIGHT / BASE_HEIGHT;
   const centerY = .12 + planeHeight / 2;
-  const back = { pixels: WIDTH, width: 17.36, x: 0, z: 8.908, yaw: Math.PI, slots: POSITIONS };
-  const side = { pixels: 776, width: 6.55, x: -8.893, z: 5.51, yaw: Math.PI / 2, slots: SIDE_POSITIONS };
+  const back = { pixels: WIDTH, width: 17.36, x: 0, z: 8.908, yaw: Math.PI, slots: BACK_POSITIONS };
+  const side = { pixels: 1463, width: 12.35, x: -8.893, z: 2.61, yaw: Math.PI / 2, slots: SIDE_POSITIONS };
   function paintSurface(surface, notes) {
     if (!surface.panel && !notes.length) return;
     if (!surface.panel) {
