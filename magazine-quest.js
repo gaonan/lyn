@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r56';
-import { roleInReach } from './roles.js?v=20261113-r56';
+import { magazineInReach } from './magazines.js?v=20261113-r57';
+import { roleInReach } from './roles.js?v=20261113-r57';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
@@ -9,6 +9,8 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   const panel = document.querySelector('#magazine-counter');
   const counter = panel.querySelector('b');
   const lightButton = document.querySelector('#light-magazine');
+  const shareButton = document.querySelector('#share-record');
+  const shareCover = shareButton.querySelector('img');
   const portrait = lightButton.querySelector('img');
   const title = lightButton.querySelector('small');
   const actionLabel = lightButton.querySelector('strong');
@@ -225,10 +227,14 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     newRecord = false;
     finishRecord();
   });
-  achievementBadge.onclick = () => {
+  function reopenRecord() {
     if (!record.claimed || modalOpen()) return;
     options.openKeepsake();
     showModal(recordFinale);
+  }
+  achievementBadge.onclick = reopenRecord;
+  shareButton.onclick = () => {
+    if (!shareButton.hidden && record.canShare(getPlayer())) reopenRecord();
   };
 
   function dogInReach(player) {
@@ -238,7 +244,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   }
   function barkEnded() {
     barkPlaying = false;
-    if (!roleUnlocked) {
+    if (!roleUnlocked && !record.unlocked) {
       options.playSave.mark('dogGreeted');
       invitationPending = true;
     }
@@ -308,13 +314,16 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     count = magazines.items.filter(magazine => magazine.lit).length;
     counter.textContent = count;
     magazinesCelebrated = count === total;
-    if (!magazinesCelebrated || !options.heartsComplete()) return;
-    if (saved.dogSeen || saved.dogGreeted || saved.invitationSeen) {
+    const collectedAll = magazinesCelebrated && options.heartsComplete();
+    const metDaimi = saved.dogSeen || saved.dogGreeted || saved.invitationSeen;
+    // Saved achievements from before full progress was stored also imply the dog was unlocked.
+    if (record.unlocked || (collectedAll && metDaimi)) {
       daimiUnlocked = true;
       options.unlock();
     }
+    if (!collectedAll) return;
     if (!saved.invitationSeen) {
-      invitationPending = saved.dogGreeted;
+      invitationPending = saved.dogGreeted && !record.unlocked;
       return;
     }
     unlockRoles();
@@ -348,7 +357,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   function update(now, active) {
     if (!active || modalOpen()) {
       cancelHold();
-      lightButton.hidden = dogButton.hidden = true;
+      lightButton.hidden = dogButton.hidden = shareButton.hidden = true;
       return modalOpen();
     }
     if (achievementPending) {
@@ -377,8 +386,11 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       return true;
     }
     const player = getPlayer();
+    const shareNearby = record.canShare(player);
+    shareButton.hidden = !shareNearby;
+    if (shareNearby && !shareCover.hasAttribute('src')) shareCover.src = record.url;
     const collectible = roleUnlocked ? roleInReach(roles.entries, player) : magazineInReach(magazines.items, player);
-    const nearby = record.inReach(player) ? record : collectible;
+    const nearby = shareNearby ? null : record.inReach(player) ? record : collectible;
     if (nearby !== target) {
       cancelHold();
       target = nearby;
@@ -391,9 +403,9 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       }
     }
     lightButton.hidden = !target;
-    dogButton.hidden = Boolean(target) || !dogInReach(player) || barkPlaying || invitationPending;
+    dogButton.hidden = shareNearby || Boolean(target) || !dogInReach(player) || barkPlaying || invitationPending;
     if (hold?.button.hidden) cancelHold();
-    if (!hold) return Boolean(target) || !dogButton.hidden;
+    if (!hold) return shareNearby || Boolean(target) || !dogButton.hidden;
 
     const progress = Math.max(0, Math.min(1, (now - hold.start) / HOLD_MS));
     hold.ring.style.strokeDashoffset = String(100 * (1 - progress));

@@ -1,4 +1,4 @@
-import { makeSurfaceMaps } from './surface-maps.js?v=20261113-r56';
+import { makeSurfaceMaps } from './surface-maps.js?v=20261113-r57';
 
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a
@@ -238,28 +238,6 @@ export function buildArchitecture(THREE, scene) {
     }
   }
   collider(-8.8, 8.8, -6.9, -6.3, 0, 9.5);
-  // Left-side books and acoustic timber continue the visual rhythm at ground level.
-  for (let i = 0; i < 38; i++) box(mats.wood, -8.85, 1.45, 5.35 + i * .088, .12, 2.9, .043);
-  for (const y of [.25, 1.05, 1.85, 2.65]) box(mats.light, -8.777, y, 6.97, .016, .018, 3.24);
-
-  // Architect's characteristic stepped timber bar: four sloping bands with
-  // warm concealed strips. The north edge stays clear of the stair approach.
-  box(mats.darkWood, -7.2, 1.24, 7.55, 2.30, 2.48, 1.35);
-  box(mats.dark, -7.2, 2.49, 7.5, 2.28, .045, 1.32);
-  box(mats.wood, -7.2, 2.54, 7.50, 2.45, .09, .16);
-  for (let tier = 0; tier < 4; tier++) {
-    const y = .7 + tier * .43, z = 6.39 + tier * .17, width = 3 - tier * .16;
-    instance(boxGeo, mats.darkWood, -7.2, y, z, width, .48, .085, .36);
-    instance(boxGeo, mats.darkWood, -5.79 - tier * .10, y, 7.48, .085, .48, 2.05 - tier * .25, 0, 0, .23);
-    box(mats.light, -7.2, y - .205, z - .062, width - .06, .019, .026);
-    box(mats.light, -5.75 - tier * .10, y - .205, 7.48, .024, .019, 2.03 - tier * .25);
-    for (let i = 0; i < 31; i++) {
-      const x = -7.2 - width / 2 + .04 + i * (width - .08) / 30;
-      instance(boxGeo, mats.black, x, y, z - .045, .007, .47, .012, .36);
-    }
-  }
-  collider(-8.73, -5.67, 6.27, 8.55, 0, 2.65);
-
   // Round the upholstered edges so they catch light across the seams.
   function cushionGeometry(w, h, d) {
     const geo = new THREE.BoxGeometry(1, 1, 1, 6, 6, 6);

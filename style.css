@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r56") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r57") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r56") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r57") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -315,7 +315,7 @@ body.entered #achievement-badge { top: 148px; }
 }
 .quest-action circle { fill: none; stroke-width: 2.6; }
 .quest-action .progress { stroke-dasharray: 100; stroke-dashoffset: 100; }
-#light-magazine img {
+#light-magazine img, #share-record img {
   position: absolute;
   width: 26px;
   height: 36px;
@@ -324,9 +324,11 @@ body.entered #achievement-badge { top: 148px; }
   object-fit: contain;
   pointer-events: none;
 }
+#share-record { padding-left: 54px; }
+#share-record img { width: 30px; left: 14px; }
 .quest-action small { display: block; margin-top: 4px; font-size: 10px; color: #e1d3b7; }
 #light-magazine small::before { content: '长按 2 秒 · '; }
-#light-magazine strong { font-weight: 500; }
+#light-magazine strong, #share-record strong { font-weight: 500; }
 .roles-unlocked #light-magazine { border-color: #d6ace099; }
 .roles-unlocked #light-magazine .progress { stroke: #e8bdf2; }
 .dog-greet-icon {

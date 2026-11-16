@@ -1,26 +1,26 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r56';
-import { buildBotanicals } from './botanicals.js?v=20261113-r56';
-import { createHearts } from './hearts.js?v=20261113-r56';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r56';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r56';
-import { setupMusic } from './music.js?v=20261113-r56';
-import { setupCollection } from './collection.js?v=20261113-r56';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r56';
-import { prepareOffline } from './offline.js?v=20261113-r56';
-import { buildMagazines } from './magazines.js?v=20261113-r56';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r56';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r56';
-import { buildRolePortraits } from './roles.js?v=20261113-r56';
-import { buildRecord } from './record.js?v=20261113-r56';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r56';
-import { createArtworkQueue } from './artwork.js?v=20261113-r56';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r56';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r56';
-import { setupKeepsake } from './keepsake.js?v=20261113-r56';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r56';
-import { createPlaySave } from './play-save.js?v=20261113-r56';
-const VERSION = '20261113-r56';
+import { buildArchitecture } from './architecture.js?v=20261113-r57';
+import { buildBotanicals } from './botanicals.js?v=20261113-r57';
+import { createHearts } from './hearts.js?v=20261113-r57';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r57';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r57';
+import { setupMusic } from './music.js?v=20261113-r57';
+import { setupCollection } from './collection.js?v=20261113-r57';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r57';
+import { prepareOffline } from './offline.js?v=20261113-r57';
+import { buildMagazines } from './magazines.js?v=20261113-r57';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r57';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r57';
+import { buildRolePortraits } from './roles.js?v=20261113-r57';
+import { buildRecord } from './record.js?v=20261113-r57';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r57';
+import { createArtworkQueue } from './artwork.js?v=20261113-r57';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r57';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r57';
+import { setupKeepsake } from './keepsake.js?v=20261113-r57';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r57';
+import { createPlaySave } from './play-save.js?v=20261113-r57';
+const VERSION = '20261113-r57';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -187,18 +187,28 @@ const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, 
 
 function renderWallView(target) {
   if (rendererSuspended) return;
-  const halfWidth = 9.1;
-  const halfHeight = halfWidth * target.height / target.width;
-  const wallCamera = new THREE.OrthographicCamera(-halfWidth, halfWidth, halfHeight, -halfHeight, .025, 6);
-  wallCamera.position.set(0, 2.80, 8.7);
-  wallCamera.lookAt(0, 2.80, 9.04);
+  const views = [
+    { width: 18.2, position: [0, 3.17, 8.7], lookAt: [0, 3.17, 9.04] },
+    { width: 6.8, position: [-8.68, 3.17, 5.51], lookAt: [-9.05, 3.17, 5.51] },
+  ];
+  const panoramaWidth = 25;
+  const halfHeight = panoramaWidth * target.height / target.width / 2;
   const context = target.getContext('2d');
   try {
     lighting.setNight(true);
-    renderer.setDrawingBufferSize(target.width, target.height, 1);
-    renderer.render(scene, wallCamera);
     context.clearRect(0, 0, target.width, target.height);
-    context.drawImage(canvas, 0, 0, target.width, target.height);
+    let left = 0;
+    for (const view of views) {
+      const halfWidth = view.width / 2;
+      const width = Math.round(target.width * view.width / panoramaWidth);
+      const camera = new THREE.OrthographicCamera(-halfWidth, halfWidth, halfHeight, -halfHeight, .025, 6);
+      camera.position.set(...view.position);
+      camera.lookAt(...view.lookAt);
+      renderer.setDrawingBufferSize(width, target.height, 1);
+      renderer.render(scene, camera);
+      context.drawImage(canvas, left, 0, width, target.height);
+      left += width;
+    }
   } finally {
     lighting.setNight(night);
     renderWidth = 0;
@@ -469,6 +479,7 @@ function canMove() {
 window.addEventListener('keydown', event => {
   if (event.defaultPrevented || !canMove() || event.target.closest?.('input,textarea,[contenteditable]')) return;
   if (event.code === 'Space') {
+    if (event.target.closest?.('#share-record')) return;
     event.preventDefault();
     if (!event.repeat) jumpRequested = true;
   } else if (movementKeys.includes(event.code)) {
