@@ -1,29 +1,21 @@
-import { keepsakeText, textLines } from './keepsake.js?v=20261113-r52';
+import { keepsakeText, textLines } from './keepsake.js?v=20261113-r53';
 
 const WIDTH = 2048;
-const HEIGHT = 384;
-const leftSlots = [
-  [54, 46, 178], [259, 73, 156], [477, 31, 163], [674, 66, 181],
-  [34, 141, 193], [242, 157, 193], [451, 116, 178], [664, 147, 178],
-  [72, 225, 162], [247, 248, 160], [477, 204, 155], [645, 227, 189],
-  [40, 312, 172], [279, 329, 156], [457, 298, 172], [694, 315, 151],
+const HEIGHT = 640;
+// The left positions stay above the descending stair rail. The album and
+// personal plaque occupy the right half between about y=425 and y=520.
+// Fill the upper wall and the open wall on both sides even with few messages.
+const POSITIONS = [
+  [888, 275, 130], [1386, 342, 165], [466, 53, 164], [1796, 226, 180],
+  [1040, 285, 143], [1590, 52, 174], [673, 182, 163], [1190, 350, 177],
+  [54, 43, 174], [1389, 38, 156], [864, 200, 149], [1774, 449, 181],
+  [1212, 236, 148], [670, 37, 171], [1593, 345, 168], [1037, 35, 133],
+  [1380, 553, 180], [258, 34, 171], [1582, 242, 176], [666, 113, 172],
+  [1045, 190, 136], [1800, 36, 183], [63, 96, 163], [1403, 108, 158],
+  [875, 119, 149], [1192, 142, 169], [1597, 128, 175], [1823, 104, 160],
+  [265, 92, 155], [1052, 376, 129], [868, 49, 148], [1033, 112, 139],
+  [1392, 239, 174], [1600, 558, 178], [1190, 62, 163], [1790, 325, 175],
 ];
-// Reserve the middle of the right half for the album and the personal plaque.
-const rightSlots = [
-  [1178, 34, 174], [1390, 28, 175], [1597, 41, 163], [1812, 27, 180],
-  [1188, 106, 172], [1373, 92, 172], [1583, 103, 175], [1783, 91, 170],
-  [1175, 294, 182], [1388, 316, 162], [1574, 302, 176], [1815, 319, 174],
-  [1802, 158, 178], [1777, 230, 208],
-];
-const middleSlots = [
-  [944, 155, 143], [870, 278, 133], [1014, 33, 147],
-  [1008, 327, 145], [1013, 222, 143], [877, 92, 145],
-];
-const leftOrder = [6, 9, 0, 14, 5, 11, 3, 12, 2, 15, 8, 1, 13, 4, 7, 10];
-const rightOrder = [2, 9, 5, 13, 0, 11, 6, 4, 1, 12, 3, 8, 7, 10];
-const POSITIONS = leftOrder.flatMap((slot, index) => [
-  leftSlots[slot], rightSlots[rightOrder[index]], index % 2 === 0 ? middleSlots[index / 2] : undefined,
-].filter(Boolean));
 const INK = ['#ffda98', '#dbe6c3', '#f3cfc8', '#e0d5ee', '#f9e8be'];
 const WALL_FONT = '"Kaiti SC", STKaiti, KaiTi, "Songti SC", "Noto Serif SC", serif';
 
@@ -37,11 +29,11 @@ export function buildWallProjection(T, scene) {
       canvas.height = HEIGHT;
       const map = new T.CanvasTexture(canvas);
       map.colorSpace = T.SRGBColorSpace;
-      panel = new T.Mesh(new T.PlaneGeometry(17.36, 3.03), new T.MeshBasicMaterial({
+      panel = new T.Mesh(new T.PlaneGeometry(17.36, 5.43), new T.MeshBasicMaterial({
         map, transparent: true, depthWrite: false, toneMapped: false, blending: T.AdditiveBlending,
       }));
       panel.name = 'Projected visitor messages';
-      panel.position.set(0, 1.64, 8.908);
+      panel.position.set(0, 2.835, 8.908);
       panel.rotation.y = Math.PI;
       scene.add(panel);
     }
