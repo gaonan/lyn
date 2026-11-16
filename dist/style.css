@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r61") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r63") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r61") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r63") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -644,6 +644,9 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
 .wall-heading, .wall-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 #message-wall-dialog h2 { color: #ffe7b5; font-size: clamp(21px, 4vw, 34px); margin: 0; }
 #message-wall-dialog button { background: #2c3a2e; }
+.wall-toolbar, .wall-actions { flex-wrap: wrap; }
+.wall-actions { display: flex; align-items: center; gap: 8px; }
+#download-wall-image { color: #ffe7b5; padding-inline: 6px; font-size: 13px; }
 .wall-projection { margin: 12px 0 10px; border: 1px solid #c8aa7358; background: #131b16; }
 .wall-projection canvas { display: block; width: 100%; height: auto; }
 .wall-count, .wall-status { color: #dfcba0; font-size: 12px; }
@@ -1037,4 +1040,162 @@ dialog[open] {
   border-color: #f2eddf94;
   background: #f2eddf27;
   box-shadow: none;
+}
+
+/* A shared corner radius and three control heights for the in-game interface. */
+body.entered {
+  --control-radius: 12px;
+  --control-small: 34px;
+  --control-regular: 44px;
+  --control-large: 60px;
+  --control-gap: 6px;
+  --hud-left: max(36px, calc(env(safe-area-inset-left) + 8px));
+  --hud-right: max(36px, calc(env(safe-area-inset-right) + 8px));
+  --hud-top: max(24px, env(safe-area-inset-top));
+  --hud-row: calc(var(--control-small) + var(--control-gap));
+  --hud-progress-top: calc(var(--hud-top) + var(--control-regular) + 8px);
+  --hud-map-button-top: calc(var(--hud-progress-top) + 2 * var(--hud-row));
+}
+body.entered.roles-unlocked {
+  --hud-map-button-top: calc(var(--hud-progress-top) + 3 * var(--hud-row));
+}
+.entered header { left: var(--hud-left); right: var(--hud-right); top: var(--hud-top); }
+.entered .tools { gap: var(--control-gap); }
+.entered :is(.tools button, .destinations button, #map-toggle, #achievement-badge, #pure-view-toggle, #exit-pure-view) {
+  height: var(--control-regular);
+  min-height: var(--control-regular);
+  padding-block: 0;
+  border-radius: var(--control-radius);
+}
+.entered :is(#help, #exit-pure-view) { width: var(--control-regular); padding-inline: 0; }
+.entered .location { left: var(--hud-left); top: calc(var(--hud-progress-top) + 2px); }
+body.entered #achievement-badge,
+.entered :is(#pure-view-toggle, #exit-pure-view) {
+  left: var(--hud-left);
+}
+body.entered #achievement-badge {
+  top: calc(var(--hud-progress-top) + 24px);
+  bottom: auto;
+  right: auto;
+}
+.entered #pure-view-toggle {
+  top: calc(var(--hud-progress-top) + 24px + var(--control-regular) + var(--control-gap));
+}
+.entered :is(#achievement-badge, #pure-view-toggle) { width: 105px; padding-inline: 6px; }
+.entered :is(#heart-counter, #magazine-counter, #role-counter) {
+  right: var(--hud-right);
+  min-width: 176px;
+  height: var(--control-small);
+  border-radius: var(--control-radius);
+  gap: 5px;
+  padding: 0 10px;
+}
+.entered :is(#heart-counter, #magazine-counter, #role-counter) b { margin-inline-start: auto; }
+.entered #heart-counter label { margin-inline-end: 0; letter-spacing: 0; }
+.entered #heart-counter { top: var(--hud-progress-top); }
+.entered #magazine-counter { top: calc(var(--hud-progress-top) + var(--hud-row)); }
+.entered #role-counter { top: calc(var(--hud-progress-top) + 2 * var(--hud-row)); }
+.entered #map-toggle { top: var(--hud-map-button-top); right: var(--hud-right); }
+.entered #map-panel {
+  --map-top: calc(var(--hud-map-button-top) + var(--control-regular) + var(--control-gap));
+  top: var(--map-top);
+  right: var(--hud-right);
+  max-height: calc(var(--visible-height, 100vh) - var(--map-top) - 12px);
+  overflow: auto;
+  border-radius: var(--control-radius);
+}
+.entered .destinations {
+  gap: 2px;
+  padding: 4px;
+  border-radius: calc(var(--control-radius) + 4px);
+}
+.entered :is(.quest-action, #collect-heart) {
+  min-height: var(--control-large);
+  height: var(--control-large);
+  border-radius: var(--control-radius);
+  bottom: max(88px, calc(env(safe-area-inset-bottom) + 66px));
+}
+.entered :is(.quest-action, #collect-heart) svg {
+  width: 48px;
+  height: 48px;
+  left: 6px;
+  top: calc(50% - 24px);
+}
+.entered #collect-heart { padding-inline: 17px 17px; padding-inline-start: 55px; }
+.entered #collect-heart .heart-symbol { left: 18px; }
+.entered :is(#light-magazine, #greet-daimi) { padding-inline-start: 59px; }
+.entered :is(#light-magazine img, .dog-greet-icon) { left: 17px; }
+
+@media (max-height: 550px) and (orientation: landscape) {
+  body.entered {
+    --hud-top: max(10px, env(safe-area-inset-top));
+    --hud-left: max(20px, calc(env(safe-area-inset-left) + 8px));
+    --hud-right: max(20px, calc(env(safe-area-inset-right) + 8px));
+  }
+  .entered #map-panel { max-height: calc((var(--visible-height, 100vh) - var(--map-top) - 12px) / .8); }
+}
+@media (max-width: 620px) {
+  body.entered {
+    --hud-left: max(14px, calc(env(safe-area-inset-left) + 8px));
+    --hud-right: max(14px, calc(env(safe-area-inset-right) + 8px));
+    --hud-progress-top: calc(var(--hud-top) + 84px);
+  }
+}
+@media (max-width: 620px) and (orientation: portrait) {
+  .entered :is(.quest-action, #collect-heart) { bottom: max(210px, calc(env(safe-area-inset-bottom) + 185px)); }
+  .entered .destinations button { padding-inline: 3px; }
+}
+@media (max-width: 620px) and (orientation: landscape) {
+  .entered .location { display: none; }
+  body.entered #achievement-badge { top: var(--hud-progress-top); }
+  .entered #pure-view-toggle { top: calc(var(--hud-progress-top) + var(--control-regular) + var(--control-gap)); }
+  .entered #joystick { --joystick-size: clamp(76px, 23vh, 105px); bottom: 44px; }
+  .entered #look-joystick {
+    --joystick-size: clamp(76px, 23vh, 105px);
+    right: calc(var(--hud-right) + 157px);
+    top: 48%;
+    bottom: auto;
+    transform: translateY(-50%);
+  }
+}
+@media (pointer: coarse), (max-width: 900px) {
+  body.entered {
+    --control-regular: 34px;
+    --control-gap: 5px;
+  }
+  .entered :is(#achievement-badge, #pure-view-toggle) {
+    width: 84px;
+    min-width: 0;
+    font-size: 11px;
+    letter-spacing: .13em;
+  }
+  .entered :is(#heart-counter, #magazine-counter, #role-counter) {
+    width: 152px;
+    min-width: 0;
+    gap: 4px;
+    padding-inline: 8px;
+    font-size: 10px;
+  }
+  .entered #heart-counter label { font-size: 10px; }
+  .entered #heart-counter span { font-size: 19px; }
+  .entered :is(#heart-counter, #magazine-counter, #role-counter) b { font-size: 12px; }
+}
+@media (max-width: 620px) and (orientation: portrait) {
+  .entered :is(#joystick, #look-joystick) small { top: auto; bottom: calc(100% + 8px); }
+  .entered #landscape-reminder { bottom: max(76px, calc(env(safe-area-inset-bottom) + 66px)); }
+}
+@media (max-width: 400px) and (orientation: portrait) {
+  .entered .tools { gap: 4px; }
+  .entered .tools button:not(#help) { padding-inline: 6px; }
+}
+@media (max-width: 315px) and (orientation: portrait) {
+  body.entered { --hud-progress-top: calc(var(--hud-top) + 126px); }
+}
+@media (max-width: 540px) and (orientation: landscape) {
+  .entered #map-panel {
+    --map-top: 98px;
+    left: var(--hud-left);
+    right: auto;
+    max-height: calc((var(--visible-height, 100vh) - var(--map-top) - 12px) / .72);
+  }
 }

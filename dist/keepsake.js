@@ -103,6 +103,17 @@ function paintRecordNumber(ctx, x, y, width, serial) {
   ctx.restore();
 }
 
+export function paintCreatorCredit(ctx, x, baseline, size = 16) {
+  ctx.save();
+  ctx.textAlign = 'right';
+  ctx.font = `500 ${size}px "IBM Plex Mono", "Courier New", monospace`;
+  ctx.fillStyle = '#ecdab37a';
+  ctx.shadowColor = '#101310a6';
+  ctx.shadowBlur = 3;
+  ctx.fillText('By MD_Leah', x, baseline);
+  ctx.restore();
+}
+
 export function paintFilmPhoto(out, render, { label, album, text, recordNumber, date = new Date() }) {
   const ctx = out.getContext('2d');
   const width = out.width / FILM_SCALE, height = out.height / FILM_SCALE;
@@ -123,14 +134,7 @@ export function paintFilmPhoto(out, render, { label, album, text, recordNumber, 
   vignette.addColorStop(1, 'rgba(12, 11, 15, .32)');
   ctx.fillStyle = vignette;
   ctx.fillRect(x, y, frameWidth, frameHeight);
-  ctx.save();
-  ctx.textAlign = 'right';
-  ctx.font = '500 16px "IBM Plex Mono", "Courier New", monospace';
-  ctx.fillStyle = '#ecdab37a';
-  ctx.shadowColor = '#101310a6';
-  ctx.shadowBlur = 3;
-  ctx.fillText('By MD_Leah', right - 29, y + frameHeight - 19);
-  ctx.restore();
+  paintCreatorCredit(ctx, right - 29, y + frameHeight - 19);
   ctx.strokeStyle = '#d6b275';
   ctx.lineWidth = 1;
   ctx.strokeRect(x - .5, y - .5, frameWidth + 1, frameHeight + 1);
