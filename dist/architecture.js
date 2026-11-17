@@ -1,4 +1,5 @@
-import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261113-r71';
+import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261113-r72';
+import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261113-r72';
 
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a
@@ -40,9 +41,8 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
     wood: material('#ba9f84', { ...surface(wood, 1, 1, .57), roughness: 1 }),
     darkWood: material('#a28570', { ...surface(wood, 2, 3, .45), roughness: 1 }),
     deck: material('#ad9987', { ...surface(wood, 1, 1, .32, Math.PI / 2), roughness: .94 }),
-    stairConcrete: material('#c1b9ae', { ...surface(concrete, 2, 1, .25), roughness: 1 }),
-    stairWoodX: material('#a28570', { ...surface(wood, 1, 1, .36, Math.PI / 2), roughness: .94 }),
-    stairWoodZ: material('#a28570', { ...surface(wood, 1, 1, .36), roughness: .94 }),
+    stairConcrete: material('#bcb4a6', { roughness: .89 }),
+    stairWood: material('#a17552', { roughness: .73 }),
     black: material('#292c2b', { roughness: .43, metalness: .45 }),
     book: material('#ffffff', { roughness: .8 }),
     paper: material('#dfd5bf'),
@@ -57,21 +57,19 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
     chrome: material('#b9b7a4', { metalness: .65, roughness: .3 }),
     truss: material('#58616b', { metalness: .35, roughness: .6 }),
   };
-  for (const mat of [mats.deck, mats.stairConcrete, mats.stairWoodX, mats.stairWoodZ]) {
-    mat.userData.varyInstanceUv = true;
-  }
+  mats.deck.userData.varyInstanceUv = true;
   function variation(a, b, c) {
     const value = Math.sin(a * 19.41 + b * 43.89 + c * 67.21) * 43758.5453;
     return value - Math.floor(value);
   }
-  function instance(geo, mat, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0, color) {
+  function instance(geo, mat, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0, color, tile) {
     const key = `${geo.uuid}/${mat.uuid}`;
     if (!batches.has(key)) batches.set(key, { geo, mat, entries: [] });
     temp.position.set(x, y, z); temp.rotation.set(rx, ry, rz); temp.scale.set(sx, sy, sz); temp.updateMatrix();
-    batches.get(key).entries.push({ matrix: temp.matrix.clone(), color });
+    batches.get(key).entries.push({ matrix: temp.matrix.clone(), color, tile });
   }
-  function box(m, x, y, z, w, h, d, ry = 0, color) {
-    instance(boxGeo, m, x, y, z, w, h, d, 0, ry, 0, color);
+  function box(m, x, y, z, w, h, d, ry = 0, color, tile) {
+    instance(boxGeo, m, x, y, z, w, h, d, 0, ry, 0, color, tile);
     // Coarse, opaque surfaces drive the offline bake. Railing bars and trim
     // stay out of this proxy so the ground retains soft, clean shading.
     if (bakeSolid && !ry && m !== mats.glass && m !== mats.light
@@ -185,6 +183,7 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   for(const y of [2.4,4.8,7.2])box(mats.light,0,y-.22,-5.087,17.5,.025,.025);
   box(mats.light,4.787,2.98,4,.025,.025,9.1);
 
+  let stairCount = 0;
   function stairs({ axis = 'z', min, max, start, end, yStart, yEnd, underside = false }) {
     const across = (min + max) / 2;
     const width = max - min;
@@ -194,16 +193,16 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
     const direction = Math.sign(end - start);
     const transverse = axis === 'x';
     const point = (cross, y, run) => transverse ? [run, y, cross] : [cross, y, run];
-    const tread = (material, run, y, w, h, d, color) =>
-      box(material, ...point(across, y, run), transverse ? d : w, h, transverse ? w : d, 0, color);
-    const woodTread = transverse ? mats.stairWoodZ : mats.stairWoodX;
+    const tread = (material, run, y, w, h, d, tile) =>
+      box(material, ...point(across, y, run), transverse ? d : w, h, transverse ? w : d, 0, undefined, tile);
+    const nose = Math.sign((yStart - yEnd) * direction) * .009;
 
     for (let i = 0; i < count; i++) {
       const y = yStart + (yEnd - yStart) * (i + 1) / count;
       const run = start + direction * depth * (i + .5);
-      const tint = new THREE.Color().setScalar(.86 + .16 * variation(run, y, across));
-      tread(mats.stairConcrete, run, y - .09, width, .18, depth + .015);
-      tread(woodTread, run, y + .002, width, .012, depth, tint);
+      const tile = stairCount++;
+      tread(mats.stairConcrete, run, y - .09, width, .18, depth + .015, tile);
+      tread(mats.stairWood, run + nose, y - .007, width, .030, depth + .025, tile);
       tread(mats.light, run - direction * (depth / 2 - .015), y - .025, width - .18, .012, .016);
       if (underside && y > .35) {
         // Keep ground-level head clearance under the descending flight.
@@ -228,6 +227,11 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   stairs({ min: 6.7, max: 8.5, start: -5.1, end: -2.1, yStart: 4.8, yEnd: 3.2 });
   stairs({ axis: 'x', min: 7.02, max: 8.7, start: 4.8, end: -1.15, yStart: 3.2, yEnd: 0, underside: true });
   stairs({ min: -8.5, max: -6.7, start: -5.1, end: .6, yStart: 4.8, yEnd: 7.2 });
+  if (!bakeSolid) {
+    const finishes = makeStairFinishes(THREE, stairCount);
+    applyStairFinish(mats.stairWood, finishes.wood, .012);
+    applyStairFinish(mats.stairConcrete, finishes.stone, .006);
+  }
   // Book-wall guardrails, with openings exactly at the ends of those flights.
   rail([-8.8,2.4,-5.1],[-8.5,2.4,-5.1]);
   rail([-6.7,2.4,-5.1],[4.5,2.4,-5.1]);
@@ -493,7 +497,14 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
 
   // Assemble static geometry into GPU instances, so the room remains lightweight.
   for (const { geo, mat, entries } of batches.values()) {
-    const mesh = new THREE.InstancedMesh(geo, mat, entries.length);
+    const stairSurface = !bakeSolid && (mat === mats.stairWood || mat === mats.stairConcrete);
+    const geometry = stairSurface ? geo.clone() : geo;
+    if (stairSurface) {
+      geometry.setAttribute('stairTile', new THREE.InstancedBufferAttribute(
+        Float32Array.from(entries, entry => entry.tile), 1,
+      ));
+    }
+    const mesh = new THREE.InstancedMesh(geometry, mat, entries.length);
     const hasColors = entries.some(e => e.color);
     entries.forEach((entry, i) => {
       mesh.setMatrixAt(i, entry.matrix);
@@ -502,7 +513,8 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.castShadow = mat === mats.black || mat === mats.truss;
-    mesh.receiveShadow = mat !== mats.floor;
+    // The risers retain baked contact shading without the sharp repeated rail bars.
+    mesh.receiveShadow = mat !== mats.floor && mat !== mats.stairConcrete;
     mesh.computeBoundingSphere(); group.add(mesh);
   }
   return {

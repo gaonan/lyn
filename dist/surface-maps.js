@@ -1,4 +1,4 @@
-function surfaceNoise(size, seed) {
+export function surfaceNoise(size, seed) {
   const mask = size - 1;
   const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
   const grid = Float32Array.from({ length: size * size }, random);
@@ -16,8 +16,8 @@ function surfaceNoise(size, seed) {
   return { sample, noise };
 }
 
-function surfaceTexture(T, data, size, colorSpace) {
-  const map = new T.DataTexture(data, size, size);
+export function surfaceTexture(T, data, width, colorSpace, height = width) {
+  const map = new T.DataTexture(data, width, height);
   map.colorSpace = colorSpace;
   map.wrapS = map.wrapT = T.RepeatWrapping;
   map.magFilter = T.LinearFilter;

@@ -46,7 +46,10 @@ export function createAtriumProbes(T, version) {
     });
     for (const material of materials) {
       const varyInstanceUv = material.userData.varyInstanceUv === true;
-      material.onBeforeCompile = shader => {
+      const compile = material.onBeforeCompile;
+      const finishKey = material.customProgramCacheKey();
+      material.onBeforeCompile = function (shader, renderer) {
+        compile.call(this, shader, renderer);
         shader.uniforms.atriumLightMap = map;
         shader.uniforms.atriumLightReady = ready;
         shader.uniforms.atriumLightIntensity = intensity;
@@ -93,7 +96,7 @@ export function createAtriumProbes(T, version) {
             irradiance += bakedLight.rgb * bakedLight.rgb * ${PROBE_IRRADIANCE_RANGE.toFixed(1)} *
               atriumLightReady * atriumLightIntensity;`);
       };
-      material.customProgramCacheKey = () => `atrium-baked-probes-v1/${varyInstanceUv}`;
+      material.customProgramCacheKey = () => `${finishKey}/atrium-baked-probes-v1/${varyInstanceUv}`;
       material.needsUpdate = true;
     }
   }
