@@ -1,27 +1,27 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r77';
-import { buildBotanicals } from './botanicals.js?v=20261113-r77';
-import { createHearts } from './hearts.js?v=20261113-r77';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r77';
-import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r77';
-import { setupWardrobe } from './wardrobe.js?v=20261113-r77';
-import { setupMusic } from './music.js?v=20261113-r77';
-import { setupCollection } from './collection.js?v=20261113-r77';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r77';
-import { prepareOffline } from './offline.js?v=20261113-r77';
-import { buildMagazines } from './magazines.js?v=20261113-r77';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r77';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r77';
-import { buildRolePortraits } from './roles.js?v=20261113-r77';
-import { buildRecord } from './record.js?v=20261113-r77';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r77';
-import { createArtworkQueue } from './artwork.js?v=20261113-r77';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r77';
-import { createAtriumProbes } from './atrium-probes.js?v=20261113-r77';
-import { setupKeepsake } from './keepsake.js?v=20261113-r77';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r77';
-import { createPlaySave } from './play-save.js?v=20261113-r77';
-const VERSION = '20261113-r77';
+import { buildArchitecture } from './architecture.js?v=20261113-r79';
+import { buildBotanicals } from './botanicals.js?v=20261113-r79';
+import { createHearts } from './hearts.js?v=20261113-r79';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r79';
+import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r79';
+import { setupWardrobe } from './wardrobe.js?v=20261113-r79';
+import { setupMusic } from './music.js?v=20261113-r79';
+import { setupCollection } from './collection.js?v=20261113-r79';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r79';
+import { prepareOffline } from './offline.js?v=20261113-r79';
+import { buildMagazines } from './magazines.js?v=20261113-r79';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r79';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r79';
+import { buildRolePortraits } from './roles.js?v=20261113-r79';
+import { buildRecord } from './record.js?v=20261113-r79';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r79';
+import { createArtworkQueue } from './artwork.js?v=20261113-r79';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r79';
+import { createAtriumProbes } from './atrium-probes.js?v=20261113-r79';
+import { setupKeepsake } from './keepsake.js?v=20261113-r79';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r79';
+import { createPlaySave } from './play-save.js?v=20261113-r79';
+const VERSION = '20261113-r79';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -307,7 +307,10 @@ const updateWardrobe = setupWardrobe(THREE, scene, camera, $('#wardrobe-action')
       lowerBodyExtension,
       nightTint: [.49, .54, .60],
       dayTint: [.68, .71, .76],
-      viewLight: { front: .54, right: .84, back: 1.06, left: .77 },
+      viewLight: { front: .86, right: .94, back: 1.10, left: .90 },
+      rimLight: { position: lighting.rainLightPosition, color: '#bfd5ff', strength: .86 },
+      // Composite the cutout after the backlight ribbon and before the floor mist.
+      renderOrder: 3,
     });
     rainOutfit.object.visible = false;
     if (!await rainOutfit.ready) {

@@ -1,4 +1,4 @@
-const CHANGE = '这是一个换装彩蛋';
+const CHANGE = '想看《归期雨抄》的服装吗？';
 const RESTORE = '换回刚才那件';
 const HOLD_MS = 2000;
 
@@ -7,13 +7,13 @@ export function setupWardrobe(T, scene, camera, button, changeOutfit) {
   const hint = button.querySelector('small');
   const ring = button.querySelector('.progress');
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
+  canvas.width = 640;
   canvas.height = 144;
   const map = new T.CanvasTexture(canvas);
   map.colorSpace = T.SRGBColorSpace;
   const sign = new T.Sprite(new T.SpriteMaterial({ map, depthWrite: false, toneMapped: false }));
   sign.position.set(3.15, 1.96, -3.23);
-  sign.scale.set(1.55, .436, 1);
+  sign.scale.set(1.938, .436, 1);
   sign.visible = false;
   sign.name = '电子琴换装投影';
   scene.add(sign);
@@ -25,10 +25,11 @@ export function setupWardrobe(T, scene, camera, button, changeOutfit) {
   let restorePressed = false;
   function drawSign() {
     const ctx = canvas.getContext('2d');
+    const width = canvas.width;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.beginPath();
-    ctx.moveTo(38, 14); ctx.lineTo(477, 14); ctx.lineTo(496, 34);
-    ctx.lineTo(496, 110); ctx.lineTo(475, 130); ctx.lineTo(35, 130);
+    ctx.moveTo(38, 14); ctx.lineTo(width - 35, 14); ctx.lineTo(width - 16, 34);
+    ctx.lineTo(width - 16, 110); ctx.lineTo(width - 37, 130); ctx.lineTo(35, 130);
     ctx.lineTo(15, 109); ctx.lineTo(15, 35); ctx.closePath();
     ctx.fillStyle = '#0d2b37c9';
     ctx.fill();
@@ -41,10 +42,10 @@ export function setupWardrobe(T, scene, camera, button, changeOutfit) {
     ctx.fillStyle = '#e5faff';
     ctx.textAlign = 'center';
     ctx.font = '600 42px sans-serif';
-    ctx.fillText(white ? RESTORE : CHANGE, 256, 70);
+    ctx.fillText(white ? RESTORE : CHANGE, width / 2, 70);
     ctx.font = '500 21px sans-serif';
     ctx.fillStyle = '#9cdce7';
-    ctx.fillText(white ? '点击切换' : '长按 2 秒', 256, 106);
+    ctx.fillText(white ? '点击切换' : '长按 2 秒', width / 2, 106);
     map.needsUpdate = true;
   }
   drawSign();
@@ -120,7 +121,9 @@ export function setupWardrobe(T, scene, camera, button, changeOutfit) {
       cancel();
       return false;
     }
-    button.style.left = `${(projected.x + 1) * 50}%`;
+    const halfWidth = button.offsetWidth / 2 + 12;
+    const screenX = (projected.x + 1) * innerWidth / 2;
+    button.style.left = `${Math.max(halfWidth, Math.min(innerWidth - halfWidth, screenX))}px`;
     button.style.top = `${(1 - projected.y) * 50}%`;
     if (hold) {
       const progress = Math.min(1, (now - hold.since) / HOLD_MS);

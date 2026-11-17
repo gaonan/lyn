@@ -1,4 +1,4 @@
-import { keepsakeText, paintCreatorCredit, shareImage, textLines } from './keepsake.js?v=20261113-r77';
+import { keepsakeText, paintCreatorCredit, shareImage, textLines } from './keepsake.js?v=20261113-r79';
 
 const WIDTH = 2048;
 const BASE_HEIGHT = 640;

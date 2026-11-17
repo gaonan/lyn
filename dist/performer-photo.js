@@ -39,13 +39,21 @@ uniform vec2 photoToFit;
 uniform vec2 photoFromSize;
 uniform vec2 photoToSize;
 uniform float photoFromLight, photoToLight, photoBlend;
+#ifdef PHOTO_RIM_LIGHT
+uniform vec2 photoRimDirection;
+uniform vec3 photoRimColor;
+float photoAlpha(sampler2D photoMap, vec4 rect, vec2 uv) {
+  if (any(lessThan(uv, rect.xy)) || any(greaterThan(uv, rect.xy + rect.zw))) return 0.0;
+  return texture2D(photoMap, uv).a;
+}
+#endif
 // Nearest source taps are premultiplied BEFORE bilinear interpolation. Hidden
 // RGB in transparent pixels cannot create a black/white fringe at the edge.
 vec4 photoTap(sampler2D photoMap, vec2 uv) {
   vec4 c = texture2D(photoMap, uv);
   return vec4(c.rgb * c.a, c.a);
 }
-vec4 photoSample(sampler2D photoMap, vec4 rect, vec2 fit, vec2 size) {
+vec4 photoSample(sampler2D photoMap, vec4 rect, vec2 fit, vec2 size, float light) {
   vec2 localUV = vec2(vMapUv.x * fit.x + fit.y, vMapUv.y);
   if (localUV.x < 0.0 || localUV.x > 1.0 || localUV.y < 0.0 || localUV.y > 1.0) return vec4(0.0);
   vec2 p = (rect.xy + localUV * rect.zw) * size - 0.5;
@@ -53,15 +61,24 @@ vec4 photoSample(sampler2D photoMap, vec4 rect, vec2 fit, vec2 size) {
   vec2 a = (cell + 0.5) / size, stepUV = 1.0 / size;
   vec4 low = mix(photoTap(photoMap, a), photoTap(photoMap, a + vec2(stepUV.x, 0.0)), f.x);
   vec4 high = mix(photoTap(photoMap, a + vec2(0.0, stepUV.y)), photoTap(photoMap, a + stepUV), f.x);
-  return mix(low, high, f.y);
+  vec4 photo = mix(low, high, f.y);
+  photo.rgb *= light;
+  #ifdef PHOTO_RIM_LIGHT
+    if (photo.a > .025) {
+      vec2 uv = rect.xy + localUV * rect.zw;
+      vec2 stepTowardLight = photoRimDirection * vec2(sign(fit.x), 1.0) / size;
+      float nearEdge = max(0.0, photo.a - photoAlpha(photoMap, rect, uv + stepTowardLight * 2.5));
+      float farEdge = max(0.0, photo.a - photoAlpha(photoMap, rect, uv + stepTowardLight * 6.0));
+      photo.rgb += photoRimColor * photo.a * (.72 * nearEdge + .28 * farEdge);
+    }
+  #endif
+  return photo;
 }
 `;
 const PHOTO_FRAGMENT = `
-vec4 photoColor = photoSample(photoFromMap, photoFromRect, photoFromFit, photoFromSize);
-photoColor.rgb *= photoFromLight;
+vec4 photoColor = photoSample(photoFromMap, photoFromRect, photoFromFit, photoFromSize, photoFromLight);
 if (photoBlend > 0.0) {
-  vec4 nextPhoto = photoSample(photoToMap, photoToRect, photoToFit, photoToSize);
-  nextPhoto.rgb *= photoToLight;
+  vec4 nextPhoto = photoSample(photoToMap, photoToRect, photoToFit, photoToSize, photoToLight);
   photoColor = mix(photoColor, nextPhoto, photoBlend);
 }
 diffuseColor *= vec4(photoColor.a > 0.00001 ? photoColor.rgb / photoColor.a : vec3(0.0), photoColor.a);
@@ -80,6 +97,9 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
   const fadeSeconds = clamp(options.fadeSeconds ?? .18, .05, .5), hysteresis = clamp(options.hysteresisDegrees ?? 7, 0, 20) * Math.PI / 180;
   const nightTint = options.nightTint || [.68, .72, .78];
   const dayTint = options.dayTint || [1, 1, 1];
+  const rimLight = options.rimLight;
+  const rimSource = rimLight && new T.Vector3(...rimLight.position);
+  const localRimSource = rimLight && new T.Vector3();
   let mesh, material, uniforms, commonLeft = 0, commonWidth = 0, settled = false, success = false, selected = 0, from = 0, transition = null, initialized = false, night = false;
   const cameraPoint = new T.Vector3(), actorPoint = new T.Vector3(), actorQuaternion = new T.Quaternion(), actorEuler = new T.Euler(0, 0, 0, 'YXZ');
   function notify(name, value) { try { options[name]?.(value); } catch (error) { console.warn(`Photo performer ${name} callback failed`, error); } }
@@ -127,12 +147,18 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
       photoFromSize: { value: new T.Vector2() }, photoToSize: { value: new T.Vector2() },
       photoFromLight: { value: 1 }, photoToLight: { value: 1 }, photoBlend: { value: 0 },
     };
+    if (rimLight) {
+      material.defines = { ...material.defines, PHOTO_RIM_LIGHT: 1 };
+      uniforms.photoRimDirection = { value: new T.Vector2(0, 1) };
+      uniforms.photoRimColor = { value: new T.Color(rimLight.color).multiplyScalar(rimLight.strength) };
+    }
     material.onBeforeCompile = shader => {
       Object.assign(shader.uniforms, uniforms);
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_pars_fragment>', `#include <map_pars_fragment>\n${PHOTO_UNIFORMS}`).replace('#include <map_fragment>', PHOTO_FRAGMENT);
     };
-    material.customProgramCacheKey = () => 'photographic-performer-premultiplied-v1';
+    material.customProgramCacheKey = () => `photographic-performer-premultiplied-v2-${Boolean(rimLight)}`;
     mesh = new T.Mesh(geometry, material); mesh.name = 'Photographic performer surface'; mesh.castShadow = false; mesh.receiveShadow = false; facing.add(mesh);
+    mesh.renderOrder = options.renderOrder ?? 0;
     samples(0, 0, 0); setNight(night);
     Object.assign(state, { triangles: geometry.index.count / 3, material: 'MeshBasicMaterial', commonLeft, commonWidth, lowerBodyExtension });
   }
@@ -232,6 +258,10 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
     // Both transforms pivot at y=0. The bottom edge never lifts off the floor.
     mesh.rotation.y = options.sway === false ? 0 : Math.sin(t * .62) * .003;
     mesh.scale.y = options.sway === false ? 1 : 1 + Math.sin(t * .9) * .0012;
+    if (rimLight) {
+      facing.worldToLocal(localRimSource.copy(rimSource));
+      uniforms.photoRimDirection.value.set(localRimSource.x, localRimSource.y - height * .5).normalize();
+    }
     return viewReady;
   }
   return { object: root, ready, update, setNight, collider: { minX: root.position.x - .39, maxX: root.position.x + .39, minZ: root.position.z - .3, maxZ: root.position.z + .35, minY: root.position.y, maxY: root.position.y + height + .11 } };
