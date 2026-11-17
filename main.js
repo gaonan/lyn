@@ -1,27 +1,27 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r76';
-import { buildBotanicals } from './botanicals.js?v=20261113-r76';
-import { createHearts } from './hearts.js?v=20261113-r76';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r76';
-import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r76';
-import { setupWardrobe } from './wardrobe.js?v=20261113-r76';
-import { setupMusic } from './music.js?v=20261113-r76';
-import { setupCollection } from './collection.js?v=20261113-r76';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r76';
-import { prepareOffline } from './offline.js?v=20261113-r76';
-import { buildMagazines } from './magazines.js?v=20261113-r76';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r76';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r76';
-import { buildRolePortraits } from './roles.js?v=20261113-r76';
-import { buildRecord } from './record.js?v=20261113-r76';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r76';
-import { createArtworkQueue } from './artwork.js?v=20261113-r76';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r76';
-import { createAtriumProbes } from './atrium-probes.js?v=20261113-r76';
-import { setupKeepsake } from './keepsake.js?v=20261113-r76';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r76';
-import { createPlaySave } from './play-save.js?v=20261113-r76';
-const VERSION = '20261113-r76';
+import { buildArchitecture } from './architecture.js?v=20261113-r79';
+import { buildBotanicals } from './botanicals.js?v=20261113-r79';
+import { createHearts } from './hearts.js?v=20261113-r79';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r79';
+import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r79';
+import { setupWardrobe } from './wardrobe.js?v=20261113-r79';
+import { setupMusic } from './music.js?v=20261113-r79';
+import { setupCollection } from './collection.js?v=20261113-r79';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r79';
+import { prepareOffline } from './offline.js?v=20261113-r79';
+import { buildMagazines } from './magazines.js?v=20261113-r79';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r79';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r79';
+import { buildRolePortraits } from './roles.js?v=20261113-r79';
+import { buildRecord } from './record.js?v=20261113-r79';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r79';
+import { createArtworkQueue } from './artwork.js?v=20261113-r79';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r79';
+import { createAtriumProbes } from './atrium-probes.js?v=20261113-r79';
+import { setupKeepsake } from './keepsake.js?v=20261113-r79';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r79';
+import { createPlaySave } from './play-save.js?v=20261113-r79';
+const VERSION = '20261113-r79';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -307,6 +307,10 @@ const updateWardrobe = setupWardrobe(THREE, scene, camera, $('#wardrobe-action')
       lowerBodyExtension,
       nightTint: [.49, .54, .60],
       dayTint: [.68, .71, .76],
+      viewLight: { front: .86, right: .94, back: 1.10, left: .90 },
+      rimLight: { position: lighting.rainLightPosition, color: '#bfd5ff', strength: .86 },
+      // Composite the cutout after the backlight ribbon and before the floor mist.
+      renderOrder: 3,
     });
     rainOutfit.object.visible = false;
     if (!await rainOutfit.ready) {
@@ -322,6 +326,7 @@ const updateWardrobe = setupWardrobe(THREE, scene, camera, $('#wardrobe-action')
   performer.update(performance.now() / 1000, camera);
   performer.object.visible = true;
   world.floorMaterial.color.copy(roomFloorTone).multiplyScalar(white ? .75 : 1);
+  world.setPracticalLights(!white);
   lighting.setRainStage(white);
   return true;
 });

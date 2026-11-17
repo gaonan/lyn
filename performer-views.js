@@ -51,8 +51,8 @@ export const PERFORMER_VIEWS = {
 };
 
 export const RAIN_OUTFIT_VIEWS = {
-  front: { url: './assets/performer/rain-front.webp', width: 265, height: 751, anchorX: .468 },
-  right: { url: './assets/performer/rain-right.webp', width: 211, height: 750, anchorX: .697 },
-  back: { url: './assets/performer/rain-back.webp', width: 310, height: 752, anchorX: .548 },
-  left: { url: './assets/performer/rain-left.webp', width: 221, height: 750, anchorX: .29 },
+  front: { url: './assets/performer/rain-front.webp', width: 265, height: 751, anchorX: .475547 },
+  right: { url: './assets/performer/rain-right.webp', width: 276, height: 750, anchorX: .525605 },
+  back: { url: './assets/performer/rain-back.webp', width: 335, height: 752, anchorX: .501134 },
+  left: { url: './assets/performer/rain-left.webp', width: 257, height: 750, anchorX: .397237 },
 };
