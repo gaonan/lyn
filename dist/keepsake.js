@@ -262,10 +262,9 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto, messageWal
   groupPhoto.addEventListener('click', openGroupPhoto);
   const wallButton = dialog.querySelector('#open-message-wall');
   wallButton.addEventListener('click', messageWall.open);
-  const publishPanel = dialog.querySelector('.keepsake-publish');
   const publishButton = dialog.querySelector('#publish-wall-note');
-  const publishStatus = publishPanel.querySelector('[role=status]');
-  const status = dialog.querySelector('.keepsake-status');
+  const publishStatus = dialog.querySelector('#wall-publish-status');
+  const status = dialog.querySelector('.keepsake-editor > .keepsake-status');
   let savedText = '';
   try { savedText = keepsakeText(localStorage.getItem(key) || ''); } catch {}
   record.setMessage(savedText);
@@ -283,7 +282,7 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto, messageWal
     album.hidden = false;
     preview.removeAttribute('src');
     issued.hidden = groupPhoto.hidden = confirmSaved.hidden = true;
-    publishPanel.hidden = true;
+    publishButton.hidden = publishStatus.hidden = true;
     publishable = undefined;
     compose.hidden = false;
     title.textContent = '恭喜发现彩蛋，你好厉害！';
@@ -348,8 +347,8 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto, messageWal
       url = URL.createObjectURL(blob);
       if (text) {
         publishable = { requestId, text };
-        publishPanel.hidden = publishButton.disabled = false;
-        publishStatus.textContent = '';
+        publishButton.hidden = publishStatus.hidden = publishButton.disabled = false;
+        publishStatus.textContent = '发布后其他玩家可见';
       }
       requestId = undefined;
       try { sessionStorage.removeItem(pendingKey); } catch {}

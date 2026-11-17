@@ -1,4 +1,4 @@
-import { createAtriumSky } from './atrium-sky.js?v=20261113-r69';
+import { createAtriumSky } from './atrium-sky.js?v=20261113-r70';
 
 export function createAtriumLighting(T, renderer, scene, probes) {
   const atriumSky = createAtriumSky(T, scene);
