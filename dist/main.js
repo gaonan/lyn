@@ -1,28 +1,27 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r72';
-import { buildBotanicals } from './botanicals.js?v=20261113-r72';
-import { createHearts } from './hearts.js?v=20261113-r72';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r72';
-import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r72';
-import { setupWardrobe } from './wardrobe.js?v=20261113-r72';
-import { setupMusic } from './music.js?v=20261113-r72';
-import { setupCollection } from './collection.js?v=20261113-r72';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r72';
-import { prepareOffline } from './offline.js?v=20261113-r72';
-import { buildMagazines } from './magazines.js?v=20261113-r72';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r72';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r72';
-import { buildRolePortraits } from './roles.js?v=20261113-r72';
-import { buildRecord } from './record.js?v=20261113-r72';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r72';
-import { createArtworkQueue } from './artwork.js?v=20261113-r72';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r72';
-import { createAtriumProbes } from './atrium-probes.js?v=20261113-r72';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r72';
-import { setupKeepsake } from './keepsake.js?v=20261113-r72';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r72';
-import { createPlaySave } from './play-save.js?v=20261113-r72';
-const VERSION = '20261113-r72';
+import { buildArchitecture } from './architecture.js?v=20261113-r73';
+import { buildBotanicals } from './botanicals.js?v=20261113-r73';
+import { createHearts } from './hearts.js?v=20261113-r73';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r73';
+import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r73';
+import { setupWardrobe } from './wardrobe.js?v=20261113-r73';
+import { setupMusic } from './music.js?v=20261113-r73';
+import { setupCollection } from './collection.js?v=20261113-r73';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r73';
+import { prepareOffline } from './offline.js?v=20261113-r73';
+import { buildMagazines } from './magazines.js?v=20261113-r73';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r73';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r73';
+import { buildRolePortraits } from './roles.js?v=20261113-r73';
+import { buildRecord } from './record.js?v=20261113-r73';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r73';
+import { createArtworkQueue } from './artwork.js?v=20261113-r73';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r73';
+import { createAtriumProbes } from './atrium-probes.js?v=20261113-r73';
+import { setupKeepsake } from './keepsake.js?v=20261113-r73';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r73';
+import { createPlaySave } from './play-save.js?v=20261113-r73';
+const VERSION = '20261113-r73';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -200,10 +199,9 @@ function saveCollection(group, id, complete) {
 const collection = setupCollection(hearts, () => p, rewardSounds,
   (id, complete) => saveCollection('hearts', id, complete));
 collection.restore(playSave.state.hearts);
-const openGroupPhoto = setupGroupPhoto($('#group-photo-dialog'), renderKeepsake, VERSION, () => daimi.ready);
 const wallProjection = buildWallProjection(THREE, scene);
 const messageWall = setupMessageWall($('#message-wall-dialog'), wallProjection, renderWallView, record.ready);
-const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, openGroupPhoto, messageWall, daimi.ready);
+const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, messageWall, daimi.ready);
 
 function renderWallView(target) {
   if (rendererSuspended) return false;
@@ -238,52 +236,21 @@ function renderWallView(target) {
     renderer.render(scene, camera);
   }
 }
-function renderKeepsake(ctx, x, y, width, height, pixelScale, guestPortrait, pose) {
-  const photoCamera = new THREE.PerspectiveCamera(guestPortrait ? 43 : 44, width / height, .07, 65);
-  photoCamera.position.set(guestPortrait ? .26 : .15, 1.28, 2.96);
-  photoCamera.lookAt(guestPortrait ? -.36 : .03, 1.38, -1);
+function renderKeepsake(ctx, x, y, width, height, pixelScale) {
+  const photoCamera = new THREE.PerspectiveCamera(44, width / height, .07, 65);
+  photoCamera.position.set(.15, 1.28, 2.96);
+  photoCamera.lookAt(.03, 1.38, -1);
   photoCamera.updateMatrixWorld();
   const props = [...hearts.items.map(heart => heart.object), daimi.object, daimiShadow];
   const visible = props.map(object => object.visible);
-  let guest, guestShadow;
+  const floorColor = world.floorMaterial.color.clone();
   try {
+    updateWardrobe(performance.now(), false, false, p);
     for (const heart of hearts.items) heart.object.visible = false;
     daimi.object.visible = daimiShadow.visible = true;
     daimi.setNight(true);
     daimi.update(performance.now() / 1000, photoCamera);
-    if (guestPortrait) {
-      const templateHeight = 1.82;
-      const guestHeight = performer.object.userData.height - .25;
-      const geometry = new THREE.PlaneGeometry(
-        templateHeight * guestPortrait.width / guestPortrait.height, guestHeight, 1, 2,
-      );
-      // Keep the upper body at its existing scale and absorb the adjustment below the waist.
-      const waistUV = pose === 'duet' ? .615 : .622;
-      const waistHeight = guestHeight - templateHeight * (1 - waistUV);
-      const position = geometry.getAttribute('position');
-      const uv = geometry.getAttribute('uv');
-      if (pose === 'duet') geometry.translate(.04, 0, 0);
-      for (let i = 0; i < uv.count; i++) {
-        if (uv.getY(i) !== .5) continue;
-        uv.setY(i, waistUV);
-        position.setY(i, waistHeight - guestHeight / 2);
-      }
-      const texture = new THREE.CanvasTexture(guestPortrait);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      guest = new THREE.Mesh(geometry,
-        new THREE.MeshBasicMaterial({ map: texture, color: '#f2eeeb', transparent: true, alphaTest: .025, toneMapped: false }),
-      );
-      // Offset along the camera's horizontal axis so both stand at the same depth.
-      const across = new THREE.Vector3().setFromMatrixColumn(photoCamera.matrixWorld, 0);
-      guest.position.copy(performer.object.position).addScaledVector(across, pose === 'duet' ? -.72 : -.57);
-      guest.position.y += guestHeight / 2;
-      guest.rotation.y = Math.atan2(photoCamera.position.x - guest.position.x, photoCamera.position.z - guest.position.z)
-        + THREE.MathUtils.degToRad(pose === 'duet' ? 0 : 5);
-      guestShadow = new THREE.Mesh(new THREE.PlaneGeometry(.61, .39), shadowMaterial);
-      guestShadow.rotation.x = -Math.PI / 2;
-      guestShadow.position.set(guest.position.x, .019, guest.position.z);
-      scene.add(guest, guestShadow);
-    }
+    world.floorMaterial.color.multiplyScalar(.68);
     lighting.setNight(true);
     performer.setNight(true);
     performer.update(performance.now() / 1000, photoCamera);
@@ -292,13 +259,7 @@ function renderKeepsake(ctx, x, y, width, height, pixelScale, guestPortrait, pos
     renderer.render(scene, photoCamera);
     ctx.drawImage(canvas, x, y, width, height);
   } finally {
-    if (guest) {
-      scene.remove(guest, guestShadow);
-      guest.geometry.dispose();
-      guest.material.map.dispose();
-      guest.material.dispose();
-      guestShadow.geometry.dispose();
-    }
+    world.floorMaterial.color.copy(floorColor);
     props.forEach((object, i) => { object.visible = visible[i]; });
     lighting.setNight(night);
     performer.setNight(night);

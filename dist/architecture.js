@@ -1,5 +1,5 @@
-import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261113-r72';
-import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261113-r72';
+import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261113-r73';
+import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261113-r73';
 
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a
@@ -518,7 +518,7 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
     mesh.computeBoundingSphere(); group.add(mesh);
   }
   return {
-    colliders, surfaces, railPaths, flowerBeds, stoolSeat, contactShadows,
+    colliders, surfaces, railPaths, flowerBeds, stoolSeat, contactShadows, floorMaterial: mats.floor,
     landmarks: [
       { name: '花海舞台', x: 0, y: 0, z: 2.1 },
       { name: '沙发夹层', x: 7.34, y: 3.2, z: 4.45 },
