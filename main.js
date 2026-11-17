@@ -1,26 +1,27 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r66';
-import { buildBotanicals } from './botanicals.js?v=20261113-r66';
-import { createHearts } from './hearts.js?v=20261113-r66';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r66';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r66';
-import { setupMusic } from './music.js?v=20261113-r66';
-import { setupCollection } from './collection.js?v=20261113-r66';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r66';
-import { prepareOffline } from './offline.js?v=20261113-r66';
-import { buildMagazines } from './magazines.js?v=20261113-r66';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r66';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r66';
-import { buildRolePortraits } from './roles.js?v=20261113-r66';
-import { buildRecord } from './record.js?v=20261113-r66';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r66';
-import { createArtworkQueue } from './artwork.js?v=20261113-r66';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r66';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r66';
-import { setupKeepsake } from './keepsake.js?v=20261113-r66';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r66';
-import { createPlaySave } from './play-save.js?v=20261113-r66';
-const VERSION = '20261113-r66';
+import { buildArchitecture } from './architecture.js?v=20261113-r76';
+import { buildBotanicals } from './botanicals.js?v=20261113-r76';
+import { createHearts } from './hearts.js?v=20261113-r76';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r76';
+import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r76';
+import { setupWardrobe } from './wardrobe.js?v=20261113-r76';
+import { setupMusic } from './music.js?v=20261113-r76';
+import { setupCollection } from './collection.js?v=20261113-r76';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r76';
+import { prepareOffline } from './offline.js?v=20261113-r76';
+import { buildMagazines } from './magazines.js?v=20261113-r76';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r76';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r76';
+import { buildRolePortraits } from './roles.js?v=20261113-r76';
+import { buildRecord } from './record.js?v=20261113-r76';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r76';
+import { createArtworkQueue } from './artwork.js?v=20261113-r76';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r76';
+import { createAtriumProbes } from './atrium-probes.js?v=20261113-r76';
+import { setupKeepsake } from './keepsake.js?v=20261113-r76';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r76';
+import { createPlaySave } from './play-save.js?v=20261113-r76';
+const VERSION = '20261113-r76';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -97,11 +98,14 @@ updateQualityLabel();
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 const scene = new THREE.Scene();
-const lighting = createAtriumLighting(THREE, renderer, scene);
+const atriumProbes = createAtriumProbes(THREE, VERSION);
+const lighting = createAtriumLighting(THREE, renderer, scene, atriumProbes);
 lighting.setShadows(qualityIndex === 0);
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, .07, 65);
 camera.rotation.order = 'YXZ';
 const world=buildArchitecture(THREE,scene);const flowers=buildBotanicals(THREE,scene,world.railPaths);
+const roomFloorTone = world.floorMaterial.color.clone();
+atriumProbes.apply(scene);
 camera.position.set(5.1,5.6,7.5);camera.lookAt(-1.1,2.7,-2.8);
 resizeRenderer();
 renderer.render(scene,camera);
@@ -137,10 +141,12 @@ const openingArtwork = createArtworkQueue(loader, ({ percent }) => {
   loading.update(10 + .89 * percent);
 }, { concurrency: 5 });
 const artwork = createArtworkQueue(loader, updateArtworkProgress);
-const performer = buildPhotographicPerformer(THREE, scene, {
+const stagePerformer = buildPhotographicPerformer(THREE, scene, {
   views: PERFORMER_VIEWS, version: VERSION, nightTint: [.84, .87, .91], lowerBodyExtension: .299, loader: openingArtwork.loaderFor('performer'),
   deferredLoader: artwork.loaderFor('performer-angles'),
 });
+let performer = stagePerformer;
+let rainOutfit;
 const music = setupMusic();
 const magazines = buildMagazines(THREE, scene, VERSION, playSave.random('magazines'), openingArtwork.loaderFor('magazines'));
 const dogSeat = world.stoolSeat.getCenter(new THREE.Vector3());
@@ -160,6 +166,16 @@ const colliders=[...world.colliders,...flowers.colliders,performer.collider];
 // A soft painted contact shadow grounds the flower banks without a costly shadow map.
 const shadowCanvas=document.createElement('canvas');shadowCanvas.width=shadowCanvas.height=128;const sx=shadowCanvas.getContext('2d');const grad=sx.createRadialGradient(64,64,10,64,64,64);grad.addColorStop(0,'rgba(15,27,16,.36)');grad.addColorStop(1,'rgba(15,27,16,0)');sx.fillStyle=grad;sx.fillRect(0,0,128,128);const shadowMaterial=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(shadowCanvas),transparent:true,depthWrite:false});
 for(const c of flowers.colliders){if(c.minY>.1)continue;const m=new THREE.Mesh(new THREE.PlaneGeometry((c.maxX-c.minX)*1.65,(c.maxZ-c.minZ)*1.65),shadowMaterial);m.rotation.x=-Math.PI/2;m.position.set((c.minX+c.maxX)/2,.015,(c.minZ+c.maxZ)/2);scene.add(m)}
+const furnitureShadows = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), shadowMaterial, world.contactShadows.length);
+const shadowPose = new THREE.Object3D();
+shadowPose.rotation.x = -Math.PI / 2;
+world.contactShadows.forEach(({ x, y, z, width, depth }, index) => {
+  shadowPose.position.set(x, y + .018, z);
+  shadowPose.scale.set(width, depth, 1);
+  shadowPose.updateMatrix();
+  furnitureShadows.setMatrixAt(index, shadowPose.matrix);
+});
+scene.add(furnitureShadows);
 const performerShadow=new THREE.Mesh(new THREE.PlaneGeometry(.72,.48),shadowMaterial);performerShadow.rotation.x=-Math.PI/2;performerShadow.position.set(0,.018,-1.12);scene.add(performerShadow);
 const daimiShadow = new THREE.Mesh(new THREE.PlaneGeometry(.255 * daimiScale, .205 * daimiScale), shadowMaterial);
 daimiShadow.rotation.x = -Math.PI / 2;
@@ -184,10 +200,9 @@ function saveCollection(group, id, complete) {
 const collection = setupCollection(hearts, () => p, rewardSounds,
   (id, complete) => saveCollection('hearts', id, complete));
 collection.restore(playSave.state.hearts);
-const openGroupPhoto = setupGroupPhoto($('#group-photo-dialog'), renderKeepsake, VERSION, () => daimi.ready);
 const wallProjection = buildWallProjection(THREE, scene);
 const messageWall = setupMessageWall($('#message-wall-dialog'), wallProjection, renderWallView, record.ready);
-const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, openGroupPhoto, messageWall, daimi.ready);
+const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, messageWall, daimi.ready);
 
 function renderWallView(target) {
   if (rendererSuspended) return false;
@@ -222,73 +237,40 @@ function renderWallView(target) {
     renderer.render(scene, camera);
   }
 }
-function renderKeepsake(ctx, x, y, width, height, pixelScale, guestPortrait, pose) {
-  const photoCamera = new THREE.PerspectiveCamera(guestPortrait ? 43 : 44, width / height, .07, 65);
-  photoCamera.position.set(guestPortrait ? .26 : .15, 1.28, 2.96);
-  photoCamera.lookAt(guestPortrait ? -.36 : .03, 1.38, -1);
+function renderKeepsake(ctx, x, y, width, height, pixelScale, angle) {
+  const rear = angle === 1;
+  const photoCamera = new THREE.PerspectiveCamera(rear ? 58 : 44, width / height, .07, 65);
+  photoCamera.position.set(...(rear ? [.68, 1.36, -2.07] : [.15, 1.28, 2.96]));
+  photoCamera.lookAt(...(rear ? [-5.7, 3.95, 6.2] : [.03, 1.38, -1]));
   photoCamera.updateMatrixWorld();
   const props = [...hearts.items.map(heart => heart.object), daimi.object, daimiShadow];
   const visible = props.map(object => object.visible);
-  let guest, guestShadow;
+  const floorColor = world.floorMaterial.color.clone();
   try {
+    updateWardrobe(performance.now(), false, false, p);
     for (const heart of hearts.items) heart.object.visible = false;
     daimi.object.visible = daimiShadow.visible = true;
     daimi.setNight(true);
     daimi.update(performance.now() / 1000, photoCamera);
-    if (guestPortrait) {
-      const templateHeight = 1.82;
-      const guestHeight = performer.object.userData.height - .25;
-      const geometry = new THREE.PlaneGeometry(
-        templateHeight * guestPortrait.width / guestPortrait.height, guestHeight, 1, 2,
-      );
-      // Keep the upper body at its existing scale and absorb the adjustment below the waist.
-      const waistUV = pose === 'duet' ? .615 : .622;
-      const waistHeight = guestHeight - templateHeight * (1 - waistUV);
-      const position = geometry.getAttribute('position');
-      const uv = geometry.getAttribute('uv');
-      if (pose === 'duet') geometry.translate(.04, 0, 0);
-      for (let i = 0; i < uv.count; i++) {
-        if (uv.getY(i) !== .5) continue;
-        uv.setY(i, waistUV);
-        position.setY(i, waistHeight - guestHeight / 2);
-      }
-      const texture = new THREE.CanvasTexture(guestPortrait);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      guest = new THREE.Mesh(geometry,
-        new THREE.MeshBasicMaterial({ map: texture, color: '#f2eeeb', transparent: true, alphaTest: .025, toneMapped: false }),
-      );
-      // Offset along the camera's horizontal axis so both stand at the same depth.
-      const across = new THREE.Vector3().setFromMatrixColumn(photoCamera.matrixWorld, 0);
-      guest.position.copy(performer.object.position).addScaledVector(across, pose === 'duet' ? -.72 : -.57);
-      guest.position.y += guestHeight / 2;
-      guest.rotation.y = Math.atan2(photoCamera.position.x - guest.position.x, photoCamera.position.z - guest.position.z)
-        + THREE.MathUtils.degToRad(pose === 'duet' ? 0 : 5);
-      guestShadow = new THREE.Mesh(new THREE.PlaneGeometry(.61, .39), shadowMaterial);
-      guestShadow.rotation.x = -Math.PI / 2;
-      guestShadow.position.set(guest.position.x, .019, guest.position.z);
-      scene.add(guest, guestShadow);
-    }
+    world.floorMaterial.color.multiplyScalar(.68);
     lighting.setNight(true);
     performer.setNight(true);
-    performer.update(performance.now() / 1000, photoCamera);
+    if (!performer.update(performance.now() / 1000, photoCamera, true)) {
+      throw new Error('这个机位的人物素材还没加载好，请稍后再试。');
+    }
     const captureScale = Math.min(pixelScale, maxViewportWidth / width, maxViewportHeight / height);
     renderer.setDrawingBufferSize(Math.round(width * captureScale), Math.round(height * captureScale), 1);
-    renderer.render(scene, photoCamera);
+    if (rear) wallProjection.capture(() => renderer.render(scene, photoCamera));
+    else renderer.render(scene, photoCamera);
     ctx.drawImage(canvas, x, y, width, height);
   } finally {
-    if (guest) {
-      scene.remove(guest, guestShadow);
-      guest.geometry.dispose();
-      guest.material.map.dispose();
-      guest.material.dispose();
-      guestShadow.geometry.dispose();
-    }
+    world.floorMaterial.color.copy(floorColor);
     props.forEach((object, i) => { object.visible = visible[i]; });
     lighting.setNight(night);
     performer.setNight(night);
     daimi.setNight(night);
     daimi.update(performance.now() / 1000, camera);
-    performer.update(performance.now() / 1000, camera);
+    performer.update(performance.now() / 1000, camera, true);
     renderWidth = 0;
     resizeRenderer();
     renderer.render(scene, camera);
@@ -311,6 +293,37 @@ const magazineQuest = setupMagazineQuest(magazines, roles, dogSeat, record, () =
   rewardSounds,
   muteForCelebration: music.muteForCelebration,
   toast,
+});
+const updateWardrobe = setupWardrobe(THREE, scene, camera, $('#wardrobe-action'), async white => {
+  if (white && !rainOutfit) {
+    const lowerBodyExtension = .25;
+    rainOutfit = buildPhotographicPerformer(THREE, scene, {
+      name: '归期雨抄 · 白色舞台装',
+      reference: '音乐缘计划3 · 归期雨抄',
+      views: RAIN_OUTFIT_VIEWS,
+      version: VERSION,
+      position: stagePerformer.object.position.toArray(),
+      height: stagePerformer.object.userData.height - lowerBodyExtension,
+      lowerBodyExtension,
+      nightTint: [.49, .54, .60],
+      dayTint: [.68, .71, .76],
+    });
+    rainOutfit.object.visible = false;
+    if (!await rainOutfit.ready) {
+      scene.remove(rainOutfit.object);
+      rainOutfit = undefined;
+      toast('新服装未加载成功，可以再长按试一次。');
+      return false;
+    }
+  }
+  performer.object.visible = false;
+  performer = white ? rainOutfit : stagePerformer;
+  performer.setNight(night);
+  performer.update(performance.now() / 1000, camera);
+  performer.object.visible = true;
+  world.floorMaterial.color.copy(roomFloorTone).multiplyScalar(white ? .75 : 1);
+  lighting.setRainStage(white);
+  return true;
 });
 let introTime=0;
 const keys = new Set();
@@ -505,7 +518,7 @@ window.addEventListener('keydown', event => {
     return;
   }
   if (event.code === 'Space') {
-    if (event.target.closest?.('#share-record, #pure-view-toggle, #exit-pure-view')) return;
+    if (event.target.closest?.('#share-record, #wardrobe-action, #pure-view-toggle, #exit-pure-view')) return;
     event.preventDefault();
     if (!event.repeat) jumpRequested = true;
   } else if (movementKeys.includes(event.code)) {
@@ -629,10 +642,12 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
  }
  else if(!entered){introTime+=dt;camera.position.set(5.1+Math.sin(introTime*.06)*.22,5.6,7.5);camera.lookAt(-1.1,2.7,-2.8)}
  const active=entered&&!pureView&&p.grounded&&!document.querySelector('#help-dialog[open], #music-dialog[open]');
- const magazineEngaged=magazineQuest.update(now,active&&!collection.celebrating);
+ const wardrobeEngaged=updateWardrobe(now,active&&canMove(),magazineQuest.roleUnlocked||record.unlocked,p);
+ const magazineEngaged=magazineQuest.update(now,active&&!wardrobeEngaged&&!collection.celebrating);
  performer.update(now/1000,camera);
  if(daimi.object.visible)daimi.update(now/1000,camera);
- collection.update(now,active&&!magazineEngaged);
+ collection.update(now,active&&!magazineEngaged&&!wardrobeEngaged);
+ lighting.update(now/1000);
  renderer.render(scene,camera);frameCount++;if(now-lastMetric>1000){fps=Math.round(frameCount*1000/(now-lastMetric));frameCount=0;lastMetric=now;}}
 // Small, read-only diagnostics to help validate mobile rendering and scene size.
 const artworkPanels = [
@@ -651,7 +666,8 @@ function updateArtworkProgress(overall) {
   }
 }
 
-window.bloomDebug={build:VERSION,get offline(){return offline},artworkProgress:artwork.progress,get position(){return {...p,yaw,pitch}},get collected(){return collection.count},get hearts(){return hearts.items.map(h=>({id:h.id,footPosition:h.footPosition,collected:h.collected}))},get renderer(){return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,fps,buffer:[canvas.width,canvas.height],pixelRatio:renderer.getPixelRatio(),suspended:rendererSuspended}},surfaces:world.surfaces,flowerCounts:flowers.counts,performer:performer.object.userData,
+window.bloomDebug={build:VERSION,bakedLighting:atriumProbes.loaded,get offline(){return offline},artworkProgress:artwork.progress,get position(){return {...p,yaw,pitch}},get collected(){return collection.count},get hearts(){return hearts.items.map(h=>({id:h.id,footPosition:h.footPosition,collected:h.collected}))},get renderer(){return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,fps,buffer:[canvas.width,canvas.height],pixelRatio:renderer.getPixelRatio(),suspended:rendererSuspended}},surfaces:world.surfaces,flowerCounts:flowers.counts,
+  get performer() { return performer.object.userData; },
   get magazines() { return magazines.items.map(({ id, x, y, z, floorY, lit }) => ({ id, x, y, z, floorY, lit })); },
   get daimi() { return { visible: daimi.object.visible, position: dogSeat.toArray(), height: daimi.object.userData.height,
     view: daimi.object.userData.currentView, barkPlays: magazineQuest.barkPlays }; },

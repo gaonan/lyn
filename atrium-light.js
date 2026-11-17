@@ -1,4 +1,8 @@
-export function createAtriumLighting(T, renderer, scene) {
+import { createAtriumSky } from './atrium-sky.js?v=20261113-r76';
+import { createStageMist } from './stage-mist.js?v=20261113-r76';
+
+export function createAtriumLighting(T, renderer, scene, probes) {
+  const atriumSky = createAtriumSky(T, scene);
   const reflection = document.createElement('canvas');
   reflection.width = 128;
   reflection.height = 64;
@@ -31,6 +35,7 @@ export function createAtriumLighting(T, renderer, scene) {
   daylight.shadow.normalBias = .055;
   daylight.shadow.bias = -.00025;
   daylight.shadow.intensity = .63;
+  daylight.shadow.radius = 2.2;
   const shelves = new T.PointLight('#ffd1a0', 1, 13, 2);
   shelves.position.set(-2.4, 3.5, -3.25);
   const lounge = new T.PointLight('#ffc58b', 1, 7.5, 2);
@@ -39,18 +44,32 @@ export function createAtriumLighting(T, renderer, scene) {
   upperFill.position.set(0, 7.1, -1.55);
   scene.add(bounce, daylight, daylight.target, shelves, lounge, upperFill);
 
-  function spotlight(color, from, to, angle, penumbra = .48) {
-    const light = new T.SpotLight(color, 1, 15, angle, penumbra, 2);
+  function setSpotlight(light, { color, from, to, angle, penumbra = .48, day, night }, isNight) {
+    light.color.set(color);
     light.position.set(...from);
     light.target.position.set(...to);
+    light.angle = angle;
+    light.penumbra = penumbra;
+    light.intensity = isNight ? night : day;
+  }
+  function spotlight() {
+    const light = new T.SpotLight(0xffffff, 0, 15, .5, .48, 2);
     scene.add(light, light.target);
     return light;
   }
   const coolFrom = [-6.28, 3.52, -2.4], coolTo = [1.35, .58, .38];
   const warmFrom = [4.0, 3.36, -3.22], warmTo = [-.25, .22, .9];
-  const cool = spotlight('#a0d7ff', coolFrom, coolTo, .42);
-  const warm = spotlight('#ffc074', warmFrom, warmTo, .41);
-  const wash = spotlight('#938cff', [3.65, 2.55, -4.7], [2.2, .45, -.65], .64, .80);
+  const spots = [spotlight(), spotlight(), spotlight()];
+  const roomSpots = [
+    { color: '#a0d7ff', from: coolFrom, to: coolTo, angle: .42, day: 30, night: 161 },
+    { color: '#ffc074', from: warmFrom, to: warmTo, angle: .41, day: 28, night: 127 },
+    { color: '#938cff', from: [3.65, 2.55, -4.7], to: [2.2, .45, -.65], angle: .64, penumbra: .80, day: 0, night: 43 },
+  ];
+  const rainSpots = [
+    { color: '#e4eeff', from: [-.20, 5.48, -1.95], to: [.10, .68, -.83], angle: .25, day: 72, night: 82 },
+    { color: '#d6e6ff', from: [3.58, 2.08, -4.06], to: [-.42, .28, .75], angle: .43, day: 109, night: 140 },
+    { color: '#90beff', from: [-3.46, 2.23, -4.12], to: [.68, .29, .84], angle: .47, day: 119, night: 148 },
+  ];
 
   const shaftGeometry = new T.PlaneGeometry(1, 1, 1, 4);
   // A depth-tested ribbon turns about the light axis to face the camera. Feather
@@ -67,6 +86,7 @@ export function createAtriumLighting(T, renderer, scene) {
         uniform vec3 origin, end;
         uniform float radius;
         varying vec2 beamUV;
+        varying float scatter;
         void main() {
           vec3 axis = normalize(end - origin);
           vec3 center = mix(origin, end, uv.y);
@@ -76,6 +96,7 @@ export function createAtriumLighting(T, renderer, scene) {
           side /= max(sideLength, .001);
           float r = mix(.039, radius, uv.y);
           beamUV = vec2(uv.x, uv.y);
+          scatter = .60 + .40 * pow(abs(dot(axis, normalize(toEye))), 2.0);
           gl_Position = projectionMatrix * viewMatrix *
             vec4(center + side * (uv.x * 2.0 - 1.0) * r, 1.0);
         }
@@ -84,6 +105,7 @@ export function createAtriumLighting(T, renderer, scene) {
         uniform vec3 tint;
         uniform float strength, startFade;
         varying vec2 beamUV;
+        varying float scatter;
         void main() {
           float along = beamUV.y;
           float edge = abs(beamUV.x * 2.0 - 1.0);
@@ -91,7 +113,7 @@ export function createAtriumLighting(T, renderer, scene) {
             mix(.42, 1.0, 1.0 - smoothstep(.02, .56, edge));
           float envelope = smoothstep(0.0, startFade, along) *
             (1.0 - smoothstep(.44, 1.0, along));
-          gl_FragColor = vec4(tint, strength * envelope * crossSection);
+          gl_FragColor = vec4(tint, strength * envelope * crossSection * scatter);
           #include <colorspace_fragment>
         }
       `,
@@ -108,8 +130,8 @@ export function createAtriumLighting(T, renderer, scene) {
   }
 
   const beams = [
-    shaft(coolFrom, coolTo, 1.15, '#65bafc', .095, .40, .055),
-    shaft(coolFrom, [1.55, 1.96, .06], .35, '#c1eaff', .054, .49, .077),
+    shaft(coolFrom, coolTo, 1.15, '#8cc8f6', .065, .31, .055),
+    shaft(coolFrom, [1.55, 1.96, .06], .32, '#c1e0f8', .048, .40, .077),
     shaft(coolFrom, [1.29, 1.44, .93], .19, '#a2dcff', .047, .33, .086),
     shaft(coolFrom, [.65, .5, 1.45], .27, '#8bd9ff', 0, .27, .09),
     shaft(warmFrom, warmTo, .98, '#ffc46f', .035, .31, .07),
@@ -128,6 +150,17 @@ export function createAtriumLighting(T, renderer, scene) {
   g.fillStyle = fade;
   g.fillRect(0, 0, 64, 64);
   const glow = new T.CanvasTexture(aureole);
+  function lampGlow(position, color, size) {
+    const emitter = new T.Sprite(new T.SpriteMaterial({
+      color, map: glow, opacity: 0, transparent: true, depthWrite: false,
+      blending: T.AdditiveBlending, toneMapped: false,
+    }));
+    emitter.position.copy(position);
+    emitter.scale.set(size, size, 1);
+    emitter.renderOrder = 3;
+    scene.add(emitter);
+    return emitter;
+  }
   function lamp(from, to, color) {
     const socket = new T.Vector3(...from);
     const direction = new T.Vector3(...to).sub(socket).normalize();
@@ -140,41 +173,68 @@ export function createAtriumLighting(T, renderer, scene) {
     const stand = new T.Mesh(new T.CylinderGeometry(.024, .032, socket.y, 6), fixture.material);
     stand.position.set(fixture.position.x, socket.y / 2, fixture.position.z);
     scene.add(fixture, stand);
-    const emitter = new T.Sprite(new T.SpriteMaterial({
-      color, map: glow, opacity: 0, transparent: true, depthWrite: false,
-      blending: T.AdditiveBlending, toneMapped: false,
-    }));
-    emitter.position.copy(socket).addScaledVector(direction, .023);
-    emitter.scale.set(1.44, 1.44, 1);
-    emitter.renderOrder = 3;
-    scene.add(emitter);
-    return emitter.material;
+    return lampGlow(socket.addScaledVector(direction, .023), color, 1.44).material;
   }
   const lamps = [lamp(coolFrom, coolTo, '#bcdeff'), lamp(warmFrom, warmTo, '#ffce90')];
+  let rainActive = false;
+  let isNight = true;
+  let stageMist, rainBeams, rainGlows;
   renderer.shadowMap.type = T.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
 
   function setNight(night) {
-    bounce.intensity = night ? .70 : 1.25;
-    daylight.intensity = night ? .17 : 2.72;
+    isNight = night;
+    atriumSky.setNight(night);
+    probes.setNight(night);
+    bounce.intensity = night ? .48 : .91;
+    daylight.intensity = night ? .115 : 1.85;
     shelves.intensity = night ? 25 : 16;
-    lounge.intensity = night ? 28 : 16;
-    upperFill.intensity = night ? 19 : 0;
-    cool.intensity = night ? 198 : 38;
-    warm.intensity = night ? 133 : 39;
-    wash.intensity = night ? 64 : 0;
-    renderer.toneMappingExposure = night ? 1.12 : 1.07;
-    scene.environmentIntensity = night ? .41 : .63;
+    lounge.intensity = night ? 28 : 9;
+    upperFill.intensity = night ? 18 : 7;
+    renderer.toneMappingExposure = night ? 1.02 : 1.05;
+    scene.environmentIntensity = night ? .34 : .58;
+    const lightRig = rainActive ? rainSpots : roomSpots;
+    spots.forEach((light, index) => setSpotlight(light, lightRig[index], night));
+    if (rainActive) {
+      bounce.intensity *= night ? .72 : .89;
+      shelves.intensity *= .57;
+      lounge.intensity *= .62;
+    }
     for (const beam of beams) {
       beam.strength.value = night ? beam.night : beam.day;
-      beam.mesh.visible = beam.strength.value > 0;
+      beam.mesh.visible = !rainActive && beam.strength.value > 0;
     }
-    for (const lamp of lamps) lamp.opacity = night ? 1 : .24;
+    for (const beam of rainBeams ?? []) {
+      beam.strength.value = night ? beam.night : beam.day;
+      beam.mesh.visible = rainActive;
+    }
+    for (const lamp of lamps) lamp.opacity = rainActive ? 0 : night ? 1 : .24;
+    for (const emitter of rainGlows ?? []) {
+      emitter.visible = rainActive;
+      emitter.material.opacity = night ? .92 : .60;
+    }
+    stageMist?.setVisible(rainActive, night);
+  }
+  function setRainStage(enabled) {
+    rainActive = enabled;
+    if (enabled && !stageMist) {
+      stageMist = createStageMist(T, scene);
+      rainBeams = [
+        shaft(rainSpots[0].from, rainSpots[0].to, .46, '#e5edff', .24, .32, .14),
+        shaft(rainSpots[1].from, rainSpots[1].to, .96, '#d8e8ff', .23, .28, .10),
+        shaft(rainSpots[1].from, [-1.1, 1.08, -.14], .32, '#eef5ff', .17, .19, .10),
+        shaft(rainSpots[2].from, rainSpots[2].to, .99, '#99c3ff', .24, .30, .10),
+        shaft(rainSpots[2].from, [1.18, 1.17, -.18], .34, '#c2ddff', .18, .21, .10),
+      ];
+      rainGlows = rainSpots.slice(1).map(lamp =>
+        lampGlow(new T.Vector3(...lamp.from), lamp.color, 1.1));
+    }
+    setNight(isNight);
   }
   function setShadows(enabled) {
     renderer.shadowMap.enabled = enabled;
     if (enabled) renderer.shadowMap.needsUpdate = true;
   }
   setNight(true);
-  return { setNight, setShadows };
+  return { setNight, setShadows, setRainStage, update: seconds => stageMist?.update(seconds) };
 }
