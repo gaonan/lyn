@@ -1,26 +1,27 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r66';
-import { buildBotanicals } from './botanicals.js?v=20261113-r66';
-import { createHearts } from './hearts.js?v=20261113-r66';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r66';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r66';
-import { setupMusic } from './music.js?v=20261113-r66';
-import { setupCollection } from './collection.js?v=20261113-r66';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r66';
-import { prepareOffline } from './offline.js?v=20261113-r66';
-import { buildMagazines } from './magazines.js?v=20261113-r66';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r66';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r66';
-import { buildRolePortraits } from './roles.js?v=20261113-r66';
-import { buildRecord } from './record.js?v=20261113-r66';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r66';
-import { createArtworkQueue } from './artwork.js?v=20261113-r66';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r66';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r66';
-import { setupKeepsake } from './keepsake.js?v=20261113-r66';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r66';
-import { createPlaySave } from './play-save.js?v=20261113-r66';
-const VERSION = '20261113-r66';
+import { buildArchitecture } from './architecture.js?v=20261113-r68';
+import { buildBotanicals } from './botanicals.js?v=20261113-r68';
+import { createHearts } from './hearts.js?v=20261113-r68';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r68';
+import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r68';
+import { setupMusic } from './music.js?v=20261113-r68';
+import { setupCollection } from './collection.js?v=20261113-r68';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r68';
+import { prepareOffline } from './offline.js?v=20261113-r68';
+import { buildMagazines } from './magazines.js?v=20261113-r68';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r68';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r68';
+import { buildRolePortraits } from './roles.js?v=20261113-r68';
+import { buildRecord } from './record.js?v=20261113-r68';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r68';
+import { createArtworkQueue } from './artwork.js?v=20261113-r68';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r68';
+import { createAtriumProbes } from './atrium-probes.js?v=20261113-r68';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r68';
+import { setupKeepsake } from './keepsake.js?v=20261113-r68';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r68';
+import { createPlaySave } from './play-save.js?v=20261113-r68';
+const VERSION = '20261113-r68';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -97,11 +98,13 @@ updateQualityLabel();
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 const scene = new THREE.Scene();
-const lighting = createAtriumLighting(THREE, renderer, scene);
+const atriumProbes = createAtriumProbes(THREE, VERSION);
+const lighting = createAtriumLighting(THREE, renderer, scene, atriumProbes);
 lighting.setShadows(qualityIndex === 0);
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, .07, 65);
 camera.rotation.order = 'YXZ';
 const world=buildArchitecture(THREE,scene);const flowers=buildBotanicals(THREE,scene,world.railPaths);
+atriumProbes.apply(scene);
 camera.position.set(5.1,5.6,7.5);camera.lookAt(-1.1,2.7,-2.8);
 resizeRenderer();
 renderer.render(scene,camera);
@@ -160,6 +163,16 @@ const colliders=[...world.colliders,...flowers.colliders,performer.collider];
 // A soft painted contact shadow grounds the flower banks without a costly shadow map.
 const shadowCanvas=document.createElement('canvas');shadowCanvas.width=shadowCanvas.height=128;const sx=shadowCanvas.getContext('2d');const grad=sx.createRadialGradient(64,64,10,64,64,64);grad.addColorStop(0,'rgba(15,27,16,.36)');grad.addColorStop(1,'rgba(15,27,16,0)');sx.fillStyle=grad;sx.fillRect(0,0,128,128);const shadowMaterial=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(shadowCanvas),transparent:true,depthWrite:false});
 for(const c of flowers.colliders){if(c.minY>.1)continue;const m=new THREE.Mesh(new THREE.PlaneGeometry((c.maxX-c.minX)*1.65,(c.maxZ-c.minZ)*1.65),shadowMaterial);m.rotation.x=-Math.PI/2;m.position.set((c.minX+c.maxX)/2,.015,(c.minZ+c.maxZ)/2);scene.add(m)}
+const furnitureShadows = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), shadowMaterial, world.contactShadows.length);
+const shadowPose = new THREE.Object3D();
+shadowPose.rotation.x = -Math.PI / 2;
+world.contactShadows.forEach(({ x, y, z, width, depth }, index) => {
+  shadowPose.position.set(x, y + .018, z);
+  shadowPose.scale.set(width, depth, 1);
+  shadowPose.updateMatrix();
+  furnitureShadows.setMatrixAt(index, shadowPose.matrix);
+});
+scene.add(furnitureShadows);
 const performerShadow=new THREE.Mesh(new THREE.PlaneGeometry(.72,.48),shadowMaterial);performerShadow.rotation.x=-Math.PI/2;performerShadow.position.set(0,.018,-1.12);scene.add(performerShadow);
 const daimiShadow = new THREE.Mesh(new THREE.PlaneGeometry(.255 * daimiScale, .205 * daimiScale), shadowMaterial);
 daimiShadow.rotation.x = -Math.PI / 2;
@@ -651,7 +664,7 @@ function updateArtworkProgress(overall) {
   }
 }
 
-window.bloomDebug={build:VERSION,get offline(){return offline},artworkProgress:artwork.progress,get position(){return {...p,yaw,pitch}},get collected(){return collection.count},get hearts(){return hearts.items.map(h=>({id:h.id,footPosition:h.footPosition,collected:h.collected}))},get renderer(){return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,fps,buffer:[canvas.width,canvas.height],pixelRatio:renderer.getPixelRatio(),suspended:rendererSuspended}},surfaces:world.surfaces,flowerCounts:flowers.counts,performer:performer.object.userData,
+window.bloomDebug={build:VERSION,bakedLighting:atriumProbes.loaded,get offline(){return offline},artworkProgress:artwork.progress,get position(){return {...p,yaw,pitch}},get collected(){return collection.count},get hearts(){return hearts.items.map(h=>({id:h.id,footPosition:h.footPosition,collected:h.collected}))},get renderer(){return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,fps,buffer:[canvas.width,canvas.height],pixelRatio:renderer.getPixelRatio(),suspended:rendererSuspended}},surfaces:world.surfaces,flowerCounts:flowers.counts,performer:performer.object.userData,
   get magazines() { return magazines.items.map(({ id, x, y, z, floorY, lit }) => ({ id, x, y, z, floorY, lit })); },
   get daimi() { return { visible: daimi.object.visible, position: dogSeat.toArray(), height: daimi.object.userData.height,
     view: daimi.object.userData.currentView, barkPlays: magazineQuest.barkPlays }; },

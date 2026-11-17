@@ -17,42 +17,53 @@ export function makeSurfaceMaps(T, kind) {
   }
   const color = new Uint8Array(size * size * 4);
   const normal = new Uint8Array(color.length);
+  const roughness = new Uint8Array(color.length);
   const relief = new Float32Array(size * size);
   const wood = kind === 'wood';
   const fabric = kind === 'fabric';
   const plaster = kind === 'plaster';
-  const base = wood ? [177, 135, 92] : fabric ? [225, 219, 204] : [164, 160, 153];
+  const base = wood ? [173, 145, 116] : fabric ? [225, 217, 204]
+    : plaster ? [188, 185, 179] : [172, 168, 161];
   const tau = 2 * Math.PI;
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const u = x / size, v = y / size, i = x + y * size;
     const grain = sample(x, y) - .5;
-    let shade, height;
+    let shade, height, finish;
     if (wood) {
-      const curve = .045 * noise(u * 8, v * 4, 8, 4) + .012 * Math.sin(tau * v);
-      const bands = Math.sin(tau * (u + curve) * 23 + 1.4 * noise(u * 16, v * 4, 16, 4));
-      const pores = noise(u * 128, v * 8, 128, 8);
-      shade = 20 * (noise(u * 8, v * 4, 8, 4) - .5) - 13 * Math.max(0, bands) ** 6 + 18 * (pores - .5);
-      height = .34 * pores - .11 * Math.max(0, bands) ** 6 + .09 * grain;
+      const broad = noise(u * 8, v * 4, 8, 4);
+      const curve = .032 * broad + .009 * Math.sin(tau * v);
+      const annual = Math.max(0, Math.sin(tau * (u + curve) * 19)) ** 6;
+      const pores = noise((u + curve) * 128, v * 8, 128, 8);
+      const openPores = Math.max(0, pores - .53);
+      shade = 18 * (broad - .5) - 11 * annual - 25 * openPores + 4 * grain;
+      height = -.08 * annual - .24 * openPores + .036 * grain;
+      finish = .61 + .10 * annual + .30 * openPores;
     } else if (fabric) {
       const warp = Math.sin(tau * (u * 64 + .1 * Math.cos(tau * v * 64)));
       const weft = Math.sin(tau * (v * 64 + .1 * Math.cos(tau * u * 64)));
       shade = 2 * (warp + weft) + 3 * grain;
       height = .13 * (warp + weft) + .05 * grain;
+      finish = .88 + .04 * warp * weft;
     } else if (plaster) {
       const broad = noise(u * 4, v * 8, 4, 8) - .5;
       const trowel = noise(u * 8, v * 32, 8, 32) - .5;
-      shade = 6 * broad + 9 * trowel + 5 * grain;
-      height = .18 * trowel + .09 * grain;
+      const grains = noise(u * 64, v * 64, 64, 64) - .5;
+      shade = 6 * broad + 5 * trowel + 7 * grains + 3 * grain;
+      height = .10 * trowel + .17 * grains + .07 * grain;
+      finish = .90 + .14 * grains;
     } else {
       const cloudy = noise(u * 8, v * 8, 8, 8) - .5;
       const fines = noise(u * 32, v * 32, 32, 32) - .5;
-      const pinhole = grain < -.455 && fines < -.06 ? -.36 : 0;
-      shade = 8 * cloudy + 10 * fines + 9 * grain + 20 * pinhole;
-      height = .19 * fines + .17 * grain + pinhole;
+      const pinhole = grain < -.473 && fines < -.06 ? -.24 : 0;
+      shade = 6 * cloudy + 6 * fines + 7 * grain + 18 * pinhole;
+      height = .10 * fines + .11 * grain + pinhole;
+      finish = .85 + .11 * fines - .22 * pinhole;
     }
     relief[i] = height;
     for (let channel = 0; channel < 3; channel++) color[i * 4 + channel] = Math.round(base[channel] + shade);
     color[i * 4 + 3] = 255;
+    roughness[i * 4 + 1] = Math.round(finish * 255);
+    roughness[i * 4 + 3] = 255;
   }
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const i = (x + y * size) * 4;
@@ -75,5 +86,9 @@ export function makeSurfaceMaps(T, kind) {
     map.needsUpdate = true;
     return map;
   }
-  return { map: texture(color, T.SRGBColorSpace), normalMap: texture(normal, T.NoColorSpace) };
+  return {
+    map: texture(color, T.SRGBColorSpace),
+    normalMap: texture(normal, T.NoColorSpace),
+    roughnessMap: texture(roughness, T.NoColorSpace),
+  };
 }

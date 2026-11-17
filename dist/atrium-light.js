@@ -1,4 +1,4 @@
-export function createAtriumLighting(T, renderer, scene) {
+export function createAtriumLighting(T, renderer, scene, probes) {
   const reflection = document.createElement('canvas');
   reflection.width = 128;
   reflection.height = 64;
@@ -31,6 +31,7 @@ export function createAtriumLighting(T, renderer, scene) {
   daylight.shadow.normalBias = .055;
   daylight.shadow.bias = -.00025;
   daylight.shadow.intensity = .63;
+  daylight.shadow.radius = 2.2;
   const shelves = new T.PointLight('#ffd1a0', 1, 13, 2);
   shelves.position.set(-2.4, 3.5, -3.25);
   const lounge = new T.PointLight('#ffc58b', 1, 7.5, 2);
@@ -67,6 +68,7 @@ export function createAtriumLighting(T, renderer, scene) {
         uniform vec3 origin, end;
         uniform float radius;
         varying vec2 beamUV;
+        varying float scatter;
         void main() {
           vec3 axis = normalize(end - origin);
           vec3 center = mix(origin, end, uv.y);
@@ -76,6 +78,7 @@ export function createAtriumLighting(T, renderer, scene) {
           side /= max(sideLength, .001);
           float r = mix(.039, radius, uv.y);
           beamUV = vec2(uv.x, uv.y);
+          scatter = .60 + .40 * pow(abs(dot(axis, normalize(toEye))), 2.0);
           gl_Position = projectionMatrix * viewMatrix *
             vec4(center + side * (uv.x * 2.0 - 1.0) * r, 1.0);
         }
@@ -84,6 +87,7 @@ export function createAtriumLighting(T, renderer, scene) {
         uniform vec3 tint;
         uniform float strength, startFade;
         varying vec2 beamUV;
+        varying float scatter;
         void main() {
           float along = beamUV.y;
           float edge = abs(beamUV.x * 2.0 - 1.0);
@@ -91,7 +95,7 @@ export function createAtriumLighting(T, renderer, scene) {
             mix(.42, 1.0, 1.0 - smoothstep(.02, .56, edge));
           float envelope = smoothstep(0.0, startFade, along) *
             (1.0 - smoothstep(.44, 1.0, along));
-          gl_FragColor = vec4(tint, strength * envelope * crossSection);
+          gl_FragColor = vec4(tint, strength * envelope * crossSection * scatter);
           #include <colorspace_fragment>
         }
       `,
@@ -108,8 +112,8 @@ export function createAtriumLighting(T, renderer, scene) {
   }
 
   const beams = [
-    shaft(coolFrom, coolTo, 1.15, '#65bafc', .095, .40, .055),
-    shaft(coolFrom, [1.55, 1.96, .06], .35, '#c1eaff', .054, .49, .077),
+    shaft(coolFrom, coolTo, 1.15, '#8cc8f6', .065, .31, .055),
+    shaft(coolFrom, [1.55, 1.96, .06], .32, '#c1e0f8', .048, .40, .077),
     shaft(coolFrom, [1.29, 1.44, .93], .19, '#a2dcff', .047, .33, .086),
     shaft(coolFrom, [.65, .5, 1.45], .27, '#8bd9ff', 0, .27, .09),
     shaft(warmFrom, warmTo, .98, '#ffc46f', .035, .31, .07),
@@ -155,16 +159,17 @@ export function createAtriumLighting(T, renderer, scene) {
   renderer.shadowMap.autoUpdate = false;
 
   function setNight(night) {
-    bounce.intensity = night ? .70 : 1.25;
-    daylight.intensity = night ? .17 : 2.72;
+    probes.setNight(night);
+    bounce.intensity = night ? .65 : .91;
+    daylight.intensity = night ? .15 : 1.85;
     shelves.intensity = night ? 25 : 16;
-    lounge.intensity = night ? 28 : 16;
-    upperFill.intensity = night ? 19 : 0;
-    cool.intensity = night ? 198 : 38;
-    warm.intensity = night ? 133 : 39;
-    wash.intensity = night ? 64 : 0;
-    renderer.toneMappingExposure = night ? 1.12 : 1.07;
-    scene.environmentIntensity = night ? .41 : .63;
+    lounge.intensity = night ? 28 : 9;
+    upperFill.intensity = night ? 18 : 7;
+    cool.intensity = night ? 161 : 30;
+    warm.intensity = night ? 127 : 28;
+    wash.intensity = night ? 43 : 0;
+    renderer.toneMappingExposure = night ? 1.10 : 1.05;
+    scene.environmentIntensity = night ? .46 : .58;
     for (const beam of beams) {
       beam.strength.value = night ? beam.night : beam.day;
       beam.mesh.visible = beam.strength.value > 0;
