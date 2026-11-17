@@ -7,7 +7,7 @@ const banks = [
 ];
 const slices = [[.14, .20], [.33, .34], [.57, .44], [.82, .35]];
 
-export function createStageMist(T, scene) {
+export function createStageMist(T, scene, [lightX, , lightZ]) {
   const geometry = new T.InstancedBufferGeometry().copy(new T.PlaneGeometry(1, 1, 20, 2));
   const paths = [], shapes = [], layers = [];
   for (const bank of banks) {
@@ -40,7 +40,7 @@ export function createStageMist(T, scene) {
   const time = { value: 0 };
   const level = { value: 0 };
   const material = new T.ShaderMaterial({
-    uniforms: { time, level, mistField: { value: field } },
+    uniforms: { time, level, mistField: { value: field }, poolCenter: { value: new T.Vector2(lightX, lightZ) } },
     transparent: true,
     depthWrite: false,
     side: T.DoubleSide,
@@ -74,6 +74,7 @@ export function createStageMist(T, scene) {
     fragmentShader: `
       uniform highp sampler3D mistField;
       uniform float time, level;
+      uniform vec2 poolCenter;
       varying vec2 flowUV, layer;
       varying float phase;
       varying vec3 mistPosition;
@@ -92,7 +93,8 @@ export function createStageMist(T, scene) {
         float curls = texture(mistField, flow * 2.23 + vec3(.27, .06, .2)).r;
         float density = smoothstep(.28, .69, body * .71 + curls * .29);
         // The ground remains visible between the banks and through their soft edges.
-        float alpha = level * layer.y * footprint * density;
+        float pool = 1.0 - smoothstep(.36, 1.75, length(mistPosition.xz - poolCenter));
+        float alpha = level * layer.y * footprint * density * mix(.12, 1.0, pool);
         float edgeLight = smoothstep(0.0, .26, mistPosition.y);
         float sideLight = 1.0 - smoothstep(.5, 3.1, abs(mistPosition.x + .45));
         vec3 silver = mix(vec3(.29, .37, .49), vec3(.61, .69, .78), .66 * edgeLight + .34 * sideLight);
@@ -110,7 +112,7 @@ export function createStageMist(T, scene) {
   return {
     setVisible(value, night) {
       mesh.visible = value;
-      level.value = night ? 1.04 : .77;
+      level.value = night ? .96 : .74;
     },
     update(seconds) {
       if (mesh.visible) time.value = reducedMotion.matches ? 2 : seconds;

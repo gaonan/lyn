@@ -38,7 +38,7 @@ uniform vec2 photoFromFit;
 uniform vec2 photoToFit;
 uniform vec2 photoFromSize;
 uniform vec2 photoToSize;
-uniform float photoBlend;
+uniform float photoFromLight, photoToLight, photoBlend;
 // Nearest source taps are premultiplied BEFORE bilinear interpolation. Hidden
 // RGB in transparent pixels cannot create a black/white fringe at the edge.
 vec4 photoTap(sampler2D photoMap, vec2 uv) {
@@ -58,7 +58,12 @@ vec4 photoSample(sampler2D photoMap, vec4 rect, vec2 fit, vec2 size) {
 `;
 const PHOTO_FRAGMENT = `
 vec4 photoColor = photoSample(photoFromMap, photoFromRect, photoFromFit, photoFromSize);
-if (photoBlend > 0.0) photoColor = mix(photoColor, photoSample(photoToMap, photoToRect, photoToFit, photoToSize), photoBlend);
+photoColor.rgb *= photoFromLight;
+if (photoBlend > 0.0) {
+  vec4 nextPhoto = photoSample(photoToMap, photoToRect, photoToFit, photoToSize);
+  nextPhoto.rgb *= photoToLight;
+  photoColor = mix(photoColor, nextPhoto, photoBlend);
+}
 diffuseColor *= vec4(photoColor.a > 0.00001 ? photoColor.rgb / photoColor.a : vec3(0.0), photoColor.a);
 `;
 
@@ -91,6 +96,7 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
     const offset = commonLeft / f.displayWidth + f.anchorX;
     uniforms[`photo${prefix}Fit`].value.set(view.mirror ? -scale : scale, view.mirror ? 1 - offset : offset);
     uniforms[`photo${prefix}Size`].value.set(f.width, f.height);
+    uniforms[`photo${prefix}Light`].value = options.viewLight?.[view.name] ?? 1;
   }
   function samples(a, b, blend) { setSample('From', a); setSample('To', b); uniforms.photoBlend.value = blend; state.fromView = PHOTO_VIEWS[a]; state.currentView = PHOTO_VIEWS[b]; state.blend = blend; }
   function build() {
@@ -118,7 +124,8 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
       photoFromMap: { value: null }, photoToMap: { value: null },
       photoFromRect: { value: new T.Vector4() }, photoToRect: { value: new T.Vector4() },
       photoFromFit: { value: new T.Vector2() }, photoToFit: { value: new T.Vector2() },
-      photoFromSize: { value: new T.Vector2() }, photoToSize: { value: new T.Vector2() }, photoBlend: { value: 0 },
+      photoFromSize: { value: new T.Vector2() }, photoToSize: { value: new T.Vector2() },
+      photoFromLight: { value: 1 }, photoToLight: { value: 1 }, photoBlend: { value: 0 },
     };
     material.onBeforeCompile = shader => {
       Object.assign(shader.uniforms, uniforms);

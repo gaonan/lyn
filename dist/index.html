@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><meta property="og:title" content="康乃馨 7.0"><meta property="og:description" content="如果我拥有一座花园，邀请你常来停歇。"><meta name="demo-build" content="20261113-r76"><meta name="theme-color" content="#222d26"><meta name="description" content="走进鲜花与书页之间。一个可以上下楼、自由探索的花园咖啡厅。"><title>康乃馨 7.0</title><link rel="manifest" href="manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/svg+xml" href="assets/icon.svg"><link rel="stylesheet" href="style.css?v=20261113-r76"></head><body>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><meta property="og:title" content="康乃馨 7.0"><meta property="og:description" content="如果我拥有一座花园，邀请你常来停歇。"><meta name="demo-build" content="20261113-r77"><meta name="theme-color" content="#222d26"><meta name="description" content="走进鲜花与书页之间。一个可以上下楼、自由探索的花园咖啡厅。"><title>康乃馨 7.0</title><link rel="manifest" href="manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/svg+xml" href="assets/icon.svg"><link rel="stylesheet" href="style.css?v=20261113-r77"></head><body>
 <canvas id="world" aria-label="可以自由走动的多层花园咖啡厅"></canvas><div class="vignette"></div>
 <div class="creator-credit" aria-hidden="true">By MD_Leah</div>
 <header><a class="brand" href="#" aria-label="康乃馨 7.0 首页"><span class="brand-mark">✳</span><span>康乃馨 7.0</span></a><div class="tools"><button id="music" title="播放背景音乐" aria-label="播放背景音乐"><svg class="tool-icon music-note-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M8 14V5l8-2v8M8 14c0 1.2-1.1 2.1-2.5 2.1S3 15.6 3 14.4s1.1-2.1 2.5-2.1S8 13 8 14Zm8-3c0 1.2-1.1 2.2-2.5 2.2S11 12.7 11 11.5s1.1-2.1 2.5-2.1S16 10 16 11Z"/></svg><svg class="tool-icon music-pause-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5v10m6-10v10"/></svg><span class="music-label">唱歌</span></button><button id="light" aria-label="切换日光" title="切换灯光"><svg class="tool-icon night-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M16.3 12.7A6.9 6.9 0 0 1 7.4 3.9a6.9 6.9 0 1 0 8.9 8.8Z"/></svg><svg class="tool-icon day-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm0-4v1m0 12v1m7-7h-1M4 10H3m12-5-.7.7M5.7 14.3 5 15m10 0-.7-.7M5.7 5.7 5 5"/></svg><span>夜色</span></button><button id="quality" aria-label="画质：超清，点击切换" title="切换画质"><svg class="tool-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4H4v3m9-3h3v3m0 6v3h-3m-6 0H4v-3m3-3h6m-3-3v6"/></svg><span>超清</span></button><button id="reload" title="重新加载" onclick="location.reload()"><svg class="tool-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M15.9 7A6.5 6.5 0 1 0 16 13m.5-9v4h-4"/></svg><span>刷新</span></button><button id="help" aria-label="操作说明">?</button></div></header>
@@ -153,7 +153,7 @@
   <button type="button" id="retry-wall" hidden>重新读取</button>
   <ul class="wall-readings" aria-label="墙上的留言"></ul>
 </dialog>
-<audio id="daimi-barks" preload="none" src="assets/daimi/two-barks.m4a?v=20261113-r76"></audio>
+<audio id="daimi-barks" preload="none" src="assets/daimi/two-barks.m4a?v=20261113-r77"></audio>
 <div id="toast" role="status"></div><div id="error" hidden role="alert"><h2>画面暂停了</h2><p>正在等待浏览器恢复画面。若持续停在这里，可以重新加载。</p><button id="render-reload" type="button">修复并重新加载</button></div>
 <script>
 (() => {
@@ -270,10 +270,10 @@
   else watch();
 })();
 </script>
-<script defer src="visit.js?v=20261113-r76"></script>
+<script defer src="visit.js?v=20261113-r77"></script>
 <script type="module">
   if (!window.bloomLoading.repairRequested) {
-    import('./main.js?v=20261113-r76').catch(() => {
+    import('./main.js?v=20261113-r77').catch(() => {
       window.bloomLoading.fail('页面初始化失败。请修复缓存后重试，或切换站点。');
     });
   }

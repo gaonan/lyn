@@ -1,4 +1,4 @@
-import { MESSAGE_WALL_SKY_EDGE } from './atrium-sky.js?v=20261113-r76';
+import { MESSAGE_WALL_SKY_EDGE } from './atrium-sky.js?v=20261113-r77';
 
 export const PROBE_SIZE = [24, 18, 22];
 export const PROBE_MIN = [-9, 0, -7];
@@ -15,6 +15,7 @@ export function createAtriumProbes(T, version) {
   const nightAmount = { value: 1 };
   const wallRim = { value: new T.Color(MESSAGE_WALL_SKY_EDGE.color) };
   let night = true;
+  let stage = false;
   let maps;
 
   function texture(data, [width, height, depth]) {
@@ -24,10 +25,11 @@ export function createAtriumProbes(T, version) {
     return result;
   }
 
-  function setNight(value) {
+  function setNight(value, stageActive = stage) {
     night = value;
+    stage = stageActive;
     nightAmount.value = Number(night);
-    intensity.value = night ? .23 : .88;
+    intensity.value = stage ? (night ? .055 : .085) : (night ? .23 : .88);
     if (maps) map.value = maps[Number(night)];
   }
 
