@@ -49,3 +49,10 @@ export const PERFORMER_VIEWS = {
     "anchorX": 0.5388692579505301
   }
 };
+
+export const RAIN_OUTFIT_VIEWS = {
+  front: { url: './assets/performer/rain-front.webp', width: 265, height: 751, anchorX: .468 },
+  right: { url: './assets/performer/rain-right.webp', width: 211, height: 750, anchorX: .697 },
+  back: { url: './assets/performer/rain-back.webp', width: 310, height: 752, anchorX: .548 },
+  left: { url: './assets/performer/rain-left.webp', width: 221, height: 750, anchorX: .29 },
+};

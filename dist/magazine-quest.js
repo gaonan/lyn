@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r70';
-import { roleInReach } from './roles.js?v=20261113-r70';
+import { magazineInReach } from './magazines.js?v=20261113-r71';
+import { roleInReach } from './roles.js?v=20261113-r71';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];

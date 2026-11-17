@@ -264,7 +264,7 @@ export function setupKeepsake(dialog, record, render, openGroupPhoto, messageWal
   wallButton.addEventListener('click', messageWall.open);
   const publishButton = dialog.querySelector('#publish-wall-note');
   const publishStatus = dialog.querySelector('#wall-publish-status');
-  const status = dialog.querySelector('.keepsake-editor > .keepsake-status');
+  const status = dialog.querySelector('#keepsake-status');
   let savedText = '';
   try { savedText = keepsakeText(localStorage.getItem(key) || ''); } catch {}
   record.setMessage(savedText);

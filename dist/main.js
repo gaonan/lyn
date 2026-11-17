@@ -1,27 +1,28 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r70';
-import { buildBotanicals } from './botanicals.js?v=20261113-r70';
-import { createHearts } from './hearts.js?v=20261113-r70';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r70';
-import { PERFORMER_VIEWS } from './performer-views.js?v=20261113-r70';
-import { setupMusic } from './music.js?v=20261113-r70';
-import { setupCollection } from './collection.js?v=20261113-r70';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r70';
-import { prepareOffline } from './offline.js?v=20261113-r70';
-import { buildMagazines } from './magazines.js?v=20261113-r70';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r70';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r70';
-import { buildRolePortraits } from './roles.js?v=20261113-r70';
-import { buildRecord } from './record.js?v=20261113-r70';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r70';
-import { createArtworkQueue } from './artwork.js?v=20261113-r70';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r70';
-import { createAtriumProbes } from './atrium-probes.js?v=20261113-r70';
-import { setupGroupPhoto } from './group-photo.js?v=20261113-r70';
-import { setupKeepsake } from './keepsake.js?v=20261113-r70';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r70';
-import { createPlaySave } from './play-save.js?v=20261113-r70';
-const VERSION = '20261113-r70';
+import { buildArchitecture } from './architecture.js?v=20261113-r71';
+import { buildBotanicals } from './botanicals.js?v=20261113-r71';
+import { createHearts } from './hearts.js?v=20261113-r71';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r71';
+import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r71';
+import { setupWardrobe } from './wardrobe.js?v=20261113-r71';
+import { setupMusic } from './music.js?v=20261113-r71';
+import { setupCollection } from './collection.js?v=20261113-r71';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r71';
+import { prepareOffline } from './offline.js?v=20261113-r71';
+import { buildMagazines } from './magazines.js?v=20261113-r71';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r71';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r71';
+import { buildRolePortraits } from './roles.js?v=20261113-r71';
+import { buildRecord } from './record.js?v=20261113-r71';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r71';
+import { createArtworkQueue } from './artwork.js?v=20261113-r71';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r71';
+import { createAtriumProbes } from './atrium-probes.js?v=20261113-r71';
+import { setupGroupPhoto } from './group-photo.js?v=20261113-r71';
+import { setupKeepsake } from './keepsake.js?v=20261113-r71';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r71';
+import { createPlaySave } from './play-save.js?v=20261113-r71';
+const VERSION = '20261113-r71';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -140,10 +141,12 @@ const openingArtwork = createArtworkQueue(loader, ({ percent }) => {
   loading.update(10 + .89 * percent);
 }, { concurrency: 5 });
 const artwork = createArtworkQueue(loader, updateArtworkProgress);
-const performer = buildPhotographicPerformer(THREE, scene, {
+const stagePerformer = buildPhotographicPerformer(THREE, scene, {
   views: PERFORMER_VIEWS, version: VERSION, nightTint: [.84, .87, .91], lowerBodyExtension: .299, loader: openingArtwork.loaderFor('performer'),
   deferredLoader: artwork.loaderFor('performer-angles'),
 });
+let performer = stagePerformer;
+let rainOutfit;
 const music = setupMusic();
 const magazines = buildMagazines(THREE, scene, VERSION, playSave.random('magazines'), openingArtwork.loaderFor('magazines'));
 const dogSeat = world.stoolSeat.getCenter(new THREE.Vector3());
@@ -324,6 +327,36 @@ const magazineQuest = setupMagazineQuest(magazines, roles, dogSeat, record, () =
   rewardSounds,
   muteForCelebration: music.muteForCelebration,
   toast,
+});
+const updateWardrobe = setupWardrobe(THREE, scene, camera, $('#wardrobe-action'), async white => {
+  if (white && !rainOutfit) {
+    const lowerBodyExtension = .25;
+    rainOutfit = buildPhotographicPerformer(THREE, scene, {
+      name: '归期雨抄 · 白色舞台装',
+      reference: '音乐缘计划3 · 归期雨抄',
+      views: RAIN_OUTFIT_VIEWS,
+      version: VERSION,
+      position: stagePerformer.object.position.toArray(),
+      height: stagePerformer.object.userData.height - lowerBodyExtension,
+      lowerBodyExtension,
+      nightTint: [.69, .73, .78],
+      dayTint: [.84, .86, .90],
+    });
+    rainOutfit.object.visible = false;
+    if (!await rainOutfit.ready) {
+      scene.remove(rainOutfit.object);
+      rainOutfit = undefined;
+      toast('新服装未加载成功，可以再长按试一次。');
+      return false;
+    }
+  }
+  performer.object.visible = false;
+  performer = white ? rainOutfit : stagePerformer;
+  performer.setNight(night);
+  performer.update(performance.now() / 1000, camera);
+  performer.object.visible = true;
+  lighting.setRainStage(white);
+  return true;
 });
 let introTime=0;
 const keys = new Set();
@@ -518,7 +551,7 @@ window.addEventListener('keydown', event => {
     return;
   }
   if (event.code === 'Space') {
-    if (event.target.closest?.('#share-record, #pure-view-toggle, #exit-pure-view')) return;
+    if (event.target.closest?.('#share-record, #wardrobe-action, #pure-view-toggle, #exit-pure-view')) return;
     event.preventDefault();
     if (!event.repeat) jumpRequested = true;
   } else if (movementKeys.includes(event.code)) {
@@ -642,10 +675,12 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
  }
  else if(!entered){introTime+=dt;camera.position.set(5.1+Math.sin(introTime*.06)*.22,5.6,7.5);camera.lookAt(-1.1,2.7,-2.8)}
  const active=entered&&!pureView&&p.grounded&&!document.querySelector('#help-dialog[open], #music-dialog[open]');
- const magazineEngaged=magazineQuest.update(now,active&&!collection.celebrating);
+ const wardrobeEngaged=updateWardrobe(now,active&&canMove(),magazineQuest.roleUnlocked||record.unlocked,p);
+ const magazineEngaged=magazineQuest.update(now,active&&!wardrobeEngaged&&!collection.celebrating);
  performer.update(now/1000,camera);
  if(daimi.object.visible)daimi.update(now/1000,camera);
- collection.update(now,active&&!magazineEngaged);
+ collection.update(now,active&&!magazineEngaged&&!wardrobeEngaged);
+ lighting.update(now/1000);
  renderer.render(scene,camera);frameCount++;if(now-lastMetric>1000){fps=Math.round(frameCount*1000/(now-lastMetric));frameCount=0;lastMetric=now;}}
 // Small, read-only diagnostics to help validate mobile rendering and scene size.
 const artworkPanels = [
@@ -664,7 +699,8 @@ function updateArtworkProgress(overall) {
   }
 }
 
-window.bloomDebug={build:VERSION,bakedLighting:atriumProbes.loaded,get offline(){return offline},artworkProgress:artwork.progress,get position(){return {...p,yaw,pitch}},get collected(){return collection.count},get hearts(){return hearts.items.map(h=>({id:h.id,footPosition:h.footPosition,collected:h.collected}))},get renderer(){return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,fps,buffer:[canvas.width,canvas.height],pixelRatio:renderer.getPixelRatio(),suspended:rendererSuspended}},surfaces:world.surfaces,flowerCounts:flowers.counts,performer:performer.object.userData,
+window.bloomDebug={build:VERSION,bakedLighting:atriumProbes.loaded,get offline(){return offline},artworkProgress:artwork.progress,get position(){return {...p,yaw,pitch}},get collected(){return collection.count},get hearts(){return hearts.items.map(h=>({id:h.id,footPosition:h.footPosition,collected:h.collected}))},get renderer(){return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,fps,buffer:[canvas.width,canvas.height],pixelRatio:renderer.getPixelRatio(),suspended:rendererSuspended}},surfaces:world.surfaces,flowerCounts:flowers.counts,
+  get performer() { return performer.object.userData; },
   get magazines() { return magazines.items.map(({ id, x, y, z, floorY, lit }) => ({ id, x, y, z, floorY, lit })); },
   get daimi() { return { visible: daimi.object.visible, position: dogSeat.toArray(), height: daimi.object.userData.height,
     view: daimi.object.userData.currentView, barkPlays: magazineQuest.barkPlays }; },

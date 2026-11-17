@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r70") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r71") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r70") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r71") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -536,7 +536,7 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
 }
 .keepsake-count { display: block; color: #c7b694; font-size: 11px; text-align: right; }
 .keepsake-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-#record-finale .keepsake-actions, .keepsake-footer {
+#record-finale .keepsake-actions, .keepsake-follow-up, .keepsake-footer {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 7px;
@@ -613,16 +613,15 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
   padding-top: 12px;
   border-top: 1px solid #c4a66a44;
 }
-#continue-record { grid-column: 2; }
-@media (max-width: 620px) and (orientation: portrait) {
-  #record-finale { --keepsake-button-height: 42px; }
-}
+.keepsake-follow-up { align-items: center; margin-top: 7px; }
+.keepsake-follow-up:not(:has(button:not([hidden]))) { display: block; margin-top: 0; }
+#record-finale .keepsake-follow-up:has(button:not([hidden])) .keepsake-status { margin: 0; }
 @media (max-height: 550px) and (orientation: landscape) {
   #record-finale { --keepsake-button-height: 35px; padding-block: 12px; }
   #record-finale h2 { margin-bottom: 8px; }
   #record-finale .record-ticket { padding-block: 6px; }
   #record-finale .record-ticket strong { font-size: clamp(18px, 4vw, 26px); }
-  #record-finale .keepsake-actions, .keepsake-footer { gap: 5px; }
+  #record-finale .keepsake-actions, .keepsake-follow-up, .keepsake-footer { gap: 5px; }
   #record-finale .keepsake-status { margin-top: 4px; }
   .keepsake-footer { margin-top: 8px; padding-top: 8px; }
 }
@@ -1006,7 +1005,7 @@ dialog[open] {
 .pure-view header { visibility: hidden; }
 .pure-view #hud > :not(#joystick, #look-joystick, #exit-pure-view),
 .pure-view :is(.creator-credit, #achievement-badge, #hud-artwork, #heart-counter,
-  #magazine-counter, #role-counter, #collect-heart, #collected-message, #finale, .quest-action, #toast),
+  #magazine-counter, #role-counter, #collect-heart, #collected-message, #finale, .quest-action, #wardrobe-action, #toast),
 .pure-view #joystick :is(small, .guide-gesture),
 .pure-view #look-joystick > :not(#look-stick) {
   display: none;
@@ -1224,3 +1223,36 @@ body.entered #achievement-badge {
     right: calc(var(--look-right-center, 26vw) + 14px - var(--look-pad-size) / 2);
   }
 }
+
+#wardrobe-action {
+  position: fixed;
+  z-index: 6;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: var(--control-large);
+  border: 1px solid #88e7efad;
+  padding: 5px 15px 5px 7px;
+  border-radius: var(--control-radius);
+  background: repeating-linear-gradient(0deg, #9ae9f70d 0 1px, transparent 1px 5px), #102c3ae8;
+  box-shadow: 0 0 22px #66d2ff50, inset 0 0 15px #b6eeff17;
+  color: #e5faff;
+  text-align: left;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#wardrobe-action svg { width: 36px; height: 36px; fill: none; stroke: #a5ebff; stroke-width: 1.5px; }
+#wardrobe-action .track { opacity: .25; }
+#wardrobe-action .progress {
+  stroke: #e5faff;
+  stroke-width: 2.6px;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+#wardrobe-action strong, #wardrobe-action small { display: block; white-space: nowrap; }
+#wardrobe-action strong { font-size: 13px; }
+#wardrobe-action small { color: #9cdce7; font-size: 10px; margin-top: 3px; }

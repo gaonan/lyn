@@ -74,13 +74,14 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
   const loader = options.loader || new T.TextureLoader(), entries = new Array(4), trackedTextures = new Set(), disposedTextures = new Set();
   const fadeSeconds = clamp(options.fadeSeconds ?? .18, .05, .5), hysteresis = clamp(options.hysteresisDegrees ?? 7, 0, 20) * Math.PI / 180;
   const nightTint = options.nightTint || [.68, .72, .78];
+  const dayTint = options.dayTint || [1, 1, 1];
   let mesh, material, uniforms, commonLeft = 0, commonWidth = 0, settled = false, success = false, selected = 0, from = 0, transition = null, initialized = false, night = false;
   const cameraPoint = new T.Vector3(), actorPoint = new T.Vector3(), actorQuaternion = new T.Quaternion(), actorEuler = new T.Euler(0, 0, 0, 'YXZ');
   function notify(name, value) { try { options[name]?.(value); } catch (error) { console.warn(`Photo performer ${name} callback failed`, error); } }
   function disposeTexture(texture) { if (texture?.dispose && !disposedTextures.has(texture)) { texture.dispose(); disposedTextures.add(texture); } }
   function setNight(value) {
     night = Boolean(value); state.night = night;
-    if (material) material.color.setRGB(...(night ? nightTint : [1, 1, 1]));
+    if (material) material.color.setRGB(...(night ? nightTint : dayTint));
   }
   function setSample(prefix, index) {
     const view = entries[index], f = view.frame;
