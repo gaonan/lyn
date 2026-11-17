@@ -1,7 +1,5 @@
-// Small, seamless procedural maps keep material detail independent of network speed.
-export function makeSurfaceMaps(T, kind) {
-  const size = 256, mask = size - 1;
-  let seed = 6247;
+function surfaceNoise(size, seed) {
+  const mask = size - 1;
   const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
   const grid = Float32Array.from({ length: size * size }, random);
   const sample = (x, y) => grid[(x & mask) + (y & mask) * size];
@@ -15,6 +13,48 @@ export function makeSurfaceMaps(T, kind) {
     const high = sample(left, bottom) * (1 - a) + sample(right, bottom) * a;
     return low * (1 - b) + high * b;
   }
+  return { sample, noise };
+}
+
+function surfaceTexture(T, data, size, colorSpace) {
+  const map = new T.DataTexture(data, size, size);
+  map.colorSpace = colorSpace;
+  map.wrapS = map.wrapT = T.RepeatWrapping;
+  map.magFilter = T.LinearFilter;
+  map.minFilter = T.LinearMipmapLinearFilter;
+  map.generateMipmaps = true;
+  map.anisotropy = 4;
+  map.needsUpdate = true;
+  return map;
+}
+
+// One continuous albedo across the poured slab. The larger trowel marks and
+// exposed aggregate still read after mipmapping removes the pinhole detail.
+export function makeConcreteFloorColor(T) {
+  const size = 512;
+  const { sample, noise } = surfaceNoise(size, 94312);
+  const pixels = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const u = x / size, v = y / size;
+    const flow = noise(u * 8, v * 8, 8, 8) - .5;
+    const curing = noise(u * 16 + flow * 1.9, v * 16, 16, 16) - .5;
+    const trowel = noise(u * 32 + flow * 2, v * 64 + curing * 1.6, 32, 64) - .5;
+    const aggregate = noise(u * 128, v * 128, 128, 128) - .5;
+    const grain = sample(x, y) - .5;
+    const shade = 19 * flow + 30 * curing + 16 * trowel + 17 * aggregate + 8 * grain;
+    const i = (x + y * size) * 4;
+    pixels[i] = Math.round(176 + shade);
+    pixels[i + 1] = Math.round(174 + shade + 2 * curing);
+    pixels[i + 2] = Math.round(169 + shade + 5 * curing);
+    pixels[i + 3] = 255;
+  }
+  return surfaceTexture(T, pixels, size, T.SRGBColorSpace);
+}
+
+// Small, seamless procedural maps keep material detail independent of network speed.
+export function makeSurfaceMaps(T, kind) {
+  const size = 256, mask = size - 1;
+  const { sample, noise } = surfaceNoise(size, 6247);
   const color = new Uint8Array(size * size * 4);
   const normal = new Uint8Array(color.length);
   const roughness = new Uint8Array(color.length);
@@ -31,8 +71,9 @@ export function makeSurfaceMaps(T, kind) {
     let shade, height, finish;
     if (wood) {
       const broad = noise(u * 8, v * 4, 8, 4);
-      const curve = .032 * broad + .009 * Math.sin(tau * v);
-      const annual = Math.max(0, Math.sin(tau * (u + curve) * 19)) ** 6;
+      const curve = .057 * broad + .007 * Math.sin(tau * v);
+      const bands = noise((u + curve) * 32, v * 2, 32, 2);
+      const annual = Math.max(0, bands - .35) ** 2 * 2.35;
       const pores = noise((u + curve) * 128, v * 8, 128, 8);
       const openPores = Math.max(0, pores - .53);
       shade = 18 * (broad - .5) - 11 * annual - 25 * openPores + 4 * grain;
@@ -75,20 +116,9 @@ export function makeSurfaceMaps(T, kind) {
     normal[i + 2] = 127.5 * (1 + 1 / length);
     normal[i + 3] = 255;
   }
-  function texture(data, colorSpace) {
-    const map = new T.DataTexture(data, size, size);
-    map.colorSpace = colorSpace;
-    map.wrapS = map.wrapT = T.RepeatWrapping;
-    map.magFilter = T.LinearFilter;
-    map.minFilter = T.LinearMipmapLinearFilter;
-    map.generateMipmaps = true;
-    map.anisotropy = 4;
-    map.needsUpdate = true;
-    return map;
-  }
   return {
-    map: texture(color, T.SRGBColorSpace),
-    normalMap: texture(normal, T.NoColorSpace),
-    roughnessMap: texture(roughness, T.NoColorSpace),
+    map: surfaceTexture(T, color, size, T.SRGBColorSpace),
+    normalMap: surfaceTexture(T, normal, size, T.NoColorSpace),
+    roughnessMap: surfaceTexture(T, roughness, size, T.NoColorSpace),
   };
 }

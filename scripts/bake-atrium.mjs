@@ -119,19 +119,31 @@ const directions = Array.from({ length: samples }, (_, index) => {
 });
 const [width, height, depth] = PROBE_SIZE;
 const result = [Buffer.alloc(width * height * depth * 4), Buffer.alloc(width * height * depth * 4)];
+const openSky = [[.19, .145, .175], [.015, .021, .040]];
+const roofHeight = 10.1;
 for (let z = 0; z < depth; z++) for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
   const origin = [x, y, z].map((i, axis) => PROBE_MIN[axis] + (i + .5) / PROBE_SIZE[axis] * PROBE_SPAN[axis]);
   const total = [[0, 0, 0], [0, 0, 0]];
   let occlusion = 0;
   for (const direction of directions) {
     const hit = trace(origin, direction, 18);
-    if (!hit) continue;
-    const radiance = reflectedRadiance(hit, origin, direction);
-    const weight = 1 / (1 + hit.distance * .22);
+    let radiance, weight;
+    if (hit) {
+      radiance = reflectedRadiance(hit, origin, direction);
+      weight = 1 / (1 + hit.distance * .22);
+      occlusion += Math.max(0, 1 - hit.distance / 2.65) ** 1.35;
+    } else {
+      if (direction[1] <= 0) continue;
+      const exit = Math.max(0, roofHeight - origin[1]) / direction[1];
+      const exitX = origin[0] + exit * direction[0];
+      const exitZ = origin[2] + exit * direction[2];
+      if (exitX < -8.9 || exitX > 8.9 || exitZ < -6.9 || exitZ > 8.9) continue;
+      radiance = openSky;
+      weight = .55 + .45 * direction[1];
+    }
     for (let mode = 0; mode < 2; mode++) for (let channel = 0; channel < 3; channel++) {
       total[mode][channel] += radiance[mode][channel] * weight;
     }
-    occlusion += Math.max(0, 1 - hit.distance / 2.65) ** 1.35;
   }
   const offset = (x + y * width + z * width * height) * 4;
   for (let mode = 0; mode < 2; mode++) {

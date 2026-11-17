@@ -45,6 +45,7 @@ export function createAtriumProbes(T, version) {
       if (object.material?.isMeshStandardMaterial) materials.add(object.material);
     });
     for (const material of materials) {
+      const varyInstanceUv = material.userData.varyInstanceUv === true;
       material.onBeforeCompile = shader => {
         shader.uniforms.atriumLightMap = map;
         shader.uniforms.atriumLightReady = ready;
@@ -59,6 +60,23 @@ export function createAtriumProbes(T, version) {
               atriumPosition = instanceMatrix * atriumPosition;
             #endif
             atriumWorldPosition = (modelMatrix * atriumPosition).xyz;`);
+        if (varyInstanceUv) {
+          shader.vertexShader = shader.vertexShader.replace('#include <uv_vertex>', `#include <uv_vertex>
+            #ifdef USE_INSTANCING
+              vec3 piece = instanceMatrix[3].xyz;
+              vec2 grainOffset = fract(sin(vec2(dot(piece, vec3(15.31, 49.3, 31.7)),
+                dot(piece, vec3(37.11, 19.9, 23.5)))) * 10303.237);
+              #ifdef USE_MAP
+                vMapUv += grainOffset;
+              #endif
+              #ifdef USE_NORMALMAP
+                vNormalMapUv += grainOffset;
+              #endif
+              #ifdef USE_ROUGHNESSMAP
+                vRoughnessMapUv += grainOffset;
+              #endif
+            #endif`);
+        }
         shader.fragmentShader = shader.fragmentShader
           .replace('#include <common>', `#include <common>
             varying vec3 atriumWorldPosition;
@@ -75,7 +93,7 @@ export function createAtriumProbes(T, version) {
             irradiance += bakedLight.rgb * bakedLight.rgb * ${PROBE_IRRADIANCE_RANGE.toFixed(1)} *
               atriumLightReady * atriumLightIntensity;`);
       };
-      material.customProgramCacheKey = () => 'atrium-baked-probes-v1';
+      material.customProgramCacheKey = () => `atrium-baked-probes-v1/${varyInstanceUv}`;
       material.needsUpdate = true;
     }
   }

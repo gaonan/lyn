@@ -1,4 +1,4 @@
-import { makeSurfaceMaps } from './surface-maps.js?v=20261113-r68';
+import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261113-r69';
 
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a
@@ -33,11 +33,16 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   const material = (color, props = {}) => new THREE.MeshStandardMaterial({ color, roughness: .83, ...props });
   const mats = {
     concrete: material('#c1b9ae', { ...surface(concrete, 2, 1, .30), roughness: 1 }),
-    floor: material('#b6aa9b', { ...surface(concrete, 9, 8, .09), roughness: 1 }),
+    floor: material('#bcb6ae', {
+      ...surface(concrete, 9, 8, .24), map: makeConcreteFloorColor(THREE), roughness: 1,
+    }),
     wall: material('#c2bcb3', { ...surface(plaster, 4, 3, .26), roughness: 1 }),
     wood: material('#ba9f84', { ...surface(wood, 1, 1, .57), roughness: 1 }),
     darkWood: material('#a28570', { ...surface(wood, 2, 3, .45), roughness: 1 }),
     deck: material('#ad9987', { ...surface(wood, 1, 1, .32, Math.PI / 2), roughness: .94 }),
+    stairConcrete: material('#c1b9ae', { ...surface(concrete, 2, 1, .25), roughness: 1 }),
+    stairWoodX: material('#a28570', { ...surface(wood, 1, 1, .36, Math.PI / 2), roughness: .94 }),
+    stairWoodZ: material('#a28570', { ...surface(wood, 1, 1, .36), roughness: .94 }),
     black: material('#292c2b', { roughness: .43, metalness: .45 }),
     book: material('#ffffff', { roughness: .8 }),
     paper: material('#dfd5bf'),
@@ -50,9 +55,15 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
     dark: material('#141c18'),
     red: material('#d95940'),
     chrome: material('#b9b7a4', { metalness: .65, roughness: .3 }),
-    roof: material('#68717b', { metalness: .3, roughness: .7 }),
     truss: material('#58616b', { metalness: .35, roughness: .6 }),
   };
+  for (const mat of [mats.deck, mats.stairConcrete, mats.stairWoodX, mats.stairWoodZ]) {
+    mat.userData.varyInstanceUv = true;
+  }
+  function variation(a, b, c) {
+    const value = Math.sin(a * 19.41 + b * 43.89 + c * 67.21) * 43758.5453;
+    return value - Math.floor(value);
+  }
   function instance(geo, mat, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0, color) {
     const key = `${geo.uuid}/${mat.uuid}`;
     if (!batches.has(key)) batches.set(key, { geo, mat, entries: [] });
@@ -89,11 +100,12 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
         const z = minZ + (row + .5) * width;
         let x = minX;
         for (let board = 0; x < maxX; board++) {
-          const length = board === 0 ? .63 + (row % 3) * .52 : 1.85;
+          const length = board === 0
+            ? .52 + 1.32 * variation(row + 1, minX, y)
+            : 1.55 + .58 * variation(row, board, minZ);
           let end = Math.min(maxX, x + length);
           if (maxX - end < .20) end = maxX;
-          const variation = .86 + ((row * 7 + board * 3) % 11) * .012;
-          const tint = new THREE.Color().setScalar(variation);
+          const tint = new THREE.Color().setScalar(.84 + .18 * variation(x, z, y));
           box(mats.deck, (x + end) / 2, y + .006, z, end - x - .006, .018, width - .004, 0, tint);
           x = end;
         }
@@ -129,7 +141,6 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
 
   box(mats.wall, 0, 5.05, -7.05, 18.2, 10.1, .3);
   box(mats.wall, -9.05, 5.05, 1, .3, 10.1, 16.2);
-  box(mats.wall, 0, 10.13, 1, 18.2, .20, 16.2);
   // The continuous plaster surface carries the record and visitor projections.
   box(mats.wall, 0, 5.05, 9.04, 18.2, 10.1, .25);
   collider(-9.2, -8.91, -7.2, 9.2, 0, 11); collider(8.91, 9.2, -7.2, 9.2, 0, 11);
@@ -144,8 +155,9 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   box(mats.wall, 9.05, 9.55, -4.55, .3, 1.1, 4.9);
   box(mats.wall, 9.05, 5.05, -6.85, .3, 10.1, .35);
   box(mats.wall, 9.05, 5.05, -2.15, .3, 10.1, .55);
-  box(mats.wall, 9.05, 3.6, 3.3, .3, 7.2, 10.5);
-  box(mats.wall, 9.05, 9.45, 3.3, .3, 1.3, 10.5);
+  // Meet the back wall so the open sky is visible above the parapet.
+  box(mats.wall, 9.05, 3.6, 3.545, .3, 7.2, 10.99);
+  box(mats.wall, 9.05, 9.45, 3.545, .3, 1.3, 10.99);
   box(mats.wall, 9.05, 8.0, -.95, .3, 1.6, 1.6);
   box(mats.wall, 9.05, 8.0, 8.25, .3, 1.6, 1.5);
   function sideWindow(z1,z2,y1,y2,columns) {
@@ -182,14 +194,16 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
     const direction = Math.sign(end - start);
     const transverse = axis === 'x';
     const point = (cross, y, run) => transverse ? [run, y, cross] : [cross, y, run];
-    const tread = (material, run, y, w, h, d) =>
-      box(material, ...point(across, y, run), transverse ? d : w, h, transverse ? w : d);
+    const tread = (material, run, y, w, h, d, color) =>
+      box(material, ...point(across, y, run), transverse ? d : w, h, transverse ? w : d, 0, color);
+    const woodTread = transverse ? mats.stairWoodZ : mats.stairWoodX;
 
     for (let i = 0; i < count; i++) {
       const y = yStart + (yEnd - yStart) * (i + 1) / count;
       const run = start + direction * depth * (i + .5);
-      tread(mats.concrete, run, y - .09, width, .18, depth + .015);
-      tread(mats.darkWood, run, y + .002, width, .012, depth);
+      const tint = new THREE.Color().setScalar(.86 + .16 * variation(run, y, across));
+      tread(mats.stairConcrete, run, y - .09, width, .18, depth + .015);
+      tread(woodTread, run, y + .002, width, .012, depth, tint);
       tread(mats.light, run - direction * (depth / 2 - .015), y - .025, width - .18, .012, .016);
       if (underside && y > .35) {
         // Keep ground-level head clearance under the descending flight.

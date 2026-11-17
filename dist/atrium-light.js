@@ -1,4 +1,7 @@
+import { createAtriumSky } from './atrium-sky.js?v=20261113-r69';
+
 export function createAtriumLighting(T, renderer, scene, probes) {
+  const atriumSky = createAtriumSky(T, scene);
   const reflection = document.createElement('canvas');
   reflection.width = 128;
   reflection.height = 64;
@@ -159,6 +162,7 @@ export function createAtriumLighting(T, renderer, scene, probes) {
   renderer.shadowMap.autoUpdate = false;
 
   function setNight(night) {
+    atriumSky.setNight(night);
     probes.setNight(night);
     bounce.intensity = night ? .65 : .91;
     daylight.intensity = night ? .15 : 1.85;
