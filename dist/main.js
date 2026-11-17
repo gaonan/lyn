@@ -1,27 +1,27 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r75';
-import { buildBotanicals } from './botanicals.js?v=20261113-r75';
-import { createHearts } from './hearts.js?v=20261113-r75';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r75';
-import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r75';
-import { setupWardrobe } from './wardrobe.js?v=20261113-r75';
-import { setupMusic } from './music.js?v=20261113-r75';
-import { setupCollection } from './collection.js?v=20261113-r75';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r75';
-import { prepareOffline } from './offline.js?v=20261113-r75';
-import { buildMagazines } from './magazines.js?v=20261113-r75';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r75';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r75';
-import { buildRolePortraits } from './roles.js?v=20261113-r75';
-import { buildRecord } from './record.js?v=20261113-r75';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r75';
-import { createArtworkQueue } from './artwork.js?v=20261113-r75';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r75';
-import { createAtriumProbes } from './atrium-probes.js?v=20261113-r75';
-import { setupKeepsake } from './keepsake.js?v=20261113-r75';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r75';
-import { createPlaySave } from './play-save.js?v=20261113-r75';
-const VERSION = '20261113-r75';
+import { buildArchitecture } from './architecture.js?v=20261113-r76';
+import { buildBotanicals } from './botanicals.js?v=20261113-r76';
+import { createHearts } from './hearts.js?v=20261113-r76';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r76';
+import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r76';
+import { setupWardrobe } from './wardrobe.js?v=20261113-r76';
+import { setupMusic } from './music.js?v=20261113-r76';
+import { setupCollection } from './collection.js?v=20261113-r76';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r76';
+import { prepareOffline } from './offline.js?v=20261113-r76';
+import { buildMagazines } from './magazines.js?v=20261113-r76';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r76';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r76';
+import { buildRolePortraits } from './roles.js?v=20261113-r76';
+import { buildRecord } from './record.js?v=20261113-r76';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r76';
+import { createArtworkQueue } from './artwork.js?v=20261113-r76';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r76';
+import { createAtriumProbes } from './atrium-probes.js?v=20261113-r76';
+import { setupKeepsake } from './keepsake.js?v=20261113-r76';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r76';
+import { createPlaySave } from './play-save.js?v=20261113-r76';
+const VERSION = '20261113-r76';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -239,9 +239,9 @@ function renderWallView(target) {
 }
 function renderKeepsake(ctx, x, y, width, height, pixelScale, angle) {
   const rear = angle === 1;
-  const photoCamera = new THREE.PerspectiveCamera(rear ? 51 : 44, width / height, .07, 65);
-  photoCamera.position.set(...(rear ? [1.16, 1.38, -4.05] : [.15, 1.28, 2.96]));
-  photoCamera.lookAt(...(rear ? [-4.05, 3.25, 4.45] : [.03, 1.38, -1]));
+  const photoCamera = new THREE.PerspectiveCamera(rear ? 58 : 44, width / height, .07, 65);
+  photoCamera.position.set(...(rear ? [.68, 1.36, -2.07] : [.15, 1.28, 2.96]));
+  photoCamera.lookAt(...(rear ? [-5.7, 3.95, 6.2] : [.03, 1.38, -1]));
   photoCamera.updateMatrixWorld();
   const props = [...hearts.items.map(heart => heart.object), daimi.object, daimiShadow];
   const visible = props.map(object => object.visible);
@@ -305,8 +305,8 @@ const updateWardrobe = setupWardrobe(THREE, scene, camera, $('#wardrobe-action')
       position: stagePerformer.object.position.toArray(),
       height: stagePerformer.object.userData.height - lowerBodyExtension,
       lowerBodyExtension,
-      nightTint: [.69, .73, .78],
-      dayTint: [.84, .86, .90],
+      nightTint: [.49, .54, .60],
+      dayTint: [.68, .71, .76],
     });
     rainOutfit.object.visible = false;
     if (!await rainOutfit.ready) {

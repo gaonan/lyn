@@ -1,3 +1,5 @@
+import { MESSAGE_WALL_SKY_EDGE } from './atrium-sky.js?v=20261113-r76';
+
 export const PROBE_SIZE = [24, 18, 22];
 export const PROBE_MIN = [-9, 0, -7];
 export const PROBE_SPAN = [18, 10.2, 16];
@@ -9,8 +11,9 @@ export function createAtriumProbes(T, version) {
   const fallback = texture(new Uint8Array([0, 0, 0, 255]), [1, 1, 1]);
   const map = { value: fallback };
   const ready = { value: 0 };
-  const intensity = { value: .56 };
+  const intensity = { value: .23 };
   const nightAmount = { value: 1 };
+  const wallRim = { value: new T.Color(MESSAGE_WALL_SKY_EDGE.color) };
   let night = true;
   let maps;
 
@@ -24,7 +27,7 @@ export function createAtriumProbes(T, version) {
   function setNight(value) {
     night = value;
     nightAmount.value = Number(night);
-    intensity.value = night ? .56 : .88;
+    intensity.value = night ? .23 : .88;
     if (maps) map.value = maps[Number(night)];
   }
 
@@ -49,6 +52,7 @@ export function createAtriumProbes(T, version) {
     for (const material of materials) {
       const varyInstanceUv = material.userData.varyInstanceUv === true;
       const nightWallGradient = material.userData.nightWallGradient === true;
+      const nightShade = material.userData.nightShade ?? 1;
       const compile = material.onBeforeCompile;
       const finishKey = material.customProgramCacheKey();
       material.onBeforeCompile = function (shader, renderer) {
@@ -98,18 +102,33 @@ export function createAtriumProbes(T, version) {
             iblIrradiance *= visibility;
             irradiance += bakedLight.rgb * bakedLight.rgb * ${PROBE_IRRADIANCE_RANGE.toFixed(1)} *
               atriumLightReady * atriumLightIntensity;`);
-        if (nightWallGradient) {
+        if (nightWallGradient || nightShade !== 1) {
           shader.uniforms.atriumNight = nightAmount;
+          shader.fragmentShader = shader.fragmentShader.replace('#include <common>',
+            '#include <common>\nuniform float atriumNight;');
+        }
+        if (nightShade !== 1) {
+          shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
+            outgoingLight *= mix(1.0, ${nightShade.toFixed(3)}, atriumNight);
+            #include <opaque_fragment>`);
+        }
+        if (nightWallGradient) {
+          shader.uniforms.atriumWallRim = wallRim;
           shader.fragmentShader = shader.fragmentShader
-            .replace('#include <common>', '#include <common>\nuniform float atriumNight;')
+            .replace('#include <common>', '#include <common>\nuniform vec3 atriumWallRim;')
             .replace('#include <opaque_fragment>', `
-              float wallHeight = smoothstep(2.75, 10.08, atriumWorldPosition.y);
-              vec3 nightWallTone = mix(vec3(.90, .92, .96), vec3(.27, .31, .39), wallHeight);
+              float wallHeight = smoothstep(2.2, ${MESSAGE_WALL_SKY_EDGE.height}, atriumWorldPosition.y);
+              vec3 nightWallTone = mix(vec3(.57, .54, .52), vec3(.11, .13, .17), wallHeight);
               outgoingLight *= mix(vec3(1.0), nightWallTone, atriumNight);
-              #include <opaque_fragment>`);
+              #include <opaque_fragment>`)
+            .replace('#include <tonemapping_fragment>', `
+              #include <tonemapping_fragment>
+              float wallRimMix = atriumNight * smoothstep(${MESSAGE_WALL_SKY_EDGE.height - 1.55},
+                ${MESSAGE_WALL_SKY_EDGE.height}, atriumWorldPosition.y);
+              gl_FragColor.rgb = mix(gl_FragColor.rgb, atriumWallRim, wallRimMix);`);
         }
       };
-      material.customProgramCacheKey = () => `${finishKey}/atrium-baked-probes-v1/${varyInstanceUv}/${nightWallGradient}`;
+      material.customProgramCacheKey = () => `${finishKey}/atrium-baked-probes-v1/${varyInstanceUv}/${nightWallGradient}/${nightShade}`;
       material.needsUpdate = true;
     }
   }

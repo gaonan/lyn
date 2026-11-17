@@ -1,5 +1,5 @@
-import { createAtriumSky } from './atrium-sky.js?v=20261113-r75';
-import { createStageMist } from './stage-mist.js?v=20261113-r75';
+import { createAtriumSky } from './atrium-sky.js?v=20261113-r76';
+import { createStageMist } from './stage-mist.js?v=20261113-r76';
 
 export function createAtriumLighting(T, renderer, scene, probes) {
   const atriumSky = createAtriumSky(T, scene);
@@ -66,9 +66,9 @@ export function createAtriumLighting(T, renderer, scene, probes) {
     { color: '#938cff', from: [3.65, 2.55, -4.7], to: [2.2, .45, -.65], angle: .64, penumbra: .80, day: 0, night: 43 },
   ];
   const rainSpots = [
-    { color: '#e4eeff', from: [-.20, 5.48, -1.95], to: [.10, .68, -.83], angle: .25, day: 72, night: 102 },
-    { color: '#d6e6ff', from: [3.58, 2.08, -4.06], to: [-.42, .28, .75], angle: .43, day: 109, night: 189 },
-    { color: '#90beff', from: [-3.46, 2.23, -4.12], to: [.68, .29, .84], angle: .47, day: 119, night: 199 },
+    { color: '#e4eeff', from: [-.20, 5.48, -1.95], to: [.10, .68, -.83], angle: .25, day: 72, night: 82 },
+    { color: '#d6e6ff', from: [3.58, 2.08, -4.06], to: [-.42, .28, .75], angle: .43, day: 109, night: 140 },
+    { color: '#90beff', from: [-3.46, 2.23, -4.12], to: [.68, .29, .84], angle: .47, day: 119, night: 148 },
   ];
 
   const shaftGeometry = new T.PlaneGeometry(1, 1, 1, 4);
@@ -186,13 +186,13 @@ export function createAtriumLighting(T, renderer, scene, probes) {
     isNight = night;
     atriumSky.setNight(night);
     probes.setNight(night);
-    bounce.intensity = night ? .65 : .91;
-    daylight.intensity = night ? .15 : 1.85;
+    bounce.intensity = night ? .48 : .91;
+    daylight.intensity = night ? .115 : 1.85;
     shelves.intensity = night ? 25 : 16;
     lounge.intensity = night ? 28 : 9;
     upperFill.intensity = night ? 18 : 7;
-    renderer.toneMappingExposure = night ? 1.10 : 1.05;
-    scene.environmentIntensity = night ? .46 : .58;
+    renderer.toneMappingExposure = night ? 1.02 : 1.05;
+    scene.environmentIntensity = night ? .34 : .58;
     const lightRig = rainActive ? rainSpots : roomSpots;
     spots.forEach((light, index) => setSpotlight(light, lightRig[index], night));
     if (rainActive) {
@@ -220,11 +220,11 @@ export function createAtriumLighting(T, renderer, scene, probes) {
     if (enabled && !stageMist) {
       stageMist = createStageMist(T, scene);
       rainBeams = [
-        shaft(rainSpots[0].from, rainSpots[0].to, .46, '#e5edff', .24, .51, .14),
-        shaft(rainSpots[1].from, rainSpots[1].to, .96, '#d8e8ff', .23, .47, .10),
-        shaft(rainSpots[1].from, [-1.1, 1.08, -.14], .32, '#eef5ff', .17, .34, .10),
-        shaft(rainSpots[2].from, rainSpots[2].to, .99, '#99c3ff', .24, .50, .10),
-        shaft(rainSpots[2].from, [1.18, 1.17, -.18], .34, '#c2ddff', .18, .37, .10),
+        shaft(rainSpots[0].from, rainSpots[0].to, .46, '#e5edff', .24, .32, .14),
+        shaft(rainSpots[1].from, rainSpots[1].to, .96, '#d8e8ff', .23, .28, .10),
+        shaft(rainSpots[1].from, [-1.1, 1.08, -.14], .32, '#eef5ff', .17, .19, .10),
+        shaft(rainSpots[2].from, rainSpots[2].to, .99, '#99c3ff', .24, .30, .10),
+        shaft(rainSpots[2].from, [1.18, 1.17, -.18], .34, '#c2ddff', .18, .21, .10),
       ];
       rainGlows = rainSpots.slice(1).map(lamp =>
         lampGlow(new T.Vector3(...lamp.from), lamp.color, 1.1));

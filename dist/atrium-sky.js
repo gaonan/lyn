@@ -1,7 +1,10 @@
+export const MESSAGE_WALL_SKY_EDGE = { height: 10.1, x: -8.9, z: 8.915, color: '#0b0b10' };
+
 export function createAtriumSky(T, scene) {
   const night = { value: true };
+  const parapet = MESSAGE_WALL_SKY_EDGE;
   const material = new T.ShaderMaterial({
-    uniforms: { night },
+    uniforms: { night, rimColor: { value: new T.Color(parapet.color).convertLinearToSRGB() } },
     side: T.BackSide,
     depthWrite: false,
     fog: false,
@@ -16,6 +19,7 @@ export function createAtriumSky(T, scene) {
       }`,
     fragmentShader: `
       uniform bool night;
+      uniform vec3 rimColor;
       varying vec3 skyDirection;
 
       vec2 hash2(vec2 p) {
@@ -62,8 +66,8 @@ export function createAtriumSky(T, scene) {
       }
 
       vec3 galaxy(vec3 direction, vec2 plane, float altitude) {
-        vec3 zenith = vec3(.025, .042, .097);
-        vec3 horizon = vec3(.073, .096, .16);
+        vec3 zenith = vec3(.016, .017, .024);
+        vec3 horizon = vec3(.041, .041, .052);
         vec3 color = mix(horizon, zenith, smoothstep(.02, .78, altitude));
 
         // The bright end rises over the message-wall corner.
@@ -86,14 +90,19 @@ export function createAtriumSky(T, scene) {
           float secondaryLane = gaussian((latitude - .090 + .038 * sin(longitude * 12.0)) / .029);
           float extinction = max(.10, 1.0 - centerLane * (.44 + .44 * fibers) - secondaryLane * .19);
           float structure = .38 + .47 * knots + .15 * fibers;
-          vec3 light = mix(vec3(.28, .38, .49), vec3(.57, .49, .38), core * (.28 + .44 * knots));
-          color += band * structure * extinction * light * (.80 + .32 * core);
-          color += band * vec3(.027, .035, .052);
+          vec3 light = mix(vec3(.26, .28, .32), vec3(.43, .40, .34), core * (.28 + .44 * knots));
+          color += band * structure * extinction * light * (.73 + .28 * core);
+          color += band * vec3(.016, .019, .024);
         }
         color += stars(plane, 137.0, .18, .047, .38);
         color += stars(plane + vec2(-.69, .29), 61.0, .097, .078, .62);
         color += stars(plane + vec2(.34, .17), 284.0, band * .68, .065, .33) * band;
-        return color;
+        // Measure from the parapet in room space so the fade follows both
+        // wall edges as the player moves, including in the keepsake camera.
+        float roofDistance = (${parapet.height} - cameraPosition.y) / max(direction.y, .001);
+        vec2 roofHit = cameraPosition.xz + direction.xz * roofDistance;
+        float edgeDistance = min(roofHit.x - (${parapet.x}), ${parapet.z} - roofHit.y);
+        return mix(rimColor, color, smoothstep(.0, 2.8, edgeDistance));
       }
 
       vec3 sunset(vec3 direction, vec2 plane, float altitude) {
