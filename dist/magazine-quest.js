@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r74';
-import { roleInReach } from './roles.js?v=20261113-r74';
+import { magazineInReach } from './magazines.js?v=20261113-r75';
+import { roleInReach } from './roles.js?v=20261113-r75';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
@@ -198,6 +198,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   dialog.querySelector('.primary').onclick = () => {
     dialog.close();
     options.goToStage();
+    options.toast('请走到呆米身边和它互动（打开音量）', 5800);
   };
   for (const button of roleDialog.querySelectorAll('button')) {
     button.onclick = () => roleDialog.close();

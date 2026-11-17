@@ -1,5 +1,5 @@
-import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261113-r74';
-import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261113-r74';
+import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261113-r75';
+import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261113-r75';
 
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a
@@ -58,6 +58,8 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
     truss: material('#58616b', { metalness: .35, roughness: .6 }),
   };
   mats.deck.userData.varyInstanceUv = true;
+  const messageSideWall = mats.wall.clone();
+  messageSideWall.userData.nightWallGradient = true;
   function variation(a, b, c) {
     const value = Math.sin(a * 19.41 + b * 43.89 + c * 67.21) * 43758.5453;
     return value - Math.floor(value);
@@ -138,7 +140,7 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   floor(-6.5, -4.9, -5.1, .6, 7.2);
 
   box(mats.wall, 0, 5.05, -7.05, 18.2, 10.1, .3);
-  box(mats.wall, -9.05, 5.05, 1, .3, 10.1, 16.2);
+  box(messageSideWall, -9.05, 5.05, 1, .3, 10.1, 16.2);
   // The continuous plaster surface carries the record and visitor projections.
   box(mats.wall, 0, 5.05, 9.04, 18.2, 10.1, .25);
   collider(-9.2, -8.91, -7.2, 9.2, 0, 11); collider(8.91, 9.2, -7.2, 9.2, 0, 11);

@@ -10,6 +10,7 @@ export function createAtriumProbes(T, version) {
   const map = { value: fallback };
   const ready = { value: 0 };
   const intensity = { value: .56 };
+  const nightAmount = { value: 1 };
   let night = true;
   let maps;
 
@@ -22,6 +23,7 @@ export function createAtriumProbes(T, version) {
 
   function setNight(value) {
     night = value;
+    nightAmount.value = Number(night);
     intensity.value = night ? .56 : .88;
     if (maps) map.value = maps[Number(night)];
   }
@@ -46,6 +48,7 @@ export function createAtriumProbes(T, version) {
     });
     for (const material of materials) {
       const varyInstanceUv = material.userData.varyInstanceUv === true;
+      const nightWallGradient = material.userData.nightWallGradient === true;
       const compile = material.onBeforeCompile;
       const finishKey = material.customProgramCacheKey();
       material.onBeforeCompile = function (shader, renderer) {
@@ -95,8 +98,18 @@ export function createAtriumProbes(T, version) {
             iblIrradiance *= visibility;
             irradiance += bakedLight.rgb * bakedLight.rgb * ${PROBE_IRRADIANCE_RANGE.toFixed(1)} *
               atriumLightReady * atriumLightIntensity;`);
+        if (nightWallGradient) {
+          shader.uniforms.atriumNight = nightAmount;
+          shader.fragmentShader = shader.fragmentShader
+            .replace('#include <common>', '#include <common>\nuniform float atriumNight;')
+            .replace('#include <opaque_fragment>', `
+              float wallHeight = smoothstep(2.75, 10.08, atriumWorldPosition.y);
+              vec3 nightWallTone = mix(vec3(.90, .92, .96), vec3(.27, .31, .39), wallHeight);
+              outgoingLight *= mix(vec3(1.0), nightWallTone, atriumNight);
+              #include <opaque_fragment>`);
+        }
       };
-      material.customProgramCacheKey = () => `${finishKey}/atrium-baked-probes-v1/${varyInstanceUv}`;
+      material.customProgramCacheKey = () => `${finishKey}/atrium-baked-probes-v1/${varyInstanceUv}/${nightWallGradient}`;
       material.needsUpdate = true;
     }
   }

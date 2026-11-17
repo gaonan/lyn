@@ -66,19 +66,33 @@ export function createAtriumSky(T, scene) {
         vec3 horizon = vec3(.073, .096, .16);
         vec3 color = mix(horizon, zenith, smoothstep(.02, .78, altitude));
 
-        vec3 galacticPole = normalize(vec3(.37, -.57, -.72));
+        // The bright end rises over the message-wall corner.
+        vec3 galacticPole = normalize(vec3(.81, .57, .17));
+        vec3 coreDirection = normalize(vec3(-.56, .61, .56));
+        vec3 alongGalaxy = normalize(cross(galacticPole, coreDirection));
         float latitude = dot(direction, galacticPole);
-        vec2 dustSpace = plane * vec2(7.1, 8.6) + vec2(2.2, -4.4);
-        float drift = noise(plane * 3.1 + 5.7) - .5;
-        float band = gaussian((latitude + .052 * drift) / .18);
-        float outerGlow = gaussian(latitude / .35);
-        float gas = clouds(dustSpace);
-        float lane = gaussian((latitude + .13 * (gas - .47)) / .041);
-        float dust = smoothstep(.28, .64, gas) * (1.0 - .86 * lane);
-        vec3 starlight = mix(vec3(.18, .25, .44), vec3(.53, .43, .53), smoothstep(.40, .74, gas));
-        color += outerGlow * vec3(.026, .033, .067) + band * dust * starlight;
-        color += stars(plane, 149.0, .24 + .42 * band, .052, .47);
-        color += stars(plane + vec2(-.69, .29), 59.0, .18, .087, .82);
+        float facingCore = dot(direction, coreDirection);
+        float longitude = atan(dot(direction, alongGalaxy), facingCore);
+        float core = gaussian((longitude + .16) / .50);
+        float reach = smoothstep(-.06, .70, facingCore);
+        float band = gaussian(latitude / mix(.083, .16, core)) * reach;
+
+        if (band > .018) {
+          vec2 coordinates = vec2(longitude, latitude);
+          float knots = clouds(coordinates * vec2(10.0, 25.0) + vec2(15.8, -7.3));
+          float fibers = noise(coordinates * vec2(29.0, 79.0) + 2.75);
+          float bend = .033 * sin(longitude * 11.1 + .8) + .062 * (knots - .5);
+          float centerLane = gaussian((latitude + bend) / mix(.024, .050, core));
+          float secondaryLane = gaussian((latitude - .090 + .038 * sin(longitude * 12.0)) / .029);
+          float extinction = max(.10, 1.0 - centerLane * (.44 + .44 * fibers) - secondaryLane * .19);
+          float structure = .38 + .47 * knots + .15 * fibers;
+          vec3 light = mix(vec3(.28, .38, .49), vec3(.57, .49, .38), core * (.28 + .44 * knots));
+          color += band * structure * extinction * light * (.80 + .32 * core);
+          color += band * vec3(.027, .035, .052);
+        }
+        color += stars(plane, 137.0, .18, .047, .38);
+        color += stars(plane + vec2(-.69, .29), 61.0, .097, .078, .62);
+        color += stars(plane + vec2(.34, .17), 284.0, band * .68, .065, .33) * band;
         return color;
       }
 
