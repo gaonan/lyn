@@ -1,5 +1,5 @@
-import { createAtriumSky } from './atrium-sky.js?v=20261113-r73';
-import { createStageMist } from './stage-mist.js?v=20261113-r73';
+import { createAtriumSky } from './atrium-sky.js?v=20261113-r74';
+import { createStageMist } from './stage-mist.js?v=20261113-r74';
 
 export function createAtriumLighting(T, renderer, scene, probes) {
   const atriumSky = createAtriumSky(T, scene);
@@ -66,7 +66,7 @@ export function createAtriumLighting(T, renderer, scene, probes) {
     { color: '#938cff', from: [3.65, 2.55, -4.7], to: [2.2, .45, -.65], angle: .64, penumbra: .80, day: 0, night: 43 },
   ];
   const rainSpots = [
-    { color: '#e4eeff', from: [-.20, 5.48, -1.95], to: [.13, .16, -.71], angle: .25, day: 103, night: 174 },
+    { color: '#e4eeff', from: [-.20, 5.48, -1.95], to: [.10, .68, -.83], angle: .25, day: 72, night: 102 },
     { color: '#d6e6ff', from: [3.58, 2.08, -4.06], to: [-.42, .28, .75], angle: .43, day: 109, night: 189 },
     { color: '#90beff', from: [-3.46, 2.23, -4.12], to: [.68, .29, .84], angle: .47, day: 119, night: 199 },
   ];

@@ -1,4 +1,4 @@
-const VERSION='20261113-r73';
+const VERSION='20261113-r74';
 
 // Report when this release's cache is available, independent of scene startup.
 export async function prepareOffline({

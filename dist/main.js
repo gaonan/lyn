@@ -1,27 +1,27 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r73';
-import { buildBotanicals } from './botanicals.js?v=20261113-r73';
-import { createHearts } from './hearts.js?v=20261113-r73';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r73';
-import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r73';
-import { setupWardrobe } from './wardrobe.js?v=20261113-r73';
-import { setupMusic } from './music.js?v=20261113-r73';
-import { setupCollection } from './collection.js?v=20261113-r73';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r73';
-import { prepareOffline } from './offline.js?v=20261113-r73';
-import { buildMagazines } from './magazines.js?v=20261113-r73';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r73';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r73';
-import { buildRolePortraits } from './roles.js?v=20261113-r73';
-import { buildRecord } from './record.js?v=20261113-r73';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r73';
-import { createArtworkQueue } from './artwork.js?v=20261113-r73';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r73';
-import { createAtriumProbes } from './atrium-probes.js?v=20261113-r73';
-import { setupKeepsake } from './keepsake.js?v=20261113-r73';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r73';
-import { createPlaySave } from './play-save.js?v=20261113-r73';
-const VERSION = '20261113-r73';
+import { buildArchitecture } from './architecture.js?v=20261113-r74';
+import { buildBotanicals } from './botanicals.js?v=20261113-r74';
+import { createHearts } from './hearts.js?v=20261113-r74';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r74';
+import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r74';
+import { setupWardrobe } from './wardrobe.js?v=20261113-r74';
+import { setupMusic } from './music.js?v=20261113-r74';
+import { setupCollection } from './collection.js?v=20261113-r74';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r74';
+import { prepareOffline } from './offline.js?v=20261113-r74';
+import { buildMagazines } from './magazines.js?v=20261113-r74';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r74';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r74';
+import { buildRolePortraits } from './roles.js?v=20261113-r74';
+import { buildRecord } from './record.js?v=20261113-r74';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r74';
+import { createArtworkQueue } from './artwork.js?v=20261113-r74';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r74';
+import { createAtriumProbes } from './atrium-probes.js?v=20261113-r74';
+import { setupKeepsake } from './keepsake.js?v=20261113-r74';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r74';
+import { createPlaySave } from './play-save.js?v=20261113-r74';
+const VERSION = '20261113-r74';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -104,6 +104,7 @@ lighting.setShadows(qualityIndex === 0);
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, .07, 65);
 camera.rotation.order = 'YXZ';
 const world=buildArchitecture(THREE,scene);const flowers=buildBotanicals(THREE,scene,world.railPaths);
+const roomFloorTone = world.floorMaterial.color.clone();
 atriumProbes.apply(scene);
 camera.position.set(5.1,5.6,7.5);camera.lookAt(-1.1,2.7,-2.8);
 resizeRenderer();
@@ -236,10 +237,11 @@ function renderWallView(target) {
     renderer.render(scene, camera);
   }
 }
-function renderKeepsake(ctx, x, y, width, height, pixelScale) {
-  const photoCamera = new THREE.PerspectiveCamera(44, width / height, .07, 65);
-  photoCamera.position.set(.15, 1.28, 2.96);
-  photoCamera.lookAt(.03, 1.38, -1);
+function renderKeepsake(ctx, x, y, width, height, pixelScale, angle) {
+  const rear = angle === 1;
+  const photoCamera = new THREE.PerspectiveCamera(rear ? 51 : 44, width / height, .07, 65);
+  photoCamera.position.set(...(rear ? [1.16, 1.38, -4.05] : [.15, 1.28, 2.96]));
+  photoCamera.lookAt(...(rear ? [-4.05, 3.25, 4.45] : [.03, 1.38, -1]));
   photoCamera.updateMatrixWorld();
   const props = [...hearts.items.map(heart => heart.object), daimi.object, daimiShadow];
   const visible = props.map(object => object.visible);
@@ -253,10 +255,13 @@ function renderKeepsake(ctx, x, y, width, height, pixelScale) {
     world.floorMaterial.color.multiplyScalar(.68);
     lighting.setNight(true);
     performer.setNight(true);
-    performer.update(performance.now() / 1000, photoCamera);
+    if (!performer.update(performance.now() / 1000, photoCamera, true)) {
+      throw new Error('这个机位的人物素材还没加载好，请稍后再试。');
+    }
     const captureScale = Math.min(pixelScale, maxViewportWidth / width, maxViewportHeight / height);
     renderer.setDrawingBufferSize(Math.round(width * captureScale), Math.round(height * captureScale), 1);
-    renderer.render(scene, photoCamera);
+    if (rear) wallProjection.capture(() => renderer.render(scene, photoCamera));
+    else renderer.render(scene, photoCamera);
     ctx.drawImage(canvas, x, y, width, height);
   } finally {
     world.floorMaterial.color.copy(floorColor);
@@ -265,7 +270,7 @@ function renderKeepsake(ctx, x, y, width, height, pixelScale) {
     performer.setNight(night);
     daimi.setNight(night);
     daimi.update(performance.now() / 1000, camera);
-    performer.update(performance.now() / 1000, camera);
+    performer.update(performance.now() / 1000, camera, true);
     renderWidth = 0;
     resizeRenderer();
     renderer.render(scene, camera);
@@ -316,6 +321,7 @@ const updateWardrobe = setupWardrobe(THREE, scene, camera, $('#wardrobe-action')
   performer.setNight(night);
   performer.update(performance.now() / 1000, camera);
   performer.object.visible = true;
+  world.floorMaterial.color.copy(roomFloorTone).multiplyScalar(white ? .75 : 1);
   lighting.setRainStage(white);
   return true;
 });

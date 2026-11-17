@@ -177,9 +177,10 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
     });
   });
 
-  function update(time, camera = options.camera) {
-    if (!success || !mesh) return;
+  function update(time, camera = options.camera, snap = false) {
+    if (!success || !mesh) return false;
     const t = Number.isFinite(time) ? time : 0;
+    let viewReady = true;
     if (camera?.getWorldPosition) {
       camera.getWorldPosition(cameraPoint); root.getWorldPosition(actorPoint); root.getWorldQuaternion(actorQuaternion); actorEuler.setFromQuaternion(actorQuaternion, 'YXZ');
       const dx = cameraPoint.x - actorPoint.x, dz = cameraPoint.z - actorPoint.z;
@@ -190,7 +191,8 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
           selected = entries[initial] ? initial : 0;
           from = selected; initialized = true; samples(selected, selected, 0);
         }
-        const direction = photographicViewIndex(angle, selected, hysteresis);
+        const direction = snap ? photographicViewIndex(angle) : photographicViewIndex(angle, selected, hysteresis);
+        viewReady = Boolean(entries[direction]);
         const desired = entries[direction] ? direction : 0;
         if (options.fixedViewPlanes) {
           // Each photo represents a fixed orientation of the same seated body.
@@ -199,6 +201,11 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
             selected = desired;
             samples(selected, selected, 0);
           }
+        } else if (snap) {
+          facing.rotation.y = angle;
+          transition = null;
+          selected = from = desired;
+          samples(desired, desired, 0);
         } else {
           facing.rotation.y = angle;
           if (transition) {
@@ -218,6 +225,7 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
     // Both transforms pivot at y=0. The bottom edge never lifts off the floor.
     mesh.rotation.y = options.sway === false ? 0 : Math.sin(t * .62) * .003;
     mesh.scale.y = options.sway === false ? 1 : 1 + Math.sin(t * .9) * .0012;
+    return viewReady;
   }
   return { object: root, ready, update, setNight, collider: { minX: root.position.x - .39, maxX: root.position.x + .39, minZ: root.position.z - .3, maxZ: root.position.z + .35, minY: root.position.y, maxY: root.position.y + height + .11 } };
 }

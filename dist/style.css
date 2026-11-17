@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r73") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r74") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r73") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r74") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -518,6 +518,16 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
   border: 1px solid #d8b17673;
   box-shadow: 0 12px 32px #070a0599;
 }
+.keepsake-angles {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 7px;
+  margin-top: 7px;
+  text-align: center;
+  color: #ead7b0;
+  font-size: 12px;
+}
 .keepsake-editor { min-width: 0; text-align: left; }
 #record-finale h2 { margin: 0 0 12px; font-size: clamp(18px, 3.25vw, 27px); }
 .keepsake-editor label { font-size: 13px; color: #eee0c4; }
@@ -563,6 +573,7 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
   white-space: nowrap;
 }
 #record-finale .keepsake-control:focus-visible { outline-offset: 2px; }
+#record-finale .keepsake-angles button { font-size: 25px; line-height: 1; }
 #record-finale .keepsake-control-primary {
   background: #e9d6a9;
   color: #282315;
@@ -614,6 +625,9 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
 }
 #record-finale .keepsake-actions { margin-top: 8px; align-items: center; }
 #record-finale .keepsake-actions .keepsake-status { margin: 0; }
+#keepsake-save-status { grid-area: 2 / 2; }
+#publish-wall-note { grid-area: 3 / 1; }
+#wall-publish-status { grid-area: 3 / 2; }
 @media (max-height: 550px) and (orientation: landscape) {
   #record-finale { --keepsake-button-height: 35px; padding-block: 12px; }
   #record-finale h2 { margin-bottom: 8px; }

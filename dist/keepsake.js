@@ -114,7 +114,7 @@ export function paintCreatorCredit(ctx, x, baseline, size = 16) {
   ctx.restore();
 }
 
-function paintFilmPhoto(out, render, { album, text, recordNumber }) {
+function paintFilmPhoto(out, render, { album, text, recordNumber, angle }) {
   const ctx = out.getContext('2d');
   const width = out.width / FILM_SCALE, height = out.height / FILM_SCALE;
   const x = 48, y = 54, right = width - x;
@@ -127,7 +127,7 @@ function paintFilmPhoto(out, render, { album, text, recordNumber }) {
   ctx.scale(FILM_SCALE, FILM_SCALE);
   ctx.fillStyle = '#121511';
   ctx.fillRect(0, 0, width, height);
-  render(ctx, x, y, frameWidth, frameHeight, FILM_SCALE);
+  render(ctx, x, y, frameWidth, frameHeight, FILM_SCALE, angle);
   const vignette = ctx.createRadialGradient(width / 2, y + frameHeight * .45, frameWidth * .24,
     width / 2, y + frameHeight * .45, frameWidth * .55);
   vignette.addColorStop(0, 'rgba(12, 11, 15, 0)');
@@ -246,6 +246,11 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
   const counter = dialog.querySelector('.keepsake-count');
   const album = dialog.querySelector('.keepsake-album');
   const preview = dialog.querySelector('.keepsake-preview');
+  const angles = dialog.querySelector('.keepsake-angles');
+  const previous = dialog.querySelector('#keepsake-angle-prev');
+  const next = dialog.querySelector('#keepsake-angle-next');
+  const angleLabel = dialog.querySelector('#keepsake-angle-label');
+  const angleNames = ['正面舞台', '侧后方 · 留言墙'];
   const compose = dialog.querySelector('.keepsake-compose');
   const issued = dialog.querySelector('.keepsake-issued');
   const serialLabel = dialog.querySelector('#record-number');
@@ -263,7 +268,7 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
   let savedText = '';
   try { savedText = keepsakeText(localStorage.getItem(key) || ''); } catch {}
   record.setMessage(savedText);
-  let file, url, requestId, generating = false, generation = 0;
+  let file, url, requestId, wallReady, currentAngle = 0, generating = false, generation = 0;
   let publishable;
   try { requestId = sessionStorage.getItem(pendingKey); } catch {}
   if (!/^[0-9a-f]{32}$/.test(requestId)) requestId = undefined;
@@ -273,7 +278,8 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
     if (url) URL.revokeObjectURL(url);
     url = undefined;
     file = undefined;
-    preview.hidden = true;
+    preview.hidden = angles.hidden = true;
+    currentAngle = 0;
     album.hidden = false;
     preview.removeAttribute('src');
     issued.hidden = true;
@@ -303,20 +309,17 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
     input.focus();
   });
 
-  generate.addEventListener('click', async () => {
+  async function generateView(angle, text) {
     if (generating) return;
-    updateLimit();
-    const text = input.value.trim().replace(/\n+/g, ' ');
-    savedText = text;
-    record.setMessage(text);
-    try { localStorage.setItem(key, text); } catch {}
-    discardImage();
     const attempt = generation;
-    generating = generate.disabled = true;
+    generating = generate.disabled = save.disabled = previous.disabled = next.disabled = true;
+    download.removeAttribute('href');
+    if (file) angleLabel.textContent = '正在切换机位…';
     status.textContent = '正在准备留影…';
     let stage = 'image';
     try {
-      const [dogLoaded] = await Promise.all([dogReady, loadFilmFont(), album.complete && album.naturalWidth ? undefined : album.decode()]);
+      const [dogLoaded] = await Promise.all([dogReady, loadFilmFont(), album.complete && album.naturalWidth ? undefined : album.decode(),
+        angle === 1 ? wallReady : undefined]);
       if (attempt !== generation || !dialog.open) return;
       if (!dogLoaded) {
         status.textContent = '呆米的素材暂未加载成功。留言已保留，请重新加载花房后再试。';
@@ -329,19 +332,23 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
       }
       stage = 'number';
       status.textContent = '正在领取收藏编号…';
-      const recordNumber = await getRecordNumber(requestId);
+      const ticketRequest = requestId;
+      const recordNumber = await getRecordNumber(ticketRequest);
       if (attempt !== generation || !dialog.open) return;
       stage = 'image';
       status.textContent = '正在生成留影…';
       const out = createFilmCanvas();
-      paintFilmPhoto(out, render, { album, text, recordNumber });
+      paintFilmPhoto(out, render, { album, text, recordNumber, angle });
       const blob = await new Promise(resolve => out.toBlob(resolve, 'image/jpeg', .96));
       if (!blob) throw new Error('No image was encoded');
       if (attempt !== generation || !dialog.open) return;
-      file = new File([blob], `康乃馨7.0-唱片留影-${recordNumber}.jpg`, { type: 'image/jpeg' });
+      const previousUrl = url;
+      const suffix = angle === 1 ? '-留言墙' : '';
+      file = new File([blob], `康乃馨7.0-唱片留影-${recordNumber}${suffix}.jpg`, { type: 'image/jpeg' });
       url = URL.createObjectURL(blob);
+      currentAngle = angle;
       if (text) {
-        publishable = { requestId, text };
+        publishable = { requestId: ticketRequest, text };
         publishButton.hidden = publishStatus.hidden = publishButton.disabled = false;
         publishStatus.textContent = '发布后其他玩家可见';
       }
@@ -350,20 +357,41 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
       serialLabel.textContent = recordNumber;
       title.textContent = '收藏你的唱片留影';
       preview.src = url;
-      preview.hidden = issued.hidden = false;
+      if (previousUrl) URL.revokeObjectURL(previousUrl);
+      preview.hidden = issued.hidden = angles.hidden = false;
       album.hidden = compose.hidden = true;
-      download.href = url;
       download.download = file.name;
       status.textContent = '';
-      saveStatus.textContent = '也可以长按预览图保存。';
-    } catch {
+      saveStatus.textContent = '';
+    } catch (error) {
       if (attempt === generation) status.textContent = stage === 'number'
         ? '暂时连不上编号服务器，联网后再试一次。留言已保留。'
-        : '留言已保留。留影生成失败，请再试一次。';
+        : error?.message === '这个机位的人物素材还没加载好，请稍后再试。'
+          ? error.message : '留言已保留。留影生成失败，请再试一次。';
     } finally {
-      generating = generate.disabled = false;
+      generating = generate.disabled = save.disabled = previous.disabled = next.disabled = false;
+      if (attempt === generation && file) {
+        angleLabel.textContent = angleNames[currentAngle];
+        download.href = url;
+      }
     }
+  }
+
+  generate.addEventListener('click', () => {
+    if (generating) return;
+    updateLimit();
+    savedText = input.value.trim().replace(/\n+/g, ' ');
+    record.setMessage(savedText);
+    try { localStorage.setItem(key, savedText); } catch {}
+    discardImage();
+    void generateView(0, savedText);
   });
+  function switchAngle(offset) {
+    if (!file || generating) return;
+    void generateView((currentAngle + offset + angleNames.length) % angleNames.length, savedText);
+  }
+  previous.addEventListener('click', () => switchAngle(-1));
+  next.addEventListener('click', () => switchAngle(1));
 
   publishButton.addEventListener('click', async () => {
     if (!publishable) return;
@@ -383,7 +411,7 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
   });
 
   download.addEventListener('click', () => {
-    if (file) saveStatus.textContent = '已发起留影下载。';
+    if (file && !generating) saveStatus.textContent = '已发起留影下载。';
   });
   save.addEventListener('click', async () => {
     if (!file) return;
@@ -391,7 +419,7 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
     const result = await shareImage(file, '康乃馨 7.0 · 花房留影');
     if (attempt !== generation || !dialog.open) return;
     if (result === 'unavailable') {
-      saveStatus.textContent = '可长按预览图保存，或下载原图。';
+      saveStatus.textContent = '可用「下载原图」保存。';
     }
   });
   return () => {
@@ -399,6 +427,6 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
     input.value = savedText;
     updateLimit();
     status.textContent = '';
-    messageWall.refresh();
+    wallReady = messageWall.refresh();
   };
 }
