@@ -1,4 +1,4 @@
-import { MUSIC_TRACKS } from './music-tracks.js?v=20261113-r82';
+import { MUSIC_TRACKS } from './music-tracks.js?v=20261113-r83';
 
 let hlsScript;
 function loadHls() {
@@ -89,7 +89,7 @@ export function createMusicPlayback(audio, {
       return;
     }
     const track = file ? { id: 'local', localName: file.name, kind: 'audio' }
-      : tracks.find(item => item.id === trackId);
+      : tracks.find(item => item.id === trackId && item.available !== false);
     if (!track) return;
     const token = ++generation;
     wantsPlaying = false;
@@ -247,7 +247,7 @@ export function setupMusic() {
   const sourceLink = dialog.querySelector('.source-link');
   const label = trigger.querySelector('.music-label');
   let selected = MUSIC_TRACKS[0]?.id, closeOnPlaying = false;
-  const rows = MUSIC_TRACKS.map(track => {
+  const rows = MUSIC_TRACKS.filter(track => track.available !== false).map(track => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'music-track';
@@ -333,6 +333,7 @@ export function setupMusic() {
     start: playback.start,
     muteForCelebration: playback.muteForCelebration,
     offerRainPlayback() {
+      if (!MUSIC_TRACKS.some(track => track.id === 'rain' && track.available !== false)) return;
       if (playback.state.trackId === 'rain' && playback.state.playing) return;
       if (dialog.open) dialog.close();
       if (!prompt.open) {

@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r82") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r83") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r82") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r83") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -1274,4 +1274,18 @@ body.entered #achievement-badge {
   .music-track { min-height: 48px; padding-block: 7px; }
   .music-controls, .music-prompt-actions { margin-top: 10px; }
   #music-status { margin-block: 9px 6px; }
+}
+
+/* Share the progress ring's box; pulse scaling keeps this common center. */
+.entered #collect-heart .heart-symbol {
+  left: 6px;
+  top: calc(50% - 24px);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  letter-spacing: 0;
+  transform-origin: center;
 }
