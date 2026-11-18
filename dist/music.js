@@ -1,4 +1,4 @@
-import { MUSIC_TRACKS } from './music-tracks.js?v=20261113-r83';
+import { MUSIC_TRACKS } from './music-tracks.js?v=20261113-r84';
 
 let hlsScript;
 function loadHls() {

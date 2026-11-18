@@ -1,27 +1,28 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r83';
-import { buildBotanicals } from './botanicals.js?v=20261113-r83';
-import { createHearts } from './hearts.js?v=20261113-r83';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r83';
-import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r83';
-import { setupWardrobe } from './wardrobe.js?v=20261113-r83';
-import { setupMusic } from './music.js?v=20261113-r83';
-import { setupCollection } from './collection.js?v=20261113-r83';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r83';
-import { prepareOffline } from './offline.js?v=20261113-r83';
-import { buildMagazines } from './magazines.js?v=20261113-r83';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r83';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r83';
-import { buildRolePortraits } from './roles.js?v=20261113-r83';
-import { buildRecord } from './record.js?v=20261113-r83';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r83';
-import { createArtworkQueue } from './artwork.js?v=20261113-r83';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r83';
-import { createAtriumProbes } from './atrium-probes.js?v=20261113-r83';
-import { setupKeepsake } from './keepsake.js?v=20261113-r83';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r83';
-import { createPlaySave } from './play-save.js?v=20261113-r83';
-const VERSION = '20261113-r83';
+import { buildArchitecture } from './architecture.js?v=20261113-r84';
+import { buildBotanicals } from './botanicals.js?v=20261113-r84';
+import { createHearts } from './hearts.js?v=20261113-r84';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r84';
+import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r84';
+import { setupWardrobe } from './wardrobe.js?v=20261113-r84';
+import { setupMusic } from './music.js?v=20261113-r84';
+import { setupCollection } from './collection.js?v=20261113-r84';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r84';
+import { prepareOffline } from './offline.js?v=20261113-r84';
+import { buildMagazines } from './magazines.js?v=20261113-r84';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r84';
+import { setupDaimiFeeding } from './daimi-feeding.js?v=20261113-r84';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r84';
+import { buildRolePortraits } from './roles.js?v=20261113-r84';
+import { buildRecord } from './record.js?v=20261113-r84';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r84';
+import { createArtworkQueue } from './artwork.js?v=20261113-r84';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r84';
+import { createAtriumProbes } from './atrium-probes.js?v=20261113-r84';
+import { setupKeepsake } from './keepsake.js?v=20261113-r84';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r84';
+import { createPlaySave } from './play-save.js?v=20261113-r84';
+const VERSION = '20261113-r84';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -280,7 +281,39 @@ function renderKeepsake(ctx, x, y, width, height, pixelScale, angle) {
     renderer.render(scene, camera);
   }
 }
+const feedingMouth = new THREE.Vector3(), feedingLeft = new THREE.Vector3(), feedingRight = new THREE.Vector3();
+function focusFeedingCamera() {
+  camera.position.set(dogSeat.x, dogSeat.y + .24, dogSeat.z + .95);
+  camera.lookAt(dogSeat.x, dogSeat.y + .10, dogSeat.z);
+  camera.fov = 48;
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+}
+const feeding = setupDaimiFeeding({
+  rewardSounds,
+  barkURL: `./assets/daimi/two-barks.m4a?v=${VERSION}`,
+  pause: resetInput,
+  startCamera() { resetInput(); focusFeedingCamera(); daimi.update(performance.now() / 1000, camera, true); },
+  endCamera() {
+    camera.position.set(p.x, eye, p.z);
+    camera.rotation.set(pitch, yaw, 0);
+    renderWidth = 0;
+    resizeRenderer();
+  },
+  layout() {
+    feedingMouth.copy(dogSeat).addScaledVector(THREE.Object3D.DEFAULT_UP, daimi.object.userData.height * .63);
+    feedingMouth.x += .022;
+    feedingMouth.z += .002;
+    feedingLeft.copy(feedingMouth); feedingLeft.x -= .12;
+    feedingRight.copy(feedingMouth); feedingRight.x += .12;
+    feedingMouth.project(camera); feedingLeft.project(camera); feedingRight.project(camera);
+    return { mouthX: (feedingMouth.x + 1) * innerWidth / 2, mouthY: (1 - feedingMouth.y) * innerHeight / 2,
+      dogWidth: Math.abs(feedingRight.x - feedingLeft.x) * innerWidth / 2,
+      viewportWidth: innerWidth, viewportHeight: innerHeight };
+  },
+});
 const magazineQuest = setupMagazineQuest(magazines, roles, dogSeat, record, () => p, {
+  feeding,
   playSave,
   onCollect: saveCollection,
   onChallenge: reportChallenge,
@@ -654,6 +687,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
  const active=entered&&!pureView&&p.grounded&&!document.querySelector('dialog[open]');
  const wardrobeEngaged=updateWardrobe(now,active&&canMove(),magazineQuest.roleUnlocked||record.unlocked,p);
  const magazineEngaged=magazineQuest.update(now,active&&!wardrobeEngaged&&!collection.celebrating);
+ if(feeding.cameraActive)focusFeedingCamera();
  performer.update(now/1000,camera);
  if(daimi.object.visible)daimi.update(now/1000,camera);
  collection.update(now,active&&!magazineEngaged&&!wardrobeEngaged);
@@ -678,6 +712,7 @@ function updateArtworkProgress(overall) {
 
 window.bloomDebug={build:VERSION,bakedLighting:atriumProbes.loaded,get offline(){return offline},artworkProgress:artwork.progress,get position(){return {...p,yaw,pitch}},get collected(){return collection.count},get hearts(){return hearts.items.map(h=>({id:h.id,footPosition:h.footPosition,collected:h.collected}))},get renderer(){return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,fps,buffer:[canvas.width,canvas.height],pixelRatio:renderer.getPixelRatio(),suspended:rendererSuspended}},surfaces:world.surfaces,flowerCounts:flowers.counts,
   get environment() { return { night, ceilingVisible: world.ceilingVisible, sky: lighting.skyState }; },
+  get feeding() { return feeding.state; },
   get performer() { return performer.object.userData; },
   get magazines() { return magazines.items.map(({ id, x, y, z, floorY, lit }) => ({ id, x, y, z, floorY, lit })); },
   get daimi() { return { visible: daimi.object.visible, position: dogSeat.toArray(), height: daimi.object.userData.height,

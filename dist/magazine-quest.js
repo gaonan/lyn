@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r83';
-import { roleInReach } from './roles.js?v=20261113-r83';
+import { magazineInReach } from './magazines.js?v=20261113-r84';
+import { roleInReach } from './roles.js?v=20261113-r84';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
@@ -45,10 +45,12 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   let roleFinalePending = false;
   let achievementPending = false;
   let newRecord = false;
+  let feedingPending = false;
+  let feedingApproachArmed = true;
 
   const modals = [magazineFinale, dialog, roleDialog, rolesCelebration, roleFinale,
     achievementCelebration, recordFinale];
-  function modalOpen() { return modals.some(modal => modal.open); }
+  function modalOpen() { return Boolean(options.feeding?.open) || modals.some(modal => modal.open); }
   function showModal(element) {
     cancelHold();
     options.pause();
@@ -141,7 +143,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   }
 
   function startHold(button, input) {
-    if (button.hidden || hold || (button === lightButton && !target)
+    if (button.hidden || hold || modalOpen() || (button === lightButton && !target)
       || (button === dogButton && (barkPlaying || barkNeedsTap))) return false;
     hold = { id: target?.id, start: performance.now(), button, ring: button.querySelector('.progress'), ...input };
     button.classList.add('holding');
@@ -245,11 +247,27 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       && Math.abs(player.y - dog.y) < .65
       && Math.hypot(player.x - dog.x, player.z - dog.z) < 1.45;
   }
+  function offerFeeding() {
+    if (!options.feeding || modalOpen() || document.querySelector('dialog[open]')) return false;
+    cancelHold();
+    options.pause();
+    if (!options.feeding.offer()) return false;
+    feedingPending = false;
+    // Closing or declining the game must not reopen it while still beside 呆米.
+    feedingApproachArmed = false;
+    lightButton.hidden = dogButton.hidden = shareButton.hidden = true;
+    return true;
+  }
   function barkEnded() {
     barkPlaying = false;
+    options.playSave.mark('dogGreeted');
     if (!roleUnlocked && !record.unlocked) {
-      options.playSave.mark('dogGreeted');
       invitationPending = true;
+    }
+    if (options.feeding) {
+      feedingPending = true;
+      feedingApproachArmed = false;
+      offerFeeding();
     }
   }
 
@@ -341,6 +359,8 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     target = null;
     lightButton.hidden = dogButton.hidden = true;
     invitationPending = barkNeedsTap = false;
+    feedingPending = false;
+    feedingApproachArmed = true;
     for (const magazine of magazines.items) magazines.light(magazine.id);
     count = magazines.items.filter(magazine => magazine.lit).length;
     counter.textContent = count;
@@ -381,6 +401,10 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       showModal(dialog);
       return true;
     }
+    if (feedingPending) {
+      offerFeeding();
+      return true;
+    }
     if (invitationPending && !barkPlaying) {
       invitationPending = false;
       unlockRoles();
@@ -389,6 +413,11 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       return true;
     }
     const player = getPlayer();
+    const dogNearby = dogInReach(player);
+    if (!dogNearby) feedingApproachArmed = true;
+    const metDaimi = options.playSave.state.dogGreeted || options.playSave.state.invitationSeen
+      || roleUnlocked || record.unlocked;
+    if (dogNearby && metDaimi && feedingApproachArmed && !barkPlaying && offerFeeding()) return true;
     const shareNearby = record.canShare(player);
     shareButton.hidden = !shareNearby;
     if (shareNearby && !shareCover.hasAttribute('src')) shareCover.src = record.url;
@@ -406,7 +435,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       }
     }
     lightButton.hidden = !target;
-    dogButton.hidden = shareNearby || Boolean(target) || !dogInReach(player) || barkPlaying || invitationPending;
+    dogButton.hidden = shareNearby || Boolean(target) || !dogNearby || barkPlaying || invitationPending;
     if (hold?.button.hidden) cancelHold();
     if (!hold) return shareNearby || Boolean(target) || !dogButton.hidden;
 

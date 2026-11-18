@@ -19,6 +19,10 @@
 
 进入花房后，快速点击画面左上角的透明热区十次，可完成前置任务并回到一楼舞台。唱片仍需到一楼背墙长按领取。
 
+## 喂食小游戏
+
+首次和呆米打招呼后，会看到「给呆米来根肠」。瞄准扇形的绿色区点击「喂」，呆米分四口吃完并播放成功音效。黄色、红色区会喂偏，播放两声狗叫后可重试或退出。跳过、退出或喂成功后都能继续收集角色。离开呆米再靠近可重新触发。
+
 ## 本地运行
 
 需要 Node.js 和 Python 3。无需安装 npm 依赖。
@@ -49,7 +53,7 @@ npm start
 
 ```sh
 npm run check
-python3 scripts/package_release.py pack --build 20261113-r83
+python3 scripts/package_release.py pack --build 20261113-r84
 ```
 
 测试覆盖楼层和楼梯可达性、收集交互、人物照片展示和离线缓存。打包脚本根据 `dist/` 生成发布归档和 SHA-256 清单。
@@ -59,5 +63,6 @@ python3 scripts/package_release.py pack --build 20261113-r83
 这是非官方粉丝作品。场景参考现场影像，空间与尺寸作了艺术化处理。人物贴图、杂志封面与影视剧照的相关权利归各权利人所有。
 
 - 呆米的叫声采用 [Tiny Dog Bark](https://freesound.org/people/qubodup/sounds/813120/)（CC0）。
+- 喂食手部照片来自 [PNGAaa](https://www.pngaaa.com/detail/1108221)，来源页标为非商业使用。
 - 收集提示音采用 Kenney 的 [Interface Sounds](https://kenney.nl/assets/interface-sounds)（CC0）。
 - 第三方库和字体的许可证随素材存放在 `dist/` 下。
