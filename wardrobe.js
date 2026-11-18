@@ -12,7 +12,7 @@ export function setupWardrobe(T, scene, camera, button, changeOutfit) {
   const map = new T.CanvasTexture(canvas);
   map.colorSpace = T.SRGBColorSpace;
   const sign = new T.Sprite(new T.SpriteMaterial({ map, depthWrite: false, toneMapped: false }));
-  sign.position.set(3.15, 1.96, -3.23);
+  sign.position.set(3.15, 1.31, -3.23);
   sign.scale.set(1.938, .436, 1);
   sign.visible = false;
   sign.name = '电子琴换装投影';
@@ -31,20 +31,20 @@ export function setupWardrobe(T, scene, camera, button, changeOutfit) {
     ctx.moveTo(38, 14); ctx.lineTo(width - 35, 14); ctx.lineTo(width - 16, 34);
     ctx.lineTo(width - 16, 110); ctx.lineTo(width - 37, 130); ctx.lineTo(35, 130);
     ctx.lineTo(15, 109); ctx.lineTo(15, 35); ctx.closePath();
-    ctx.fillStyle = '#0d2b37c9';
+    ctx.fillStyle = '#45454585';
     ctx.fill();
-    ctx.strokeStyle = '#95e4efb3';
+    ctx.strokeStyle = '#d5d5d580';
     ctx.lineWidth = 3;
-    ctx.shadowColor = '#63d8ff';
-    ctx.shadowBlur = 16;
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 3;
     ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.fillStyle = '#e5faff';
+    ctx.fillStyle = '#f1f1f1';
     ctx.textAlign = 'center';
     ctx.font = '600 42px sans-serif';
     ctx.fillText(white ? RESTORE : CHANGE, width / 2, 70);
     ctx.font = '500 21px sans-serif';
-    ctx.fillStyle = '#9cdce7';
+    ctx.fillStyle = '#d1d1d1';
     ctx.fillText(white ? '点击切换' : '长按 2 秒', width / 2, 106);
     map.needsUpdate = true;
   }

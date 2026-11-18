@@ -1,27 +1,27 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r79';
-import { buildBotanicals } from './botanicals.js?v=20261113-r79';
-import { createHearts } from './hearts.js?v=20261113-r79';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r79';
-import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r79';
-import { setupWardrobe } from './wardrobe.js?v=20261113-r79';
-import { setupMusic } from './music.js?v=20261113-r79';
-import { setupCollection } from './collection.js?v=20261113-r79';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r79';
-import { prepareOffline } from './offline.js?v=20261113-r79';
-import { buildMagazines } from './magazines.js?v=20261113-r79';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r79';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r79';
-import { buildRolePortraits } from './roles.js?v=20261113-r79';
-import { buildRecord } from './record.js?v=20261113-r79';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r79';
-import { createArtworkQueue } from './artwork.js?v=20261113-r79';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r79';
-import { createAtriumProbes } from './atrium-probes.js?v=20261113-r79';
-import { setupKeepsake } from './keepsake.js?v=20261113-r79';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r79';
-import { createPlaySave } from './play-save.js?v=20261113-r79';
-const VERSION = '20261113-r79';
+import { buildArchitecture } from './architecture.js?v=20261113-r80';
+import { buildBotanicals } from './botanicals.js?v=20261113-r80';
+import { createHearts } from './hearts.js?v=20261113-r80';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r80';
+import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r80';
+import { setupWardrobe } from './wardrobe.js?v=20261113-r80';
+import { setupMusic } from './music.js?v=20261113-r80';
+import { setupCollection } from './collection.js?v=20261113-r80';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r80';
+import { prepareOffline } from './offline.js?v=20261113-r80';
+import { buildMagazines } from './magazines.js?v=20261113-r80';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r80';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r80';
+import { buildRolePortraits } from './roles.js?v=20261113-r80';
+import { buildRecord } from './record.js?v=20261113-r80';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r80';
+import { createArtworkQueue } from './artwork.js?v=20261113-r80';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r80';
+import { createAtriumProbes } from './atrium-probes.js?v=20261113-r80';
+import { setupKeepsake } from './keepsake.js?v=20261113-r80';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r80';
+import { createPlaySave } from './play-save.js?v=20261113-r80';
+const VERSION = '20261113-r80';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -104,6 +104,10 @@ lighting.setShadows(qualityIndex === 0);
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, .07, 65);
 camera.rotation.order = 'YXZ';
 const world=buildArchitecture(THREE,scene);const flowers=buildBotanicals(THREE,scene,world.railPaths);
+function setEnvironmentNight(value) {
+  world.setNight(value);
+  lighting.setNight(value);
+}
 const roomFloorTone = world.floorMaterial.color.clone();
 atriumProbes.apply(scene);
 camera.position.set(5.1,5.6,7.5);camera.lookAt(-1.1,2.7,-2.8);
@@ -214,7 +218,7 @@ function renderWallView(target) {
   const halfHeight = panoramaWidth * target.height / target.width / 2;
   const context = target.getContext('2d');
   try {
-    lighting.setNight(true);
+    setEnvironmentNight(true);
     context.clearRect(0, 0, target.width, target.height);
     let left = 0;
     for (const [index, view] of views.entries()) {
@@ -231,7 +235,7 @@ function renderWallView(target) {
     }
     return true;
   } finally {
-    lighting.setNight(night);
+    setEnvironmentNight(night);
     renderWidth = 0;
     resizeRenderer();
     renderer.render(scene, camera);
@@ -253,7 +257,7 @@ function renderKeepsake(ctx, x, y, width, height, pixelScale, angle) {
     daimi.setNight(true);
     daimi.update(performance.now() / 1000, photoCamera);
     world.floorMaterial.color.multiplyScalar(.68);
-    lighting.setNight(true);
+    setEnvironmentNight(true);
     performer.setNight(true);
     if (!performer.update(performance.now() / 1000, photoCamera, true)) {
       throw new Error('这个机位的人物素材还没加载好，请稍后再试。');
@@ -266,7 +270,7 @@ function renderKeepsake(ctx, x, y, width, height, pixelScale, angle) {
   } finally {
     world.floorMaterial.color.copy(floorColor);
     props.forEach((object, i) => { object.visible = visible[i]; });
-    lighting.setNight(night);
+    setEnvironmentNight(night);
     performer.setNight(night);
     daimi.setNight(night);
     daimi.update(performance.now() / 1000, camera);
@@ -475,10 +479,10 @@ lightButton.onclick = () => {
   night = !night;
   performer.setNight?.(night);
   daimi.setNight(night);
-  lighting.setNight(night);
+  setEnvironmentNight(night);
   lightButton.classList.toggle('day-mode', !night);
   lightButton.querySelector('span').textContent = night ? '夜色' : '日光';
-  lightButton.setAttribute('aria-label', night ? '切换日光' : '切换傍晚灯光');
+  lightButton.setAttribute('aria-label', night ? '切换日光' : '切换夜色');
   alignViewStick();
 };
 qualityButton.onclick = () => {
@@ -672,6 +676,7 @@ function updateArtworkProgress(overall) {
 }
 
 window.bloomDebug={build:VERSION,bakedLighting:atriumProbes.loaded,get offline(){return offline},artworkProgress:artwork.progress,get position(){return {...p,yaw,pitch}},get collected(){return collection.count},get hearts(){return hearts.items.map(h=>({id:h.id,footPosition:h.footPosition,collected:h.collected}))},get renderer(){return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,fps,buffer:[canvas.width,canvas.height],pixelRatio:renderer.getPixelRatio(),suspended:rendererSuspended}},surfaces:world.surfaces,flowerCounts:flowers.counts,
+  get environment() { return { night, ceilingVisible: world.ceilingVisible, sky: lighting.skyState }; },
   get performer() { return performer.object.userData; },
   get magazines() { return magazines.items.map(({ id, x, y, z, floorY, lit }) => ({ id, x, y, z, floorY, lit })); },
   get daimi() { return { visible: daimi.object.visible, position: dogSeat.toArray(), height: daimi.object.userData.height,

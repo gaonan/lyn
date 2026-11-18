@@ -1,5 +1,5 @@
-import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261113-r79';
-import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261113-r79';
+import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261113-r80';
+import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261113-r80';
 
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a
@@ -147,6 +147,15 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   box(messageWall, -9.05, 5.05, 1, .3, 10.1, 16.2);
   // The continuous plaster surface carries the record and visitor projections.
   box(messageWall, 0, 5.05, 9.04, 18.2, 10.1, .25);
+  // Restore the original r68 flat plaster ceiling in daylight. Keep this mesh
+  // outside the static wall batch so night can open the atrium to the stars.
+  const ceiling = new THREE.Mesh(boxGeo, mats.wall);
+  ceiling.name = 'Daylight ceiling';
+  ceiling.position.set(0, 10.13, 1);
+  ceiling.scale.set(18.2, .20, 16.2);
+  ceiling.receiveShadow = true;
+  ceiling.visible = false;
+  group.add(ceiling);
   collider(-9.2, -8.91, -7.2, 9.2, 0, 11); collider(8.91, 9.2, -7.2, 9.2, 0, 11);
   collider(-9.2, 9.2, -7.2, -6.91, 0, 11); collider(-9.2, 9.2, 8.91, 9.2, 0, 11);
   for (const x of [-8.8, 8.8]) {
@@ -525,6 +534,8 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   }
   return {
     colliders, surfaces, railPaths, flowerBeds, stoolSeat, contactShadows, floorMaterial: mats.floor,
+    setNight(value) { ceiling.visible = !value; },
+    get ceilingVisible() { return ceiling.visible; },
     setPracticalLights(enabled) {
       mats.light.visible = enabled;
       mats.glass.emissiveIntensity = enabled ? .2 : .016;
