@@ -1,5 +1,5 @@
-import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261113-r82';
-import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261113-r82';
+import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261113-r83';
+import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261113-r83';
 
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a
@@ -390,6 +390,38 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   box(mats.black, 7.7, 1.37, 7.02, .55, .18, .16);
   for (const x of [7.52, 7.88]) cylinder(mats.ivory, x, 1.28, 6.99, .055, .09);
   collider(6.5, 8.7, 6.7, 7.7, 0, 1.9);
+
+  // Closed double wood door on the rear wall directly behind the coffee
+  // cabinet. The leaves and trim share the existing wood/metal instance batches.
+  const doorX = 7.50, doorZ = 8.855, doorWidth = 1.98, doorHeight = 2.46;
+  const doorTint = new THREE.Color(.80, .76, .70);
+  const panelTint = new THREE.Color(.90, .85, .78);
+  box(mats.dark, doorX, doorHeight / 2, doorZ + .025, doorWidth, doorHeight, .06);
+  for (const side of [-1, 1]) {
+    const leafX = doorX + side * .47;
+    box(mats.wood, leafX, 1.21, doorZ - .020, .922, 2.36, .075, 0, doorTint);
+    // Recessed panels leave a recognizable rail-and-stile door face.
+    for (const [panelY, panelHeight] of [[.59, .83], [1.77, 1.10]]) {
+      box(mats.darkWood, leafX, panelY, doorZ - .062, .714, panelHeight, .020, 0, panelTint);
+      for (const edge of [-1, 1]) {
+        box(mats.wood, leafX + edge * .373, panelY, doorZ - .080, .030, panelHeight + .060, .028);
+        box(mats.wood, leafX, panelY + edge * (panelHeight / 2 + .015), doorZ - .080, .776, .030, .028);
+      }
+    }
+    // Paired brass pulls flank the dark center seam.
+    const handleX = doorX + side * .125;
+    box(mats.brass, handleX, 1.18, doorZ - .087, .070, .28, .024);
+    beam(mats.brass, [handleX, 1.085, doorZ - .141], [handleX, 1.275, doorZ - .141], .025);
+    for (const handleY of [1.085, 1.275]) {
+      box(mats.brass, handleX, handleY, doorZ - .117, .025, .025, .055);
+    }
+  }
+  for (const side of [-1, 1]) {
+    box(mats.darkWood, doorX + side * 1.015, 1.25, doorZ - .037, .105, 2.50, .135);
+  }
+  box(mats.darkWood, doorX, 2.485, doorZ - .037, 2.135, .115, .135);
+  box(mats.darkWood, doorX, .025, doorZ - .045, 2.135, .050, .15);
+  collider(doorX - 1.075, doorX + 1.075, doorZ - .115, 8.915, 0, 2.55, 'closed-door');
 
   // The empty stage evokes the performance setup without inventing performers.
   function keyboard(x, z) {

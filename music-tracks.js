@@ -14,9 +14,9 @@ export const MUSIC_TRACKS = [
     id: 'rain',
     title: '归期雨抄',
     subtitle: '刘宇宁 · 音乐缘计划3',
+    available: false,
     kind: 'video',
-    url: globalThis.location?.hostname === 'gaonan.github.io'
-      ? 'https://lyn.lipopo.org/api/music/rain' : '/api/music/rain',
-    sourceUrl: 'https://video.sina.cn/finance/2026-11-13/detail-iniyqwtt0965785.d.html',
+    url: '',
+    sourceUrl: '',
   },
 ];
