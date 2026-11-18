@@ -1,0 +1,151 @@
+body.daimi-feeding > header,
+body.daimi-feeding #hud,
+body.daimi-feeding #heart-counter,
+body.daimi-feeding #magazine-counter,
+body.daimi-feeding #role-counter,
+body.daimi-feeding #achievement-badge,
+body.daimi-feeding .quest-action,
+body.daimi-feeding #wardrobe-action,
+body.daimi-feeding #collect-heart,
+body.daimi-feeding #collected-message,
+body.daimi-feeding #toast,
+body.daimi-feeding .creator-credit,
+body.daimi-feeding .vignette { visibility: hidden !important; }
+
+#daimi-feeding-dialog {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  width: 100dvw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: none;
+  color: #f4e9d5;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#daimi-feeding-dialog::backdrop { background: transparent; backdrop-filter: none; }
+#daimi-feeding-dialog .feeding-dimmer {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse var(--feeding-spot-width) var(--feeding-spot-height) at var(--feeding-dog-x) var(--feeding-dog-y), #05090a00 5%, #05090a20 52%, #05090ab5 100%);
+  pointer-events: none;
+}
+#daimi-feeding-dialog .feeding-art { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+#daimi-feeding-dialog .feeding-zones { opacity: .42; }
+#daimi-feeding-dialog .feeding-fan-outline { fill: none; stroke: #f8eed4b3; stroke-width: 1.4; }
+#daimi-feeding-dialog .feeding-fan-inner { fill: none; stroke: #fff9e166; stroke-width: .8; }
+#daimi-feeding-dialog .feeding-needle-line { fill: none; stroke: #fff6df; stroke-width: 2.3; stroke-linecap: round; }
+#daimi-feeding-dialog .feeding-needle-tip { fill: #fff8e6; stroke: #fff8e6; stroke-width: 1; }
+#daimi-feeding-dialog .feeding-needle-hub { fill: #f8edd6; stroke: #40362d; stroke-width: 1.5; }
+#daimi-feeding-dialog .feeding-arm { filter: drop-shadow(1px 10px 10px #0007); }
+#daimi-feeding-dialog .feeding-photographed-arm { filter: brightness(.82) saturate(.86); }
+#daimi-feeding-dialog .feeding-arm-art { transform-origin: 0 0; }
+#daimi-feeding-dialog[data-phase="aim"] .feeding-arm-art { animation: feeding-hand-enter .45s cubic-bezier(.2, .7, .3, 1) both; }
+@keyframes feeding-hand-enter { from { transform: translate(0, 48vh); } to { transform: translate(0, 0); } }
+#daimi-feeding-dialog .feeding-fan { transition: opacity .16s ease; }
+#daimi-feeding-dialog button {
+  min-height: 44px;
+  padding: 0 18px;
+  margin: 0;
+  border: 1px solid #ddcfad66;
+  border-radius: 12px;
+  background: #282d28eb;
+  color: #f3ead8;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.25;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+#daimi-feeding-dialog button:focus-visible { outline: 2px solid #f9d69a; outline-offset: 4px; }
+#daimi-feeding-dialog button:active { background: #4d5143; }
+#daimi-feeding-dialog button.feeding-primary { background: #e9d4a5; border-color: #e9d4a5; color: #302f27; }
+#daimi-feeding-dialog button.feeding-primary:active { background: #cbb785; }
+#daimi-feeding-dialog .feeding-exit {
+  position: absolute;
+  left: max(20px, env(safe-area-inset-left));
+  top: max(18px, env(safe-area-inset-top));
+  min-height: 38px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #222823c9;
+  border-color: #e8dccb44;
+  font-size: 12px;
+}
+#daimi-feeding-dialog .feeding-exit svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+#daimi-feeding-dialog .feeding-instruction { position: absolute; left: 50%; top: max(24px, env(safe-area-inset-top)); transform: translateX(-50%); text-align: center; white-space: nowrap; pointer-events: none; text-shadow: 0 2px 12px #000; }
+#daimi-feeding-dialog .feeding-instruction > span { font-size: 11px; letter-spacing: .14em; color: #c8c6b9; }
+#daimi-feeding-dialog .feeding-instruction p { margin: 8px 0 0; font-size: 15px; font-weight: 500; color: #fff0ce; }
+#daimi-feeding-dialog .feeding-card {
+  position: absolute;
+  left: 50%;
+  bottom: max(28px, calc(env(safe-area-inset-bottom) + 16px));
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 36px);
+  min-width: min(330px, calc(100% - 36px));
+  padding: 20px 24px 22px;
+  border: 1px solid #dbc89a4d;
+  border-radius: 18px;
+  background: #1c2620ed;
+  box-shadow: 0 12px 50px #0005;
+  text-align: center;
+}
+#daimi-feeding-dialog .feeding-card-mark { display: block; color: #e6cda0; font-size: 27px; line-height: 1; }
+#daimi-feeding-dialog .feeding-card h2 { font: 500 24px/1.4 "Songti SC", "STSong", serif; margin: 10px 0 18px; letter-spacing: .06em; }
+#daimi-feeding-dialog .feeding-actions { display: flex; justify-content: center; gap: 8px; }
+#daimi-feeding-dialog .feeding-actions > button { flex: 1; }
+#daimi-feeding-dialog .feeding-result-note { color: #d9c6a0; font-size: 11px; letter-spacing: .08em; margin: 0; }
+#daimi-feeding-dialog .feeding-result-title { margin-top: 7px; }
+#daimi-feeding-dialog .feeding-feed {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 76px;
+  min-height: 44px;
+  border-color: #fae7b3;
+  background: #ebd4a2;
+  color: #2d3429;
+  font-size: 19px;
+  font-weight: 600;
+  box-shadow: 0 3px 22px #0005;
+}
+#daimi-feeding-dialog .feeding-feed:active { background: #d5bc87; }
+#daimi-feeding-dialog[data-phase="reach"] .feeding-arm,
+#daimi-feeding-dialog[data-phase="eating"] .feeding-arm { will-change: transform; }
+@media (max-width: 460px) {
+  #daimi-feeding-dialog .feeding-card { width: calc(100% - 36px); padding: 18px 16px; bottom: max(30px, calc(env(safe-area-inset-bottom) + 18px)); }
+  #daimi-feeding-dialog .feeding-card h2 { font-size: 23px; margin-bottom: 16px; }
+  #daimi-feeding-dialog .feeding-result .feeding-actions { flex-wrap: wrap; }
+  #daimi-feeding-dialog .feeding-offer .feeding-actions { gap: 6px; flex-wrap: nowrap; }
+  #daimi-feeding-dialog .feeding-offer .feeding-actions > button { padding-inline: 8px; }
+  #daimi-feeding-dialog .feeding-actions > button { padding-inline: 11px; font-size: 12px; }
+  #daimi-feeding-dialog .feeding-instruction { top: max(73px, calc(env(safe-area-inset-top) + 55px)); }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #daimi-feeding-dialog .feeding-exit { top: max(12px, env(safe-area-inset-top)); min-height: 34px; }
+  #daimi-feeding-dialog .feeding-instruction { top: max(14px, env(safe-area-inset-top)); }
+  #daimi-feeding-dialog .feeding-instruction p { margin-top: 4px; font-size: 13px; }
+  #daimi-feeding-dialog .feeding-card { bottom: max(14px, env(safe-area-inset-bottom)); padding: 12px 20px 15px; border-radius: 14px; }
+  #daimi-feeding-dialog .feeding-card-mark { display: none; }
+  #daimi-feeding-dialog .feeding-card h2 { margin: 2px 0 10px; font-size: 21px; }
+  #daimi-feeding-dialog .feeding-result-note { font-size: 10px; margin-bottom: 5px; }
+  #daimi-feeding-dialog .feeding-actions > button { min-height: 38px; }
+  #daimi-feeding-dialog .feeding-feed { min-height: 40px; width: 68px; font-size: 17px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #daimi-feeding-dialog .feeding-fan { transition: none; }
+  #daimi-feeding-dialog[data-phase="aim"] .feeding-arm-art { animation: none; }
+}
