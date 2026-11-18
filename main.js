@@ -1,27 +1,27 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261113-r81';
-import { buildBotanicals } from './botanicals.js?v=20261113-r81';
-import { createHearts } from './hearts.js?v=20261113-r81';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r81';
-import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r81';
-import { setupWardrobe } from './wardrobe.js?v=20261113-r81';
-import { setupMusic } from './music.js?v=20261113-r81';
-import { setupCollection } from './collection.js?v=20261113-r81';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r81';
-import { prepareOffline } from './offline.js?v=20261113-r81';
-import { buildMagazines } from './magazines.js?v=20261113-r81';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r81';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r81';
-import { buildRolePortraits } from './roles.js?v=20261113-r81';
-import { buildRecord } from './record.js?v=20261113-r81';
-import { createRewardSounds } from './reward-sounds.js?v=20261113-r81';
-import { createArtworkQueue } from './artwork.js?v=20261113-r81';
-import { createAtriumLighting } from './atrium-light.js?v=20261113-r81';
-import { createAtriumProbes } from './atrium-probes.js?v=20261113-r81';
-import { setupKeepsake } from './keepsake.js?v=20261113-r81';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r81';
-import { createPlaySave } from './play-save.js?v=20261113-r81';
-const VERSION = '20261113-r81';
+import { buildArchitecture } from './architecture.js?v=20261113-r82';
+import { buildBotanicals } from './botanicals.js?v=20261113-r82';
+import { createHearts } from './hearts.js?v=20261113-r82';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261113-r82';
+import { PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261113-r82';
+import { setupWardrobe } from './wardrobe.js?v=20261113-r82';
+import { setupMusic } from './music.js?v=20261113-r82';
+import { setupCollection } from './collection.js?v=20261113-r82';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261113-r82';
+import { prepareOffline } from './offline.js?v=20261113-r82';
+import { buildMagazines } from './magazines.js?v=20261113-r82';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261113-r82';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261113-r82';
+import { buildRolePortraits } from './roles.js?v=20261113-r82';
+import { buildRecord } from './record.js?v=20261113-r82';
+import { createRewardSounds } from './reward-sounds.js?v=20261113-r82';
+import { createArtworkQueue } from './artwork.js?v=20261113-r82';
+import { createAtriumLighting } from './atrium-light.js?v=20261113-r82';
+import { createAtriumProbes } from './atrium-probes.js?v=20261113-r82';
+import { setupKeepsake } from './keepsake.js?v=20261113-r82';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261113-r82';
+import { createPlaySave } from './play-save.js?v=20261113-r82';
+const VERSION = '20261113-r82';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 const playSave = createPlaySave();
@@ -332,6 +332,10 @@ const updateWardrobe = setupWardrobe(THREE, scene, camera, $('#wardrobe-action')
   world.floorMaterial.color.copy(roomFloorTone).multiplyScalar(white ? .75 : 1);
   world.setPracticalLights(!white);
   lighting.setRainStage(white);
+  if (white) {
+    resetInput();
+    music.offerRainPlayback();
+  }
   return true;
 });
 let introTime=0;
@@ -650,7 +654,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
   drawMap();
  }
  else if(!entered){introTime+=dt;camera.position.set(5.1+Math.sin(introTime*.06)*.22,5.6,7.5);camera.lookAt(-1.1,2.7,-2.8)}
- const active=entered&&!pureView&&p.grounded&&!document.querySelector('#help-dialog[open], #music-dialog[open]');
+ const active=entered&&!pureView&&p.grounded&&!document.querySelector('dialog[open]');
  const wardrobeEngaged=updateWardrobe(now,active&&canMove(),magazineQuest.roleUnlocked||record.unlocked,p);
  const magazineEngaged=magazineQuest.update(now,active&&!wardrobeEngaged&&!collection.celebrating);
  performer.update(now/1000,camera);
