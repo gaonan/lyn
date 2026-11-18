@@ -1,5 +1,5 @@
-import { createAtriumSky } from './atrium-sky.js?v=20261113-r79';
-import { createStageMist } from './stage-mist.js?v=20261113-r79';
+import { createAtriumSky } from './atrium-sky.js?v=20261113-r80';
+import { createStageMist } from './stage-mist.js?v=20261113-r80';
 
 export function createAtriumLighting(T, renderer, scene, probes) {
   const atriumSky = createAtriumSky(T, scene);
@@ -253,5 +253,12 @@ export function createAtriumLighting(T, renderer, scene, probes) {
     if (enabled) renderer.shadowMap.needsUpdate = true;
   }
   setNight(true);
-  return { setNight, setShadows, setRainStage, rainLightPosition: rainSpot.from, update: seconds => stageMist?.update(seconds) };
+  return {
+    setNight, setShadows, setRainStage, rainLightPosition: rainSpot.from,
+    get skyState() { return atriumSky.state; },
+    update(seconds) {
+      atriumSky.update(seconds);
+      stageMist?.update(seconds);
+    },
+  };
 }

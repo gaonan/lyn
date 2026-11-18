@@ -2,9 +2,16 @@ export const MESSAGE_WALL_SKY_EDGE = { height: 10.1, x: -8.9, z: 8.915, color: '
 
 export function createAtriumSky(T, scene) {
   const night = { value: true };
+  const meteorProgress = { value: -1 };
+  const meteorFrom = { value: new T.Vector3(-1, 23, 13) };
+  const meteorTo = { value: new T.Vector3(-9.5, 9, 9.4) };
+  let previousSeconds, nightSeconds = 0, meteorStart = -1, meteorCount = 0;
+  const interval = () => 8 + Math.random() * 2;
+  let nextMeteor = interval();
   const parapet = MESSAGE_WALL_SKY_EDGE;
   const material = new T.ShaderMaterial({
-    uniforms: { night, rimColor: { value: new T.Color(parapet.color).convertLinearToSRGB() } },
+    uniforms: { night, meteorProgress, meteorFrom, meteorTo,
+      rimColor: { value: new T.Color(parapet.color).convertLinearToSRGB() } },
     side: T.BackSide,
     depthWrite: false,
     fog: false,
@@ -20,6 +27,8 @@ export function createAtriumSky(T, scene) {
     fragmentShader: `
       uniform bool night;
       uniform vec3 rimColor;
+      uniform float meteorProgress;
+      uniform vec3 meteorFrom, meteorTo;
       varying vec3 skyDirection;
 
       vec2 hash2(vec2 p) {
@@ -66,43 +75,97 @@ export function createAtriumSky(T, scene) {
       }
 
       vec3 galaxy(vec3 direction, vec2 plane, float altitude) {
-        vec3 zenith = vec3(.016, .017, .024);
-        vec3 horizon = vec3(.041, .041, .052);
+        vec3 zenith = vec3(.012, .013, .018);
+        vec3 horizon = vec3(.030, .030, .036);
         vec3 color = mix(horizon, zenith, smoothstep(.02, .78, altitude));
 
-        // The bright end rises over the message-wall corner.
-        vec3 galacticPole = normalize(vec3(.81, .57, .17));
-        vec3 coreDirection = normalize(vec3(-.56, .61, .56));
+        // ESO's La Silla photographs show a long star field split by dark dust,
+        // with a warmer, asymmetric bulge. Keep the band high over the message
+        // walls so the roof-edge blend does not swallow its defining structure.
+        vec3 galacticPole = normalize(vec3(.844, .534, .078));
+        vec3 coreDirection = normalize(vec3(-.50, .72, .48));
+        coreDirection = normalize(coreDirection - galacticPole * dot(coreDirection, galacticPole));
         vec3 alongGalaxy = normalize(cross(galacticPole, coreDirection));
         float latitude = dot(direction, galacticPole);
         float facingCore = dot(direction, coreDirection);
         float longitude = atan(dot(direction, alongGalaxy), facingCore);
-        float core = gaussian((longitude + .16) / .50);
-        float reach = smoothstep(-.06, .70, facingCore);
-        float band = gaussian(latitude / mix(.083, .16, core)) * reach;
+        float core = gaussian((longitude + .13) / .43);
+        float reach = smoothstep(-.20, .35, facingCore);
+        float wander = .016 * sin(longitude * 5.1 + .8) +
+          .027 * (noise(vec2(longitude * 9.0, 6.1)) - .5);
+        float center = latitude + wander;
+        float width = mix(.060, .113, core) *
+          (.77 + .40 * noise(vec2(longitude * 7.0, -2.8)));
+        float band = gaussian(center / width) * reach;
+        float starField = 0.0;
 
-        if (band > .018) {
+        if (band > .0005) {
+          // Even the halo/bulge must fade before leaving the expensive detail
+          // branch; an abrupt threshold otherwise clips a triangular edge.
+          float detailFade = smoothstep(.0005, .018, band);
           vec2 coordinates = vec2(longitude, latitude);
-          float knots = clouds(coordinates * vec2(10.0, 25.0) + vec2(15.8, -7.3));
-          float fibers = noise(coordinates * vec2(29.0, 79.0) + 2.75);
-          float bend = .033 * sin(longitude * 11.1 + .8) + .062 * (knots - .5);
-          float centerLane = gaussian((latitude + bend) / mix(.024, .050, core));
-          float secondaryLane = gaussian((latitude - .090 + .038 * sin(longitude * 12.0)) / .029);
-          float extinction = max(.10, 1.0 - centerLane * (.44 + .44 * fibers) - secondaryLane * .19);
-          float structure = .38 + .47 * knots + .15 * fibers;
-          vec3 light = mix(vec3(.26, .28, .32), vec3(.43, .40, .34), core * (.28 + .44 * knots));
-          color += band * structure * extinction * light * (.73 + .28 * core);
-          color += band * vec3(.016, .019, .024);
+          float knots = clouds(coordinates * vec2(24.0, 41.0) + vec2(15.8, -7.3));
+          float grains = noise(coordinates * vec2(115.0, 370.0) + 5.2);
+          float dust = noise(coordinates * vec2(19.0, 53.0) + vec2(-5.1, 9.7));
+          float riftCenter = center + .010 * sin(longitude * 19.0) + .022 * (dust - .5);
+          float coreWidth = mix(.014, .031, core) * (.51 + .94 * dust);
+          // A broken central rift and a fork leave two irregular luminous banks,
+          // rather than a blue cloud smeared across the whole opening.
+          float rift = gaussian((riftCenter + .007) / coreWidth) *
+            (.51 + .49 * smoothstep(.24, .67, knots));
+          float fork = gaussian((center - .045 - .030 * sin(longitude * 6.4 + .5)) /
+            (.008 + .016 * dust));
+          fork *= (.20 + .80 * smoothstep(.27, .73, dust)) * gaussian((longitude - .03) / .86);
+          float dustKnots = smoothstep(.49, .73, knots) * gaussian((center + .018) / .095);
+          float extinction = clamp(1.0 - rift * (.80 + .17 * grains) -
+            fork * .68 - dustKnots * .58, .035, 1.0);
+          float clumps = .27 + 1.02 * smoothstep(.24, .79, knots);
+          // The bulge leans toward one bank and swells in distinct broad knots.
+          float broadBulge = gaussian((longitude + .23 + latitude * .7) / .34) *
+            gaussian((center - .045) / .105) * (.54 + .46 * knots);
+          float halo = gaussian(latitude / .19) * reach;
+          vec3 stellarLight = mix(vec3(.25, .27, .30), vec3(.40, .35, .27), core * .84);
+          color += detailFade * halo * vec3(.012, .013, .015);
+          color += detailFade * (band * clumps + broadBulge * .49) * stellarLight * extinction;
+          // Fine resolved stars give the bright lanes a granular appearance.
+          starField = detailFade * band * extinction * (.44 + .56 * knots);
+          color += stars(plane + vec2(.34, .17), 625.0, starField * .91, .038, .43) * starField;
+          color += detailFade * band * extinction * (grains - .36) * vec3(.052, .050, .046);
         }
-        color += stars(plane, 137.0, .18, .047, .38);
-        color += stars(plane + vec2(-.69, .29), 61.0, .097, .078, .62);
-        color += stars(plane + vec2(.34, .17), 284.0, band * .68, .065, .33) * band;
+        color += stars(plane, 179.0, .16, .028, .40);
+        color += stars(plane + vec2(-.69, .29), 67.0, .072, .051, .69);
+        color += stars(plane + vec2(.71, -.29), 351.0, .12 + starField * .5, .030, .22);
         // Measure from the parapet in room space so the fade follows both
         // wall edges as the player moves, including in the keepsake camera.
         float roofDistance = (${parapet.height} - cameraPosition.y) / max(direction.y, .001);
         vec2 roofHit = cameraPosition.xz + direction.xz * roofDistance;
         float edgeDistance = min(roofHit.x - (${parapet.x}), ${parapet.z} - roofHit.y);
         return mix(rimColor, color, smoothstep(.0, 2.8, edgeDistance));
+      }
+
+      vec2 skyPlane(vec3 ray) {
+        vec3 direction = normalize(ray);
+        return direction.xz / (.55 + max(direction.y, .0));
+      }
+
+      vec3 meteor(vec2 plane) {
+        if (meteorProgress < 0.0) return vec3(0.0);
+        vec3 head = mix(meteorFrom, meteorTo, meteorProgress);
+        vec3 tail = mix(meteorFrom, meteorTo, max(.0, meteorProgress - .17));
+        vec2 a = skyPlane(tail - cameraPosition), b = skyPlane(head - cameraPosition);
+        vec2 axis = b - a;
+        float along = clamp(dot(plane - a, axis) / max(dot(axis, axis), .000001), .0, 1.0);
+        float distance = length(plane - mix(a, b, along));
+        float pixel = max(fwidth(plane.x), fwidth(plane.y));
+        float width = max(.00065, pixel * .52);
+        float streak = gaussian(distance / width) * pow(along, 1.65);
+        float headLight = gaussian(length(plane - b) / (width * 1.7));
+        float glow = gaussian(distance / (width * 3.0)) * pow(along, 2.3) * .14;
+        float envelope = smoothstep(.0, .10, meteorProgress) *
+          (1.0 - smoothstep(.91, 1.0, meteorProgress));
+        // The sky is rendered at far depth. The actual wall depth masks this
+        // streak, so its tip disappears behind the parapet instead of on it.
+        return envelope * (vec3(.68, .76, .86) * (streak + glow) + vec3(.92, .94, 1.0) * headLight);
       }
 
       vec3 sunset(vec3 direction, vec2 plane, float altitude) {
@@ -136,7 +199,7 @@ export function createAtriumSky(T, scene) {
         float altitude = max(0.0, direction.y);
         // A tangent plane over the atrium gives both skies continuous detail at the zenith.
         vec2 plane = direction.xz / (.55 + altitude);
-        vec3 color = night ? galaxy(direction, plane, altitude) : sunset(direction, plane, altitude);
+        vec3 color = night ? galaxy(direction, plane, altitude) + meteor(plane) : sunset(direction, plane, altitude);
         gl_FragColor = sRGBTransferEOTF(vec4(clamp(color, 0.0, 1.0), 1.0));
         #include <colorspace_fragment>
       }`,
@@ -147,5 +210,43 @@ export function createAtriumSky(T, scene) {
   // Fill the pixels remaining after opaque architecture, using the far plane.
   sky.renderOrder = 100;
   scene.add(sky);
-  return { setNight: value => { night.value = value; } };
+  function resetMeteor() {
+    previousSeconds = undefined;
+    meteorProgress.value = -1;
+    meteorStart = -1;
+    nextMeteor = nightSeconds + interval();
+  }
+  function setNight(value) {
+    const changed = night.value !== Boolean(value);
+    night.value = Boolean(value);
+    if (changed) resetMeteor();
+  }
+  function update(seconds) {
+    if (!Number.isFinite(seconds)) return;
+    if (previousSeconds === undefined) { previousSeconds = seconds; return; }
+    const delta = seconds - previousSeconds;
+    previousSeconds = seconds;
+    // Do not replay time spent in a background tab, paused render, or debugger.
+    if (delta < 0 || delta > 1) { resetMeteor(); previousSeconds = seconds; return; }
+    if (!night.value) return;
+    nightSeconds += delta;
+    if (nightSeconds >= nextMeteor) {
+      meteorStart = nightSeconds;
+      meteorCount++;
+      nextMeteor = nightSeconds + interval();
+      meteorFrom.value.set(-1 + Math.random() * 2.6, 22 + Math.random() * 2, 13.7);
+      meteorTo.value.set(-9.35 - Math.random() * 1.25, 8.5 + Math.random() * .7, 9.6);
+    }
+    const progress = meteorStart < 0 ? -1 : nightSeconds - meteorStart;
+    meteorProgress.value = progress >= 0 && progress < 1 ? progress : -1;
+  }
+  return { setNight, update, get state() {
+    return { night: night.value, meteor: {
+      active: meteorProgress.value >= 0,
+      progress: meteorProgress.value,
+      nextIn: Math.max(0, nextMeteor - nightSeconds),
+      count: meteorCount,
+      from: meteorFrom.value.toArray(), to: meteorTo.value.toArray(),
+    } };
+  } };
 }
