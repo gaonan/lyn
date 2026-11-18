@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r81") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r82") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r81") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r82") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -1206,3 +1206,72 @@ body.entered #achievement-badge {
 #wardrobe-action strong, #wardrobe-action small { display: block; white-space: nowrap; }
 #wardrobe-action strong { font-size: clamp(10px, 3.3vw, 13px); }
 #wardrobe-action small { color: #d1d1d1; font-size: 10px; margin-top: 3px; }
+
+/* Music uses the same compact control sizes as the rest of the interface. */
+#music-dialog, #rain-music-dialog {
+  max-width: 480px;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  padding: 28px;
+  border-radius: var(--control-radius, 12px);
+}
+#music-dialog h2, #rain-music-dialog h2 {
+  font-size: clamp(21px, 4.8vw, 26px);
+  line-height: 1.5;
+  margin: 14px 0 20px;
+}
+.music-tracks { display: grid; gap: 8px; }
+.music-track {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 10px 12px;
+  min-height: var(--control-large, 60px);
+  border: 1px solid #d4ceac44;
+  border-radius: var(--control-radius, 12px);
+  background: #ffffff06;
+}
+.music-track[aria-pressed="true"] { border-color: #dfc58a; background: #dfc58a15; }
+.music-track-copy { min-width: 0; flex: 1; }
+.music-track b, .music-track small { display: block; white-space: nowrap; }
+.music-track b { font-size: 13px; font-weight: 500; }
+.music-track small { margin-top: 5px; font-size: 10px; color: #c5cbb9; }
+.music-track-state { flex: none; font-size: 10px; color: #e4cd97; white-space: nowrap; }
+.music-controls, .music-prompt-actions { display: flex; gap: 8px; margin-top: 16px; }
+#music-dialog .music-controls > *, #rain-music-dialog .music-prompt-actions > * {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control-regular, 44px);
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid #d4ceac55;
+  border-radius: var(--control-radius, 12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  font-size: 13px;
+  letter-spacing: 0;
+  white-space: nowrap;
+  background: #ffffff08;
+}
+#music-dialog .music-controls .primary, #rain-music-dialog .music-prompt-actions .primary {
+  background: var(--paper);
+  color: #24392b;
+}
+#music-status { margin: 12px 0 8px; }
+#rain-music-dialog p { font-size: 12px; color: #c5cbb9; }
+@media (max-width: 420px) {
+  #music-dialog, #rain-music-dialog { padding: 24px 18px; }
+  .music-track { gap: 8px; padding-inline: 10px; }
+  .music-track b { font-size: 12px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #music-dialog, #rain-music-dialog { padding: 20px 24px; max-width: 500px; }
+  #music-dialog h2, #rain-music-dialog h2 { margin: 8px 0 12px; font-size: 21px; }
+  .music-track { min-height: 48px; padding-block: 7px; }
+  .music-controls, .music-prompt-actions { margin-top: 10px; }
+  #music-status { margin-block: 9px 6px; }
+}

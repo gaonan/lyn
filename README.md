@@ -39,6 +39,8 @@ npm start
 
 遇到首屏加载卡住时，可点「修复并重新加载」或打开[主站修复链接](https://lyn.lipopo.org/?repair=1)。修复会重置花房资源缓存，以普通画质重试，保留本机游玩进度。
 
+换上白衣后会询问是否播放《归期雨抄》，换回黑衣时不询问。「音乐」界面支持两首现场歌曲与本机音频，音源只在点击播放后连接。新曲的公开舞台通过 `/api/music/rain` 按 Range 分块转发；部署时一并更新 `server/record_numbers.py` 与 `server/record-number.nginx.conf`，不会在服务器保存整首音频。
+
 混凝土、木纹、布纹和叶脉贴图在浏览器生成。日光模式显示原有平面顶棚，夜色模式开放天井，露出由着色器生成的银河。留言墙方向每 8–10 秒出现一颗约一秒的流星，斜落至墙后。日光和夜色各使用一套预计算的间接光与环境遮蔽，浏览器通过三维光照贴图读取。超清画质还会计算固定建筑的直射投影。
 
 调整窗户、楼板或灯位后，可用 `node scripts/bake-atrium.mjs` 从场景几何重新生成间接光贴图。
@@ -47,7 +49,7 @@ npm start
 
 ```sh
 npm run check
-python3 scripts/package_release.py pack --build 20261113-r81
+python3 scripts/package_release.py pack --build 20261113-r82
 ```
 
 测试覆盖楼层和楼梯可达性、收集交互、人物照片展示和离线缓存。打包脚本根据 `dist/` 生成发布归档和 SHA-256 清单。

@@ -1,33 +1,344 @@
-// Playback is loaded only after a visitor explicitly starts it.
-export function setupMusic(){
- const trigger=document.getElementById('music'),dialog=document.createElement('dialog');dialog.id='music-dialog';dialog.innerHTML=`<button class="close" aria-label="关闭音乐设置">×</button><span class="eyebrow">A SONG FOR THIS MOMENT</span><h2>该相逢的人会再相逢</h2><p>刘宇宁 · 现场演唱</p><p class="music-note">现场原声来自微博回放，建议在 Wi-Fi 下播放。<br>也可以选择手机中的音频，更省流量。</p><button id="play-live" class="primary">播放现场原声 <span>♪</span></button><label class="audio-file">选择本机音频<input id="audio-file" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav"></label><p id="music-status" role="status"></p><a class="source-link" href="https://weibo.com/l/wblive/p/show/1022:2321325332684670370133" target="_blank" rel="noopener">查看原现场 ↗</a>`;document.body.append(dialog);
- const audio=document.createElement('video');audio.id='bgm-player';audio.setAttribute('aria-hidden','true');audio.tabIndex=-1;audio.playsInline=true;audio.setAttribute('playsinline','');audio.setAttribute('webkit-playsinline','');audio.preload='none';audio.volume=.48;audio.style.cssText='position:fixed;width:1px;height:1px;left:-10px;top:-10px;pointer-events:none';document.body.append(audio);
- const url='https://live.video.weibocdn.com/5332684667626135_index.m3u8',startTime=8455,endTime=8734;let hls=null,source=null,localUrl=null,loading=false;const status=dialog.querySelector('#music-status');
- const label=trigger.querySelector('.music-label');
- function sync(){
-  const on=!audio.paused;
-  trigger.classList.toggle('music-on',on);
-  label.textContent=on?'暂停':'唱歌';
-  const action=on?'暂停背景音乐':'播放背景音乐';
-  trigger.setAttribute('aria-label',action);
-  trigger.title=action;
- }
- audio.addEventListener('play',sync);audio.addEventListener('pause',sync);audio.addEventListener('playing',()=>{status.textContent='正在播放';dialog.close()});audio.addEventListener('error',()=>{status.textContent='现场音源暂时无法连接。可以选择本机音频或查看原现场。';source=null;loading=false});
- audio.addEventListener('timeupdate',()=>{if(source==='live'&&audio.currentTime>=endTime){audio.currentTime=startTime;audio.play().catch(()=>{})}});
- dialog.querySelector('.close').onclick=()=>dialog.close();
- trigger.onclick=()=>{if(source){if(audio.paused){hls?.startLoad();audio.play().catch(()=>dialog.showModal())}else{audio.pause();hls?.stopLoad()}}else dialog.showModal()};
- async function playLive(){if(loading)return;loading=true;status.textContent='正在连接现场原声…';source='live';audio.loop=false;
-  if(audio.canPlayType('application/vnd.apple.mpegurl')){audio.src=url;audio.addEventListener('loadedmetadata',()=>{audio.currentTime=startTime},{once:true});audio.play().catch(()=>{status.textContent='请再次点播放';loading=false});}
-  else {try{if(!window.Hls){await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='vendor/hls.min.js';script.onload=resolve;script.onerror=reject;document.head.append(script)})}if(!window.Hls.isSupported())throw new Error('unsupported');hls?.destroy();hls=new window.Hls({startPosition:startTime,maxBufferLength:10,maxMaxBufferLength:20,backBufferLength:0});hls.loadSource(url);hls.attachMedia(audio);hls.on(window.Hls.Events.MANIFEST_PARSED,()=>audio.play().catch(()=>{status.textContent='音源已连接，请再次点击音乐按钮';loading=false}));hls.on(window.Hls.Events.ERROR,(_,data)=>{if(data.fatal){status.textContent='暂时无法连接现场。可选择本机音频。';source=null;loading=false;hls.destroy()}})}catch{source=null;status.textContent='此浏览器无法播放现场音源，请选择本机音频。';loading=false}}
- }
- dialog.querySelector('#play-live').onclick=playLive;
- dialog.querySelector('#audio-file').onchange=e=>{const file=e.target.files[0];if(!file)return;hls?.destroy();hls=null;if(localUrl)URL.revokeObjectURL(localUrl);localUrl=URL.createObjectURL(file);source='local';audio.src=localUrl;audio.loop=true;audio.play().catch(()=>status.textContent='请点击右上角音乐按钮播放');};
- return {
-  start() { if (source && audio.paused) audio.play().catch(() => {}); },
-  muteForCelebration() {
-    const wasMuted = audio.muted;
-    audio.muted = true;
-    return () => { audio.muted = wasMuted; };
-  },
- };
+import { MUSIC_TRACKS } from './music-tracks.js?v=20261113-r82';
+
+let hlsScript;
+function loadHls() {
+  if (window.Hls) return Promise.resolve(window.Hls);
+  if (!hlsScript) {
+    hlsScript = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = new URL('./vendor/hls.min.js', import.meta.url).href;
+      script.onload = () => resolve(window.Hls);
+      script.onerror = () => { script.remove(); hlsScript = undefined; reject(new Error('HLS unavailable')); };
+      document.head.append(script);
+    });
+  }
+  return hlsScript;
+}
+
+async function resolveSource(track, { signal }) {
+  const response = await fetch(track.resolveUrl, { signal, cache: 'no-store' });
+  if (!response.ok) throw new Error('Source unavailable');
+  return response.json();
+}
+
+// Merely selecting an outfit or opening the menu never loads an audio source.
+// Each explicit play request owns a generation, so an older HLS import or play
+// promise cannot replace the track chosen by a later request.
+export function createMusicPlayback(audio, {
+  tracks = MUSIC_TRACKS, getHls = loadHls, getSource = resolveSource, onState = () => {},
+  createObjectURL = file => URL.createObjectURL(file), revokeObjectURL = url => URL.revokeObjectURL(url),
+} = {}) {
+  let current = null, hls = null, localUrl = null, generation = 0;
+  let loading = false, playing = false, wantsPlaying = false, ready = false, error = '';
+  let metadataListener, sourceRequest, blocked = false, celebrationMutes = 0, previousMuted = false;
+  const state = () => ({ trackId: current?.id ?? null, localName: current?.localName ?? '',
+    playing, loading, wantsPlaying, ready, error });
+  const notify = () => onState(state());
+
+  function destroySource() {
+    sourceRequest?.abort();
+    sourceRequest = undefined;
+    if (metadataListener) audio.removeEventListener('loadedmetadata', metadataListener);
+    metadataListener = undefined;
+    hls?.destroy();
+    hls = null;
+    audio.pause();
+    playing = false;
+    audio.removeAttribute('src');
+    audio.load();
+    if (localUrl) revokeObjectURL(localUrl);
+    localUrl = null;
+    ready = false;
+  }
+  function fail(token, message, gestureRetry = false) {
+    if (token !== generation) return;
+    blocked = gestureRetry;
+    loading = false;
+    playing = false;
+    wantsPlaying = false;
+    error = message;
+    hls?.stopLoad();
+    audio.pause();
+    notify();
+  }
+  async function attemptPlay(token) {
+    if (token !== generation || !wantsPlaying) return;
+    try {
+      await audio.play();
+      if (token !== generation || !wantsPlaying) return;
+      loading = false;
+      error = '';
+      blocked = false;
+      notify();
+    } catch (cause) {
+      if (token !== generation || !wantsPlaying) return;
+      const gestureRequired = cause?.name === 'NotAllowedError';
+      fail(token, gestureRequired
+        ? '音源已连接，请再点一次播放。'
+        : '音源暂时无法播放。可以重试，或打开原现场。', gestureRequired);
+    }
+  }
+  async function play(trackId, file) {
+    if (current?.id === trackId && !file && (!error || blocked) && (ready || hls)) {
+      wantsPlaying = true;
+      error = '';
+      hls?.startLoad();
+      loading = !ready;
+      notify();
+      if (ready) await attemptPlay(generation);
+      return;
+    }
+    const track = file ? { id: 'local', localName: file.name, kind: 'audio' }
+      : tracks.find(item => item.id === trackId);
+    if (!track) return;
+    const token = ++generation;
+    wantsPlaying = false;
+    destroySource();
+    current = track;
+    wantsPlaying = true;
+    loading = true;
+    error = '';
+    blocked = false;
+    notify();
+    let media = track;
+    if (track.resolveUrl) {
+      const request = new AbortController();
+      sourceRequest = request;
+      try {
+        const resolved = await getSource(track, { signal: request.signal });
+        if (token !== generation || !wantsPlaying || request.signal.aborted) return;
+        sourceRequest = undefined;
+        if (typeof resolved?.url !== 'string' || !resolved.url.startsWith('https://')) throw new Error('Invalid media URL');
+        const kind = resolved.kind || track.kind;
+        if (!['audio', 'video', 'hls'].includes(kind)) throw new Error('Invalid media kind');
+        media = { ...track, url: resolved.url, kind };
+        current = media;
+      } catch {
+        if (token === generation && wantsPlaying && !request.signal.aborted) {
+          sourceRequest = undefined;
+          fail(token, '音源暂时无法连接。可以重试，或打开原现场。');
+        }
+        return;
+      }
+    }
+    const url = file ? (localUrl = createObjectURL(file)) : media.url;
+    if (!url) { fail(token, '音源暂时无法连接。可以重试，或打开原现场。'); return; }
+    audio.loop = !Number.isFinite(track.end);
+    const start = Number.isFinite(track.start) ? track.start : 0;
+    if (start > 0) {
+      metadataListener = () => {
+        if (token === generation) audio.currentTime = start;
+        metadataListener = undefined;
+      };
+      audio.addEventListener('loadedmetadata', metadataListener, { once: true });
+    }
+    if (media.kind !== 'hls' || audio.canPlayType('application/vnd.apple.mpegurl')) {
+      audio.src = url;
+      ready = true;
+      await attemptPlay(token);
+      return;
+    }
+    try {
+      const Hls = await getHls();
+      if (token !== generation || !wantsPlaying) return;
+      if (!Hls?.isSupported()) throw new Error('Unsupported media');
+      const instance = new Hls({ startPosition: start, maxBufferLength: 10,
+        maxMaxBufferLength: 20, backBufferLength: 0 });
+      hls = instance;
+      instance.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (token !== generation || instance !== hls) return;
+        ready = true;
+        if (wantsPlaying) void attemptPlay(token);
+      });
+      instance.on(Hls.Events.ERROR, (_, data) => {
+        if (data.fatal) fail(token, '现场音源暂时无法连接。可以重试，或打开原现场。');
+      });
+      instance.loadSource(url);
+      instance.attachMedia(audio);
+    } catch {
+      fail(token, '此浏览器暂时无法播放该音源。可以重试、选择本机音频或打开原现场。');
+    }
+  }
+  function pause() {
+    wantsPlaying = false;
+    loading = false;
+    playing = false;
+    if (sourceRequest) {
+      generation++;
+      sourceRequest.abort();
+      sourceRequest = undefined;
+    }
+    hls?.stopLoad();
+    audio.pause();
+    notify();
+  }
+  audio.addEventListener('pause', () => {
+    if (!audio.paused) return;
+    playing = false;
+    notify();
+  });
+  audio.addEventListener('playing', () => {
+    if (audio.paused) return;
+    playing = true;
+    loading = false;
+    error = '';
+    notify();
+  });
+  audio.addEventListener('error', () => {
+    blocked = false;
+    if (current) fail(generation, '音源暂时无法连接。可以重试、选择本机音频或打开原现场。');
+  });
+  audio.addEventListener('timeupdate', () => {
+    if (Number.isFinite(current?.end) && audio.currentTime >= current.end) {
+      audio.currentTime = current.start || 0;
+      if (wantsPlaying) void attemptPlay(generation);
+    }
+  });
+  return {
+    play, pause, get state() { return state(); },
+    start() { if (current && wantsPlaying && audio.paused) void play(current.id); },
+    muteForCelebration() {
+      if (!celebrationMutes++) previousMuted = audio.muted;
+      audio.muted = true;
+      let restored = false;
+      return () => {
+        if (restored) return;
+        restored = true;
+        if (!--celebrationMutes) audio.muted = previousMuted;
+      };
+    },
+  };
+}
+
+export function setupMusic() {
+  const trigger = document.getElementById('music');
+  const dialog = document.createElement('dialog');
+  dialog.id = 'music-dialog';
+  dialog.setAttribute('aria-labelledby', 'music-title');
+  dialog.innerHTML = `<button class="close" aria-label="关闭音乐设置">×</button>
+    <span class="eyebrow">花房音乐</span><h2 id="music-title">选择这一刻的歌</h2>
+    <div class="music-tracks" role="group" aria-label="选择歌曲"></div>
+    <div class="music-controls"><button id="play-live" class="primary">播放</button>
+      <label class="audio-file">本机音频<input id="audio-file" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav"></label></div>
+    <p id="music-status" role="status" aria-live="polite">点击播放后才会加载音源。</p>
+    <p class="music-note">现场原声按需播放，建议在 Wi-Fi 下收听。</p>
+    <a class="source-link" target="_blank" rel="noopener">查看原现场 ↗</a>`;
+  const prompt = document.createElement('dialog');
+  prompt.id = 'rain-music-dialog';
+  prompt.setAttribute('aria-labelledby', 'rain-music-title');
+  prompt.innerHTML = `<button class="close" aria-label="暂不播放，关闭询问">×</button>
+    <span class="eyebrow">归期雨抄 · 白衣舞台</span><h2 id="rain-music-title">要播放《归期雨抄》吗？</h2>
+    <p>刘宇宁 · 音乐缘计划3 现场</p><div class="music-prompt-actions">
+      <button id="rain-music-play" class="primary">播放</button><button id="rain-music-skip" autofocus>暂不播放</button></div>`;
+  const audio = document.createElement('video');
+  audio.id = 'bgm-player';
+  audio.setAttribute('aria-hidden', 'true');
+  audio.tabIndex = -1;
+  audio.playsInline = true;
+  audio.setAttribute('playsinline', '');
+  audio.setAttribute('webkit-playsinline', '');
+  audio.preload = 'none';
+  audio.volume = .48;
+  audio.style.cssText = 'position:fixed;width:1px;height:1px;left:-10px;top:-10px;pointer-events:none';
+  document.body.append(dialog, prompt, audio);
+
+  const status = dialog.querySelector('#music-status');
+  const playButton = dialog.querySelector('#play-live');
+  const sourceLink = dialog.querySelector('.source-link');
+  const label = trigger.querySelector('.music-label');
+  let selected = MUSIC_TRACKS[0]?.id, closeOnPlaying = false;
+  const rows = MUSIC_TRACKS.map(track => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'music-track';
+    button.dataset.track = track.id;
+    button.innerHTML = '<span class="music-track-copy"><b></b><small></small></span><span class="music-track-state" aria-hidden="true"></span>';
+    button.querySelector('b').textContent = track.title;
+    button.querySelector('small').textContent = track.subtitle;
+    button.onclick = () => {
+      if (selected === track.id) return;
+      const resume = playback.state.playing || playback.state.wantsPlaying;
+      selected = track.id;
+      render(playback.state);
+      if (resume) startSelected();
+    };
+    dialog.querySelector('.music-tracks').append(button);
+    return button;
+  });
+  function render(state) {
+    trigger.classList.toggle('music-on', state.playing);
+    label.textContent = '音乐';
+    const current = MUSIC_TRACKS.find(track => track.id === state.trackId);
+    trigger.setAttribute('aria-label', state.playing ? `音乐设置，正在播放《${current?.title || state.localName}》` : '音乐设置');
+    trigger.title = '选择歌曲或暂停音乐';
+    const track = MUSIC_TRACKS.find(item => item.id === selected);
+    for (const row of rows) {
+      const checked = row.dataset.track === selected;
+      row.setAttribute('aria-pressed', String(checked));
+      const playing = state.playing && row.dataset.track === state.trackId;
+      row.querySelector('.music-track-state').textContent = playing ? '播放中' : checked ? '已选择' : '';
+    }
+    playButton.textContent = state.trackId === selected && state.playing ? '暂停'
+      : state.trackId === selected && state.loading ? '取消加载'
+      : state.error && state.trackId === selected ? '重试播放' : '播放';
+    sourceLink.hidden = !track?.sourceUrl;
+    if (track?.sourceUrl) sourceLink.href = track.sourceUrl;
+    if (state.trackId !== selected) status.textContent = '点击播放后才会加载这首歌。';
+    else if (state.error) status.textContent = state.error;
+    else if (state.loading) status.textContent = '正在连接音源…';
+    else if (state.playing) status.textContent = `正在播放：${current?.title || state.localName}`;
+    else if (state.trackId) status.textContent = `已暂停：${current?.title || state.localName}`;
+    else status.textContent = '点击播放后才会加载音源。';
+    if (state.playing && closeOnPlaying) {
+      closeOnPlaying = false;
+      dialog.close();
+    }
+    if (state.error) closeOnPlaying = false;
+  }
+  const playback = createMusicPlayback(audio, { onState: render });
+  function startSelected() {
+    closeOnPlaying = true;
+    void playback.play(selected);
+  }
+  dialog.querySelector('.close').onclick = () => { closeOnPlaying = false; dialog.close(); };
+  trigger.onclick = () => {
+    if (prompt.open) prompt.close();
+    closeOnPlaying = false;
+    render(playback.state);
+    if (!dialog.open) dialog.showModal();
+  };
+  playButton.onclick = () => {
+    if (playback.state.trackId === selected && (playback.state.playing || playback.state.loading)) playback.pause();
+    else startSelected();
+  };
+  dialog.querySelector('#audio-file').onchange = event => {
+    const file = event.target.files[0];
+    if (!file) return;
+    selected = 'local';
+    closeOnPlaying = true;
+    void playback.play('local', file);
+    event.target.value = '';
+  };
+  prompt.querySelector('.close').onclick = () => prompt.close();
+  prompt.querySelector('#rain-music-skip').onclick = () => prompt.close();
+  prompt.querySelector('#rain-music-play').onclick = () => {
+    prompt.close();
+    selected = 'rain';
+    render(playback.state);
+    if (!dialog.open) dialog.showModal();
+    startSelected();
+  };
+  render(playback.state);
+  return {
+    start: playback.start,
+    muteForCelebration: playback.muteForCelebration,
+    offerRainPlayback() {
+      if (playback.state.trackId === 'rain' && playback.state.playing) return;
+      if (dialog.open) dialog.close();
+      if (!prompt.open) {
+        prompt.showModal();
+        prompt.querySelector('#rain-music-skip').focus({ preventScroll: true });
+      }
+    },
+  };
 }

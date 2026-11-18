@@ -6,13 +6,18 @@ from datetime import datetime, timedelta, timezone
 from functools import partial
 from hashlib import sha256
 from hmac import compare_digest
+from http.client import HTTPException
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
 import re
 import sqlite3
+from threading import Lock
+from time import monotonic
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 from unicodedata import category
 
 
@@ -20,6 +25,14 @@ API_PATH = "/api/record-number"
 VISIT_PATH = "/api/visit"
 STATS_PATH = "/api/visitor-stats"
 WALL_PATH = "/api/wall-messages"
+MUSIC_PATH = "/api/music/rain"
+MUSIC_SOURCE_URL = (
+    "https://interface.sina.cn/wap_api/video_location.d.html?cid=&table_id="
+    "&did=niyqwtt0965785&vt=4&creator_id=9805&vid=60122948830&video_id=601229488"
+    "&r=video.sina.cn%2Ffinance%2F2026-11-13%2Fdetail-iniyqwtt0965785.d.html"
+)
+MUSIC_USER_AGENT = "Carnation7 Music/1.0"
+MUSIC_CHUNK_SIZE = 64 * 1024
 WALL_CAPACITY = 122
 PUBLIC_ORIGINS = {"https://lyn.lipopo.org", "https://gaonan.github.io"}
 REQUEST_ID = re.compile(r"[0-9a-f]{32}")
@@ -27,6 +40,94 @@ SHANGHAI = timezone(timedelta(hours=8))
 CHALLENGES = ("heart", "magazine", "role", "record")
 CHALLENGE_EVENTS = {f"{challenge}-{stage}": (challenge, stage == "done")
                     for challenge in CHALLENGES for stage in ("start", "done")}
+
+
+def validate_music_url(url):
+    parts = urlsplit(url)
+    host = parts.hostname or ""
+    if (parts.scheme != "https" or parts.username or parts.password
+            or parts.port not in (None, 443) or parts.fragment
+            or not (host == "interface.sina.cn" or host.endswith(".weibocdn.com"))):
+        raise ValueError("Unsupported music upstream")
+    return url
+
+
+def validate_music_range(value):
+    if value is None:
+        return None
+    match = re.fullmatch(r"bytes=(\d{0,18})-(\d{0,18})", value)
+    if not match or not any(match.groups()):
+        raise ValueError("Invalid range")
+    start, end = match.groups()
+    if (not start and int(end) == 0) or (start and end and int(end) < int(start)):
+        raise ValueError("Invalid range")
+    return value
+
+
+class MusicRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        validate_music_url(newurl)
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected is not None and req.get_method() == "HEAD":
+            redirected.method = "HEAD"
+        return redirected
+
+
+class MusicSource:
+    """Resolve only the fixed public stage video, keeping no audio on disk."""
+    def __init__(self, opener=None):
+        self.opener = opener or build_opener(MusicRedirectHandler())
+        self.lock = Lock()
+        self.cached_url = None
+        self.expires = 0
+
+    def invalidate(self):
+        with self.lock:
+            self.cached_url = None
+            self.expires = 0
+
+    def open(self, method, byte_range):
+        with self.lock:
+            was_cached = self.cached_url is not None and monotonic() < self.expires
+            url = self.cached_url if was_cached else MUSIC_SOURCE_URL
+        headers = {"User-Agent": MUSIC_USER_AGENT, "Accept": "video/mp4", "Accept-Encoding": "identity"}
+        if byte_range is not None:
+            headers["Range"] = validate_music_range(byte_range)
+        elif method == "HEAD":
+            headers["Range"] = "bytes=0-0"
+        response = None
+        try:
+            # This public CDN rejects HTTP HEAD. A metadata-only GET is opened
+            # for HEAD and closed without reading its body by serve_music().
+            request = Request(validate_music_url(url), headers=headers, method="GET" if method == "HEAD" else method)
+            response = self.opener.open(request, timeout=10)
+            final_url = validate_music_url(response.geturl())
+            length = response.headers.get("Content-Length", "")
+            if (response.status not in (200, 206)
+                    or response.headers.get_content_type() != "video/mp4"
+                    or not re.fullmatch(r"\d{1,12}", length) or int(length) == 0):
+                raise ValueError("Invalid music response")
+            if response.status == 206:
+                partial = re.fullmatch(r"bytes (\d+)-(\d+)/(\d+)", response.headers.get("Content-Range", ""))
+                if not partial:
+                    raise ValueError("Missing music range")
+                start, end, total = map(int, partial.groups())
+                if not 0 <= start <= end < total or end - start + 1 != int(length):
+                    raise ValueError("Invalid music response range")
+                if method == "HEAD" and byte_range is None:
+                    response.status = 200
+                    response.headers.replace_header("Content-Length", str(total))
+                    del response.headers["Content-Range"]
+            with self.lock:
+                if not was_cached or self.cached_url != final_url:
+                    self.expires = monotonic() + 60
+                self.cached_url = final_url
+            return response
+        except Exception:
+            if response is not None:
+                response.close()
+            self.invalidate()
+            raise
 
 
 def initialize(database):
@@ -217,7 +318,7 @@ class RecordHandler(SimpleHTTPRequestHandler):
     def endpoint(self):
         return urlsplit(self.path).path
 
-    def respond(self, status, payload=None):
+    def respond(self, status, payload=None, extra_headers=()):
         data = json.dumps(payload).encode() if payload is not None else b""
         self.send_response(status)
         self.send_header("Cache-Control", "no-store")
@@ -225,16 +326,23 @@ class RecordHandler(SimpleHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if origin in self.server.allowed_origins:
             self.send_header("Access-Control-Allow-Origin", origin)
-            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            music = self.endpoint == MUSIC_PATH
+            self.send_header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS" if music else "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Range" if music else "Content-Type")
+            if music:
+                self.send_header("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges")
         if data:
             self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
+        for name, value in extra_headers:
+            self.send_header(name, value)
         self.end_headers()
         if self.command != "HEAD" and data:
             self.wfile.write(data)
 
     def do_GET(self):
+        if self.endpoint == MUSIC_PATH:
+            return self.serve_music()
         if self.endpoint == WALL_PATH:
             try:
                 return self.respond(200, wall_messages(self.server.database))
@@ -263,12 +371,12 @@ class RecordHandler(SimpleHTTPRequestHandler):
         self.respond(200, {"latest": latest})
 
     def do_HEAD(self):
-        if self.endpoint not in (API_PATH, STATS_PATH, VISIT_PATH, WALL_PATH) and self.server.serve_static:
+        if self.endpoint not in (API_PATH, STATS_PATH, VISIT_PATH, WALL_PATH, MUSIC_PATH) and self.server.serve_static:
             return super().do_HEAD()
         self.do_GET()
 
     def do_OPTIONS(self):
-        if self.endpoint not in (API_PATH, VISIT_PATH, WALL_PATH):
+        if self.endpoint not in (API_PATH, VISIT_PATH, WALL_PATH, MUSIC_PATH):
             return self.respond(404, {"error": "not_found"})
         if self.headers.get("Origin") not in self.server.allowed_origins:
             return self.respond(403, {"error": "origin_not_allowed"})
@@ -276,6 +384,8 @@ class RecordHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         endpoint = self.endpoint
+        if endpoint == MUSIC_PATH:
+            return self.respond(405, {"error": "method_not_allowed"})
         if endpoint not in (API_PATH, VISIT_PATH, WALL_PATH):
             return self.respond(404, {"error": "not_found"})
         origin = self.headers.get("Origin")
@@ -311,6 +421,71 @@ class RecordHandler(SimpleHTTPRequestHandler):
             return self.respond(503, {"error": "temporarily_unavailable"})
         self.respond(200, {"number": number})
 
+    def serve_music(self):
+        origin = self.headers.get("Origin")
+        if origin and origin not in self.server.allowed_origins:
+            return self.respond(403, {"error": "origin_not_allowed"})
+        try:
+            if urlsplit(self.path).query or len(self.headers.get_all("Range", [])) > 1:
+                raise ValueError("Invalid music request")
+            byte_range = validate_music_range(self.headers.get("Range"))
+        except ValueError:
+            return self.respond(400, {"error": "invalid_range"})
+
+        upstream = None
+        try:
+            upstream = self.server.music_source.open(self.command, byte_range)
+            remaining = int(upstream.headers["Content-Length"])
+            # Bound the initial read and detect an unavailable stream before
+            # committing the response headers. HEAD never consumes video bytes.
+            chunk = b"" if self.command == "HEAD" else upstream.read(min(MUSIC_CHUNK_SIZE, remaining))
+            if self.command != "HEAD" and not chunk:
+                raise OSError("Empty music stream")
+        except (HTTPError, URLError, OSError, ValueError, HTTPException) as error:
+            if upstream is not None:
+                upstream.close()
+            self.server.music_source.invalidate()
+            if isinstance(error, HTTPError):
+                content_range = error.headers.get("Content-Range", "") if error.headers else ""
+                error.close()
+                if error.code == 416:
+                    headers = [("Content-Range", content_range)] if re.fullmatch(r"bytes \*/\d+", content_range) else ()
+                    return self.respond(416, {"error": "range_not_satisfiable"}, headers)
+            return self.respond(503, {"error": "music_temporarily_unavailable"})
+
+        try:
+            self.send_response(upstream.status)
+            self.send_header("Content-Type", "video/mp4")
+            self.send_header("Content-Length", str(remaining))
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Vary", "Origin")
+            if upstream.status == 206:
+                self.send_header("Content-Range", upstream.headers["Content-Range"])
+            if origin in self.server.allowed_origins:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                self.send_header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+                self.send_header("Access-Control-Allow-Headers", "Range")
+                self.send_header("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges")
+            self.end_headers()
+            if self.command == "HEAD":
+                return
+            while chunk:
+                self.wfile.write(chunk)
+                remaining -= len(chunk)
+                if remaining <= 0:
+                    break
+                chunk = upstream.read(min(MUSIC_CHUNK_SIZE, remaining))
+            if remaining:
+                self.close_connection = True
+                self.server.music_source.invalidate()
+        except (OSError, HTTPException):
+            # An interrupted listener owns no persistent upstream connection.
+            self.close_connection = True
+            self.server.music_source.invalidate()
+        finally:
+            upstream.close()
+
 
 class RecordServer(ThreadingHTTPServer):
     request_queue_size = 64
@@ -323,6 +498,7 @@ class RecordServer(ThreadingHTTPServer):
         self.stats_key = stats_key
         self.serve_static = static_root is not None
         self.allowed_origins = set(PUBLIC_ORIGINS)
+        self.music_source = MusicSource()
         super().__init__(address, partial(RecordHandler, directory=static_root))
         if self.serve_static:
             self.allowed_origins.update(f"http://{host}:{self.server_port}" for host in ("localhost", "127.0.0.1"))
