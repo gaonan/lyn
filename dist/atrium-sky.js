@@ -106,7 +106,8 @@ export function createAtriumSky(T, scene) {
           vec2 coordinates = vec2(longitude, latitude);
           float knots = clouds(coordinates * vec2(24.0, 41.0) + vec2(15.8, -7.3));
           float grains = noise(coordinates * vec2(115.0, 370.0) + 5.2);
-          float dust = noise(coordinates * vec2(19.0, 53.0) + vec2(-5.1, 9.7));
+          float dust = .64 * noise(coordinates * vec2(19.0, 53.0) + vec2(-5.1, 9.7)) +
+            .36 * noise(coordinates * vec2(47.0, 103.0) + vec2(6.2, -3.1));
           float riftCenter = center + .010 * sin(longitude * 19.0) + .022 * (dust - .5);
           float coreWidth = mix(.014, .031, core) * (.51 + .94 * dust);
           // A broken central rift and a fork leave two irregular luminous banks,
@@ -117,8 +118,11 @@ export function createAtriumSky(T, scene) {
             (.008 + .016 * dust));
           fork *= (.20 + .80 * smoothstep(.27, .73, dust)) * gaussian((longitude - .03) / .86);
           float dustKnots = smoothstep(.49, .73, knots) * gaussian((center + .018) / .095);
-          float extinction = clamp(1.0 - rift * (.80 + .17 * grains) -
-            fork * .68 - dustKnots * .58, .035, 1.0);
+          // Absorbing clouds retain faint foreground stars and scattered light.
+          // Exponential transmission gives overlapping dust a continuous tonal
+          // range, rather than clipping several clouds to the same black patch.
+          float opticalDepth = rift * (.88 + .16 * grains) + fork * .47 + dustKnots * .43;
+          float transmission = .18 + .82 * exp(-1.05 * opticalDepth);
           float clumps = .27 + 1.02 * smoothstep(.24, .79, knots);
           // The bulge leans toward one bank and swells in distinct broad knots.
           float broadBulge = gaussian((longitude + .23 + latitude * .7) / .34) *
@@ -126,11 +130,13 @@ export function createAtriumSky(T, scene) {
           float halo = gaussian(latitude / .19) * reach;
           vec3 stellarLight = mix(vec3(.25, .27, .30), vec3(.40, .35, .27), core * .84);
           color += detailFade * halo * vec3(.012, .013, .015);
-          color += detailFade * (band * clumps + broadBulge * .49) * stellarLight * extinction;
+          color += detailFade * (band * clumps + broadBulge * .49) * stellarLight * transmission;
+          color += detailFade * band * (1.0 - transmission) *
+            (.010 + .007 * grains) * vec3(.94, .92, .88);
           // Fine resolved stars give the bright lanes a granular appearance.
-          starField = detailFade * band * extinction * (.44 + .56 * knots);
+          starField = detailFade * band * (.24 + .76 * transmission) * (.44 + .56 * knots);
           color += stars(plane + vec2(.34, .17), 625.0, starField * .91, .038, .43) * starField;
-          color += detailFade * band * extinction * (grains - .36) * vec3(.052, .050, .046);
+          color += detailFade * band * transmission * (grains - .36) * vec3(.052, .050, .046);
         }
         color += stars(plane, 179.0, .16, .028, .40);
         color += stars(plane + vec2(-.69, .29), 67.0, .072, .051, .69);
