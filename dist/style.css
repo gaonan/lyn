@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261113-r85") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261120-r86") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261113-r85") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261120-r86") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;

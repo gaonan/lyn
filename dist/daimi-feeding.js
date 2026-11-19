@@ -1,5 +1,5 @@
-import { createFeedingView } from './daimi-feeding-view.js?v=20261113-r85';
-import { createFeedingRound } from './feeding-round.js?v=20261113-r85';
+import { createFeedingView } from './daimi-feeding-view.js?v=20261120-r86';
+import { createFeedingRound } from './feeding-round.js?v=20261120-r86';
 
 export function setupDaimiFeeding(options) {
   const view = createFeedingView();

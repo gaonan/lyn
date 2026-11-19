@@ -1,0 +1,19 @@
+[Unit]
+Description=Carnation reliable keepsake numbering and visits
+After=network.target
+
+[Service]
+User=flower-record-number
+DynamicUser=yes
+StateDirectory=flower-record-number
+StateDirectoryMode=0700
+LoadCredential=visitor-stats-key:/etc/flower-cafe/visitor-stats-key
+ExecStart=/usr/bin/python3 -B /opt/flower-cafe/record-number/record_numbers-20261120-r86.py --port 8714 --database /var/lib/flower-record-number/records.sqlite3
+Restart=on-failure
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -150,6 +150,12 @@ def initialize(database):
 
 def issue(database, request_id):
     with closing(sqlite3.connect(database)) as connection, connection:
+        # Recover an already-issued receipt without competing for the write lock.
+        prior = connection.execute(
+            "SELECT number FROM record_number WHERE request_id = ?", (request_id,)
+        ).fetchone()
+        if prior:
+            return prior[0]
         connection.execute("BEGIN IMMEDIATE")
         prior = connection.execute(
             "SELECT number FROM record_number WHERE request_id = ?", (request_id,)
@@ -319,10 +325,30 @@ class RecordHandler(SimpleHTTPRequestHandler):
         return urlsplit(self.path).path
 
     def respond(self, status, payload=None, extra_headers=()):
+        if self.endpoint == API_PATH and self.command == "POST":
+            def source(value):
+                if not value or value == "null":
+                    return value or "missing"
+                try:
+                    parsed = urlsplit(value)
+                    return f"{parsed.scheme}://{parsed.hostname or 'invalid'}"[:180]
+                except ValueError:
+                    return "invalid"
+            self.log_message("claim %s", json.dumps({
+                "status": status,
+                "duration_ms": round(1000 * (monotonic() - self.request_started), 1),
+                "error": payload.get("error") if isinstance(payload, dict) else None,
+                "sqlite_error": getattr(self, "sqlite_failure", None),
+                "origin": source(self.headers.get("Origin")),
+                "referer_origin": source(self.headers.get("Referer")),
+                "fetch_site": self.headers.get("Sec-Fetch-Site", "missing")[:40],
+            }))
         data = json.dumps(payload).encode() if payload is not None else b""
         self.send_response(status)
         self.send_header("Cache-Control", "no-store")
         self.send_header("Vary", "Origin")
+        if status == 503:
+            self.send_header("Retry-After", "1")
         origin = self.headers.get("Origin")
         if origin in self.server.allowed_origins:
             self.send_header("Access-Control-Allow-Origin", origin)
@@ -338,7 +364,12 @@ class RecordHandler(SimpleHTTPRequestHandler):
             self.send_header(name, value)
         self.end_headers()
         if self.command != "HEAD" and data:
-            self.wfile.write(data)
+            try:
+                self.wfile.write(data)
+            except (BrokenPipeError, ConnectionResetError):
+                # The transaction has already committed. A retry with the same
+                # request ID recovers the receipt; it must never roll back here.
+                self.log_message("response_disconnected endpoint=%s", self.endpoint)
 
     def do_GET(self):
         if self.endpoint == MUSIC_PATH:
@@ -383,6 +414,8 @@ class RecordHandler(SimpleHTTPRequestHandler):
         self.respond(204)
 
     def do_POST(self):
+        self.request_started = monotonic()
+        self.sqlite_failure = None
         endpoint = self.endpoint
         if endpoint == MUSIC_PATH:
             return self.respond(405, {"error": "method_not_allowed"})
@@ -417,7 +450,8 @@ class RecordHandler(SimpleHTTPRequestHandler):
             number = issue(self.server.database, request_id)
         except (ValueError, TimeoutError):
             return self.respond(400, {"error": "invalid_request"})
-        except sqlite3.Error:
+        except sqlite3.Error as error:
+            self.sqlite_failure = getattr(error, "sqlite_errorname", type(error).__name__)
             return self.respond(503, {"error": "temporarily_unavailable"})
         self.respond(200, {"number": number})
 

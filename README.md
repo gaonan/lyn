@@ -25,7 +25,7 @@
 
 ## 本地运行
 
-需要 Node.js 和 Python 3。无需安装 npm 依赖。
+需要 Node.js 和 Python 3。仓库已包含浏览器用的构建产物，可直接预览；修改 JavaScript 后先运行 `npm ci` 和 `npm run build`。
 
 ```sh
 npm start
@@ -53,7 +53,8 @@ npm start
 
 ```sh
 npm run check
-python3 scripts/package_release.py pack --build 20261113-r85
+npm run build
+python3 scripts/package_release.py pack --build 20261120-r86
 ```
 
 测试覆盖楼层和楼梯可达性、收集交互、人物照片展示和离线缓存。打包脚本根据 `dist/` 生成发布归档和 SHA-256 清单。
@@ -66,3 +67,19 @@ python3 scripts/package_release.py pack --build 20261113-r85
 - 喂食手部照片来自 [PNGAaa](https://www.pngaaa.com/detail/1108221)，来源页标为非商业使用。
 - 收集提示音采用 Kenney 的 [Interface Sounds](https://kenney.nl/assets/interface-sounds)（CC0）。
 - 第三方库和字体的许可证随素材存放在 `dist/` 下。
+
+## 领取恢复与访问缓存（r86）
+
+每次新的留影领取仍可获得新编号。一次领取的随机凭据在请求发出前保存，临时网络错误、408/429/5xx 最多重试 4 次，重试始终复用该凭据。服务器成功返回后先保存编号，再生成图片。图片生成失败、刷新或重新进入页面会继续未完成的领取；成功生成图片后，这次领取结束。再次点击生成（例如退出再补充新的留言）会新建领取并发新编号。切换已生成留影的机位沿用该张留影的编号。浏览器清除存储、跨设备或跨站点无法自动找回旧凭据。
+
+应用启动脚本由 esbuild 合并为 `dist/app.js`，更新源码后必须重新构建。公开首页仅短时共享缓存，版本化资源长期缓存；编号、留言 API 和 `/stats/` 不进入共享缓存。浏览器的当前版本资源优先读取已完成的缓存，回访导航遇到 5xx 或线路长时间无响应时使用已有页面。首次访问仍依赖网络。
+
+`server/lyn.nginx.conf` 是主站专用配置；Cloudflare 首页规则仅匹配 `lyn.lipopo.org` 的无查询字符串 `/` 和 `/index.html` GET/HEAD，遵循源站 TTL。发布使用新的静态目录和原子符号链接切换，网页服务只 reload，不 stop。数据库备份使用 SQLite backup API，禁止复制正在写入的单一数据库文件或用旧备份回滚新领取。
+
+编号日志包含状态、耗时、SQLite 错误类型和来源站点，不记录留言正文、领取凭据或访客 IP。数据库忙时返回 503 与 Retry-After，已发编号的恢复查询不再争抢写锁。并发及故障测试使用独立临时数据库。
+
+生产 API 自 r86 起由 `carnation-record-number.service` 在回环端口 8714 运行；旧 `flower-record-number.service` 已在连接排空后禁用。数据库仍为 `/var/lib/flower-record-number/records.sqlite3`，序列和留言数据保持原库。r86 备份位于服务器 `/var/backups/flower-cafe/20261120-r86`；回滚应切回旧代码和 nginx 配置，继续使用当前数据库，绝不覆盖发布后新增编号。
+
+主站 HTTP 入口由 Cloudflare Single Redirect「康乃馨 HTTP 转 HTTPS」以 308 跳到同路径 HTTPS（保留查询参数）。曾复现 HTTP 页面 Origin 被 HTTPS-only 编号服务拒绝；不要通过放开所有 Origin 来解决，也不要把未分类的 403 总数当成真实访客失败率。
+
+发布归档为可复现打包而将 mtime 设为 1970；解压到生产后必须将发布文件 mtime 更新到发布时间，否则旧浏览器发送 If-Modified-Since 时可能误收 304，持续运行旧版。文件内容及 SHA-256 不受 mtime 修正影响。

@@ -83,6 +83,21 @@ class RecordNumbersTests(unittest.TestCase):
                                      payload={"requestId": "a" * 32, "text": "local"})[0], 400)
             self.assertEqual(claim(url, "a" * 32), 1)
 
+    def test_busy_database_preserves_receipts_and_new_claim_recovers_after_retry(self):
+        with running_server(self.database) as url:
+            self.assertEqual(claim(url, "a" * 32), 1)
+            with sqlite3.connect(self.database) as blocker:
+                blocker.execute("BEGIN IMMEDIATE")
+                # WAL readers can still recover a committed receipt during a writer.
+                self.assertEqual(claim(url, "a" * 32), 1)
+                status, headers, body = request(url, method="POST", payload={"requestId": "b" * 32})
+                self.assertEqual(status, 503)
+                self.assertEqual(headers["Retry-After"], "1")
+                self.assertEqual(body["error"], "temporarily_unavailable")
+                blocker.rollback()
+            self.assertEqual(claim(url, "b" * 32), 2)
+            self.assertEqual(claim(url, "b" * 32), 2)
+
     def test_visits_deduplicate_pages_and_browser_per_site_without_affecting_records(self):
         key = "a" * 64
         with running_server(self.database, stats_key=key.encode()) as url:
