@@ -1,4 +1,5 @@
-const PERIOD_MS = 1300;
+const PERIOD_MS = 1300 / .9;
+const MISS_PREVIEW_MS = 500;
 export const FEEDING_LIMITS = Object.freeze({ green: .18, yellow: .58 });
 export function feedingNeedle(elapsed) {
   return Math.sin(Math.max(0, elapsed) * Math.PI * 2 / PERIOD_MS - Math.PI / 2);
@@ -18,6 +19,10 @@ export function createFeedingRound() {
     if (!Number.isFinite(delta) || delta < 0) return;
     elapsed += delta;
     if (phase === 'aim') needle = feedingNeedle(elapsed);
+    if (phase === 'miss-preview' && elapsed >= MISS_PREVIEW_MS) {
+      elapsed -= MISS_PREVIEW_MS;
+      phase = 'reach';
+    }
     if (phase === 'reach') {
       reach = Math.min(1, elapsed / 500);
       if (reach === 1) {
@@ -36,7 +41,7 @@ export function createFeedingRound() {
       if (phase !== 'aim') return false;
       locked = needle;
       zone = feedingZone(locked);
-      phase = 'reach';
+      phase = zone === 'green' ? 'reach' : 'miss-preview';
       elapsed = 0;
       return true;
     },
