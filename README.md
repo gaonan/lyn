@@ -83,3 +83,5 @@ python3 scripts/package_release.py pack --build 20261120-r86
 主站 HTTP 入口由 Cloudflare Single Redirect「康乃馨 HTTP 转 HTTPS」以 308 跳到同路径 HTTPS（保留查询参数）。曾复现 HTTP 页面 Origin 被 HTTPS-only 编号服务拒绝；不要通过放开所有 Origin 来解决，也不要把未分类的 403 总数当成真实访客失败率。
 
 发布归档为可复现打包而将 mtime 设为 1970；解压到生产后必须将发布文件 mtime 更新到发布时间，否则旧浏览器发送 If-Modified-Since 时可能误收 304，持续运行旧版。文件内容及 SHA-256 不受 mtime 修正影响。
+
+回滚顺序：先 `systemctl enable --now flower-record-number.service` 并确认 8713 健康；恢复备份的两个 nginx 配置与旧静态目录符号链接；执行 nginx 配置检查及 reload；待 8714 连接排空后停用新 API。整个过程保留当前数据库及新领取记录。
