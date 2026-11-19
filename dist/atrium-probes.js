@@ -1,4 +1,4 @@
-import { MESSAGE_WALL_SKY_EDGE } from './atrium-sky.js?v=20261113-r84';
+import { MESSAGE_WALL_SKY_EDGE } from './atrium-sky.js?v=20261113-r85';
 
 export const PROBE_SIZE = [24, 18, 22];
 export const PROBE_MIN = [-9, 0, -7];

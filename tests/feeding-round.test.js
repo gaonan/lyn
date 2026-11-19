@@ -11,12 +11,12 @@ test('the center succeeds and both sides preserve symmetric yellow and red bound
   }
   assert.equal(feedingZone(NaN), 'red');
   assert.equal(feedingNeedle(0), -1);
-  assert.ok(Math.abs(feedingNeedle(325)) < 1e-12);
-  assert.equal(feedingNeedle(650), 1);
+  assert.ok(Math.abs(feedingNeedle(325 / .9)) < 1e-12);
+  assert.equal(feedingNeedle(650 / .9), 1);
 });
 test('a successful click locks once, reaches the dog, and consumes exactly four bites', () => {
   const game = createFeedingRound();
-  game.tick(325);
+  game.tick(325 / .9);
   assert.equal(game.feed(), true);
   assert.equal(game.state.zone, 'green');
   assert.equal(game.feed(), false);
@@ -33,13 +33,21 @@ test('a successful click locks once, reaches the dog, and consumes exactly four 
   assert.equal(game.state.phase, 'success');
   assert.equal(game.state.bites, 4);
 });
-test('yellow and red misses keep their original direction and never consume sausage', () => {
-  for (const elapsed of [0, 200, 450, 650]) {
+test('yellow and red misses hold their click position for half a second before reaching', () => {
+  for (const [elapsed, expectedZone] of [[0, 'red'], [200, 'yellow'], [450, 'yellow'], [650, 'red']]) {
     const game = createFeedingRound();
-    game.tick(elapsed);
+    game.tick(elapsed / .9);
     game.feed();
     const { locked, zone } = game.state;
-    assert.notEqual(zone, 'green');
+    assert.equal(zone, expectedZone);
+    assert.equal(game.state.phase, 'miss-preview');
+    game.tick(499);
+    assert.equal(game.state.phase, 'miss-preview');
+    assert.equal(game.state.needle, locked);
+    assert.equal(game.state.reach, 0);
+    assert.equal(game.feed(), false);
+    game.tick(1);
+    assert.equal(game.state.phase, 'reach');
     game.tick(500);
     assert.equal(game.state.phase, 'miss');
     assert.equal(game.feed(), false);

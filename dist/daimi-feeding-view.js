@@ -1,4 +1,4 @@
-const FEEDING_PHOTO = './assets/feeding/female-hand-photo.webp?v=20261113-r84';
+const FEEDING_PHOTO = './assets/feeding/female-hand-photo.webp?v=20261113-r85';
 let viewNumber = 0;
 const LIMITS = [-1, -.58, -.18, .18, .58, 1];
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -167,14 +167,18 @@ export function createFeedingView() {
     query('.feeding-instruction').hidden = next === 'offer' || next === 'miss' || next === 'success';
     feedButton.hidden = !aiming;
     feedButton.disabled = !aiming;
-    query('.feeding-fan').style.opacity = aiming ? '1' : '0';
+    const showingMiss = next === 'miss-preview';
+    query('.feeding-fan').style.opacity = aiming || showingMiss ? '1' : '0';
     arm.style.opacity = next === 'offer' ? '0' : '1';
     query('.feeding-retry').hidden = next !== 'miss';
     query('.feeding-quit').hidden = next !== 'miss';
     query('.feeding-done').hidden = next !== 'success';
     query('.feeding-result-title').textContent = next === 'success' ? '呆米吃饱啦' : '哎呀，喂偏了';
     query('.feeding-result-note').textContent = next === 'success' ? '四口香肠，一点小默契。' : '汪！汪！';
-    query('.feeding-instruction p').textContent = aiming ? '瞄准绿色，点一下「喂」' : next === 'eating' ? `呆米正在吃第 ${Math.min(4, bites + 1)} 口` : '把手伸过去…';
+    query('.feeding-instruction p').textContent = aiming ? '瞄准绿色，点一下「喂」'
+      : showingMiss ? '喂偏了'
+      : next === 'eating' ? `呆米正在吃第 ${Math.min(4, bites + 1)} 口`
+      : '把手伸过去…';
     updateArm();
   }
   function setBites(count) {
