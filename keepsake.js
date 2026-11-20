@@ -1,3 +1,5 @@
+import { createRecordClaim, formatRecordNumber } from './record-claim.js?v=20261120-r87';
+
 const LIMIT = 50;
 const segmenter = typeof Intl.Segmenter === 'function'
   ? new Intl.Segmenter('zh', { granularity: 'grapheme' }) : null;
@@ -216,32 +218,10 @@ export async function shareImage(file, title) {
   }
 }
 
-async function getRecordNumber(requestId) {
-  const endpoint = location.hostname === 'gaonan.github.io'
-    ? 'https://lyn.lipopo.org/api/record-number'
-    : '/api/record-number';
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10000);
-  try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requestId }),
-      signal: controller.signal,
-      credentials: 'omit',
-    });
-    if (!response.ok) throw new Error('Record number request failed');
-    const { number } = await response.json();
-    if (!Number.isSafeInteger(number) || number < 1) throw new Error('Invalid record number');
-    return `No.${String(number).padStart(6, '0')}`;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
   const key = 'carnation7-wall-note';
-  const pendingKey = 'carnation7-pending-record-request';
+  const claim = createRecordClaim();
+  let retryWhenOnline = false;
   const input = dialog.querySelector('textarea');
   const counter = dialog.querySelector('.keepsake-count');
   const album = dialog.querySelector('.keepsake-album');
@@ -268,13 +248,15 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
   let savedText = '';
   try { savedText = keepsakeText(localStorage.getItem(key) || ''); } catch {}
   record.setMessage(savedText);
-  let file, url, requestId, wallReady, currentAngle = 0, generating = false, generation = 0;
+  let file, url, wallReady, currentAngle = 0, activeRequest, generation = 0;
   let publishable;
-  try { requestId = sessionStorage.getItem(pendingKey); } catch {}
-  if (!/^[0-9a-f]{32}$/.test(requestId)) requestId = undefined;
 
   function discardImage() {
     generation++;
+    activeRequest?.abort();
+    activeRequest = undefined;
+    retryWhenOnline = false;
+    generate.disabled = save.disabled = previous.disabled = next.disabled = false;
     if (url) URL.revokeObjectURL(url);
     url = undefined;
     file = undefined;
@@ -310,9 +292,11 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
   });
 
   async function generateView(angle, text) {
-    if (generating) return;
+    if (activeRequest) return;
     const attempt = generation;
-    generating = generate.disabled = save.disabled = previous.disabled = next.disabled = true;
+    const controller = new AbortController();
+    activeRequest = controller;
+    generate.disabled = save.disabled = previous.disabled = next.disabled = true;
     download.removeAttribute('href');
     if (file) angleLabel.textContent = '正在切换机位…';
     status.textContent = '正在准备留影…';
@@ -325,15 +309,14 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
         status.textContent = '呆米的素材暂未加载成功。留言已保留，请重新加载花房后再试。';
         return;
       }
-      if (!requestId) {
-        requestId = Array.from(crypto.getRandomValues(new Uint8Array(16)),
-          byte => byte.toString(16).padStart(2, '0')).join('');
-        try { sessionStorage.setItem(pendingKey, requestId); } catch {}
-      }
       stage = 'number';
-      status.textContent = '正在领取收藏编号…';
-      const ticketRequest = requestId;
-      const recordNumber = await getRecordNumber(ticketRequest);
+      retryWhenOnline = false;
+      const receipt = await claim.get((tryNumber, total) => {
+        if (attempt === generation && dialog.open) status.textContent = tryNumber === 1
+          ? '正在领取收藏编号…' : `网络较忙，正在重试领取（${tryNumber}/${total}）…`;
+      }, controller.signal);
+      const ticketRequest = receipt.requestId;
+      const recordNumber = formatRecordNumber(receipt.number);
       if (attempt !== generation || !dialog.open) return;
       stage = 'image';
       status.textContent = '正在生成留影…';
@@ -352,8 +335,6 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
         publishButton.hidden = publishStatus.hidden = publishButton.disabled = false;
         publishStatus.textContent = '发布后其他玩家可见';
       }
-      requestId = undefined;
-      try { sessionStorage.removeItem(pendingKey); } catch {}
       serialLabel.textContent = recordNumber;
       title.textContent = '收藏你的唱片留影';
       preview.src = url;
@@ -361,24 +342,41 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
       preview.hidden = issued.hidden = angles.hidden = false;
       album.hidden = compose.hidden = true;
       download.download = file.name;
+      claim.complete(ticketRequest);
       status.textContent = '';
       saveStatus.textContent = '';
     } catch (error) {
-      if (attempt === generation) status.textContent = stage === 'number'
-        ? '暂时连不上编号服务器，联网后再试一次。留言已保留。'
-        : error?.message === '这个机位的人物素材还没加载好，请稍后再试。'
-          ? error.message : '留言已保留。留影生成失败，请再试一次。';
+      if (attempt === generation && dialog.open) {
+        retryWhenOnline = stage === 'number' && error.retryable !== false;
+        const receipt = claim.peek();
+        status.textContent = stage === 'number'
+          ? error.status === 403
+            ? '当前浏览器的领取请求被拒绝。请用系统浏览器打开本站后重试，留言和领取凭据已保留。'
+            : '网络暂时不稳定，领取凭据和留言已保留。可再次点击生成留影；断网恢复后会继续尝试。'
+          : receipt?.number
+            ? `编号 ${formatRecordNumber(receipt.number)} 已保存。留影暂未生成成功，请再试一次，不会重复领取。`
+            : error?.message === '这个机位的人物素材还没加载好，请稍后再试。'
+              ? error.message : '留言已保留。留影生成失败，请再试一次。';
+      }
     } finally {
-      generating = generate.disabled = save.disabled = previous.disabled = next.disabled = false;
-      if (attempt === generation && file) {
-        angleLabel.textContent = angleNames[currentAngle];
-        download.href = url;
+      if (activeRequest === controller) {
+        activeRequest = undefined;
+        generate.disabled = save.disabled = previous.disabled = next.disabled = false;
+        if (file) {
+          angleLabel.textContent = angleNames[currentAngle];
+          download.href = url;
+        }
       }
     }
   }
 
+  globalThis.window?.addEventListener('online', () => {
+    if (retryWhenOnline && dialog.open && !activeRequest) void generateView(0, savedText);
+  });
+
   generate.addEventListener('click', () => {
-    if (generating) return;
+    if (activeRequest) return;
+    claim.start();
     updateLimit();
     savedText = input.value.trim().replace(/\n+/g, ' ');
     record.setMessage(savedText);
@@ -387,7 +385,7 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
     void generateView(0, savedText);
   });
   function switchAngle(offset) {
-    if (!file || generating) return;
+    if (!file || activeRequest) return;
     void generateView((currentAngle + offset + angleNames.length) % angleNames.length, savedText);
   }
   previous.addEventListener('click', () => switchAngle(-1));
@@ -411,7 +409,7 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
   });
 
   download.addEventListener('click', () => {
-    if (file && !generating) saveStatus.textContent = '已发起留影下载。';
+    if (file && !activeRequest) saveStatus.textContent = '已发起留影下载。';
   });
   save.addEventListener('click', async () => {
     if (!file) return;
@@ -426,7 +424,9 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
     album.src = record.url;
     input.value = savedText;
     updateLimit();
-    status.textContent = '';
+    const receipt = claim.peek();
+    status.textContent = receipt?.number && !receipt.completed
+      ? `上次留影尚未完成，编号 ${formatRecordNumber(receipt.number)} 已保留，可继续生成。` : '';
     wallReady = messageWall.refresh();
   };
 }

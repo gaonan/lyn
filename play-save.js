@@ -15,6 +15,7 @@ function readSave(storage) {
         ? [...new Set(saved[group].filter(id => typeof id === 'string'))] : []])),
       dogSeen: saved.dogSeen === true,
       dogGreeted: saved.dogGreeted === true,
+      feedingOfferedHere: saved.feedingOfferedHere === true,
       invitationSeen: saved.invitationSeen === true,
       testRun: saved.testRun === true,
     };
@@ -24,7 +25,7 @@ function readSave(storage) {
 export function createPlaySave(storage = () => globalThis.localStorage) {
   const state = readSave(storage) ?? {
     version: 1, seed: Math.floor(Math.random() * 0x100000000), position: null,
-    hearts: [], magazines: [], roles: [], dogSeen: false, dogGreeted: false, invitationSeen: false, testRun: false,
+    hearts: [], magazines: [], roles: [], dogSeen: false, dogGreeted: false, invitationSeen: false, feedingOfferedHere: false, testRun: false,
   };
   function write(update) {
     const latest = readSave(storage);
@@ -33,6 +34,7 @@ export function createPlaySave(storage = () => globalThis.localStorage) {
       state.position = latest.position ?? state.position;
       state.dogSeen ||= latest.dogSeen;
       state.dogGreeted ||= latest.dogGreeted;
+      state.feedingOfferedHere = latest.feedingOfferedHere;
       state.invitationSeen ||= latest.invitationSeen;
       state.testRun ||= latest.testRun;
     }
@@ -52,7 +54,7 @@ export function createPlaySave(storage = () => globalThis.localStorage) {
         saved[group] = [...new Set([...saved[group], ...ids])];
       });
     },
-    mark(flag) { write(saved => { saved[flag] = true; }); },
+    mark(flag, value = true) { write(saved => { saved[flag] = value; }); },
     savePosition(position) { write(saved => { saved.position = position; }); },
   };
 }

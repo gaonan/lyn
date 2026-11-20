@@ -12,13 +12,13 @@ const CANDIDATES = [
   { id: 'upper-books', x: 0, y: 4.8, z: -5.7 },
   { id: 'upper-window', x: 7.2, y: 4.8, z: -5.7 },
 ];
-export function createHearts(THREE, scene, random = Math.random) {
+export function createHearts(THREE, scene, random = Math.random, stageHeart = STAGE_HEART) {
   const shuffled = [...CANDIDATES];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  const selection = [STAGE_HEART, ...shuffled.slice(0, 4)];
+  const selection = [stageHeart, ...shuffled.slice(0, 4)];
 
   const shape = new THREE.Shape();
   shape.moveTo(0, .19);

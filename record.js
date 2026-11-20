@@ -1,4 +1,4 @@
-import { keepsakeText, textLines } from './keepsake.js?v=20261113-r85';
+import { keepsakeText, textLines } from './keepsake.js?v=20261120-r87';
 
 export const RECORD_POSITION = { x: -2.85, y: 1.53, z: 8.87 };
 
@@ -70,7 +70,7 @@ export function buildRecord(T, scene, version, loader = new T.TextureLoader()) {
   let unlocked = false;
   let claimed = false;
   return {
-    id: 'record', title: '刘宇宁首张专辑', url, ready,
+    id: 'record', title: '刘宇宁首张专辑', url, ready, display,
     unlock(wasClaimed = false) {
       unlocked = true;
       claimed = wasClaimed;

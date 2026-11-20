@@ -247,7 +247,7 @@ export function createAtriumSky(T, scene) {
     meteorProgress.value = progress >= 0 && progress < 1 ? progress : -1;
   }
   return { setNight, update, get state() {
-    return { night: night.value, meteor: {
+    return { visible: sky.visible, night: night.value, meteor: {
       active: meteorProgress.value >= 0,
       progress: meteorProgress.value,
       nextIn: Math.max(0, nextMeteor - nightSeconds),

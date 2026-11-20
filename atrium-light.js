@@ -1,7 +1,7 @@
-import { createAtriumSky } from './atrium-sky.js?v=20261113-r85';
-import { createStageMist } from './stage-mist.js?v=20261113-r85';
+import { createAtriumSky } from './atrium-sky.js?v=20261120-r87';
+import { createStageMist } from './stage-mist.js?v=20261120-r87';
 
-export function createAtriumLighting(T, renderer, scene, probes) {
+export function createAtriumLighting(T, renderer, scene, probes, { concert = false } = {}) {
   const atriumSky = createAtriumSky(T, scene);
   const reflection = document.createElement('canvas');
   reflection.width = 128;
@@ -187,6 +187,8 @@ export function createAtriumLighting(T, renderer, scene, probes) {
     scene.add(emitter);
     return emitter;
   }
+  const originalFixtures = new T.Group();
+  scene.add(originalFixtures);
   function lamp(from, to, color) {
     const socket = new T.Vector3(...from);
     const direction = new T.Vector3(...to).sub(socket).normalize();
@@ -198,7 +200,7 @@ export function createAtriumLighting(T, renderer, scene, probes) {
     fixture.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), direction);
     const stand = new T.Mesh(new T.CylinderGeometry(.024, .032, socket.y, 6), fixture.material);
     stand.position.set(fixture.position.x, socket.y / 2, fixture.position.z);
-    scene.add(fixture, stand);
+    originalFixtures.add(fixture, stand);
     return lampGlow(socket.addScaledVector(direction, .023), color, 1.44).material;
   }
   const lamps = [lamp(coolFrom, coolTo, '#bcdeff'), lamp(warmFrom, warmTo, '#ffce90')];
@@ -210,16 +212,23 @@ export function createAtriumLighting(T, renderer, scene, probes) {
 
   function setNight(night) {
     isNight = night;
+    originalFixtures.visible = !concert;
+    const blackout = concert && night;
+    scene.background.set(blackout ? '#040405' : '#131719');
+    scene.fog.color.copy(scene.background);
+    // The open roof still shows the night sky when the auditorium lights go out.
     atriumSky.setNight(night);
-    probes.setNight(night, rainActive);
-    bounce.intensity = rainActive ? (night ? .18 : .23) : (night ? .48 : .91);
-    daylight.intensity = rainActive ? 0 : night ? .115 : 1.85;
-    shelves.intensity = rainActive ? 0 : night ? 25 : 16;
-    lounge.intensity = rainActive ? 0 : night ? 28 : 9;
-    upperFill.intensity = rainActive ? 0 : night ? 18 : 7;
+    probes.setNight(night, rainActive || blackout);
+    bounce.intensity = blackout ? .15 : rainActive ? (night ? .18 : .23) : (night ? .48 : .91);
+    daylight.intensity = rainActive || blackout ? 0 : night ? .115 : 1.85;
+    shelves.intensity = concert || rainActive ? 0 : night ? 25 : 16;
+    lounge.intensity = rainActive || blackout ? 0 : night ? 28 : 9;
+    upperFill.intensity = concert || rainActive ? 0 : night ? 18 : 7;
     renderer.toneMappingExposure = night ? 1.02 : 1.05;
-    scene.environmentIntensity = rainActive ? (night ? .10 : .14) : (night ? .34 : .58);
-    if (rainActive) {
+    scene.environmentIntensity = blackout ? .06 : rainActive ? (night ? .10 : .14) : (night ? .34 : .58);
+    if (concert) {
+      for (const light of spots) light.intensity = 0;
+    } else if (rainActive) {
       setSpotlight(spots[0], rainSpot, night);
       for (const light of spots.slice(1)) light.intensity = 0;
     } else {
@@ -227,7 +236,7 @@ export function createAtriumLighting(T, renderer, scene, probes) {
     }
     for (const beam of beams) {
       beam.strength.value = night ? beam.night : beam.day;
-      beam.mesh.visible = !rainActive && beam.strength.value > 0;
+      beam.mesh.visible = !concert && !rainActive && beam.strength.value > 0;
     }
     if (rainBeam) {
       rainBeam.strength.value = night ? rainBeam.night : rainBeam.day;
@@ -235,7 +244,7 @@ export function createAtriumLighting(T, renderer, scene, probes) {
       rainGlow.visible = rainActive;
       rainGlow.material.opacity = night ? .72 : .49;
     }
-    for (const lamp of lamps) lamp.opacity = rainActive ? 0 : night ? 1 : .24;
+    for (const lamp of lamps) lamp.opacity = concert || rainActive ? 0 : night ? 1 : .24;
     stageMist?.setVisible(rainActive, night);
   }
   function setRainStage(enabled) {
@@ -254,6 +263,7 @@ export function createAtriumLighting(T, renderer, scene, probes) {
   }
   setNight(true);
   return {
+    setConcert(value) { concert = value; setNight(isNight); },
     setNight, setShadows, setRainStage, rainLightPosition: rainSpot.from,
     get skyState() { return atriumSky.state; },
     update(seconds) {

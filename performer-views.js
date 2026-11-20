@@ -56,3 +56,11 @@ export const RAIN_OUTFIT_VIEWS = {
   back: { url: './assets/performer/rain-back.webp', width: 335, height: 752, anchorX: .501134 },
   left: { url: './assets/performer/rain-left.webp', width: 257, height: 750, anchorX: .397237 },
 };
+
+// The concert images are already cropped to their full stage silhouettes.
+export const CONCERT_OUTFIT_VIEWS = {
+  front: { url: './assets/performer/concert-front.webp', width: 772, height: 1741, anchorX: 0.36399, faceRegion: [.302, .096, .143, .069] },
+  right: { url: './assets/performer/concert-right.webp', width: 541, height: 1740, anchorX: 0.494455, faceRegion: [.454, .105, .150, .065] },
+  back: { url: './assets/performer/concert-back.webp', width: 777, height: 1752, anchorX: 0.591377 },
+  left: { url: './assets/performer/concert-left.webp', width: 761, height: 1745, anchorX: 0.36071, faceRegion: [.333, .100, .142, .066] },
+};

@@ -1,5 +1,5 @@
-import { magazineInReach } from './magazines.js?v=20261113-r85';
-import { roleInReach } from './roles.js?v=20261113-r85';
+import { magazineInReach } from './magazines.js?v=20261120-r87';
+import { roleInReach } from './roles.js?v=20261120-r87';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
@@ -46,7 +46,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   let achievementPending = false;
   let newRecord = false;
   let feedingPending = false;
-  let feedingApproachArmed = true;
+  let feedingApproachArmed = !options.playSave.state.feedingOfferedHere;
 
   const modals = [magazineFinale, dialog, roleDialog, rolesCelebration, roleFinale,
     achievementCelebration, recordFinale];
@@ -103,11 +103,12 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     playCelebration();
   }
 
+  const progressStorage = options.progressStorage ?? (() => localStorage);
   function rememberAchievement(value) {
-    try { localStorage.setItem(ACHIEVEMENT_KEY, value); } catch {}
+    try { progressStorage()?.setItem(ACHIEVEMENT_KEY, value); } catch {}
   }
   try {
-    const saved = localStorage.getItem(ACHIEVEMENT_KEY);
+    const saved = progressStorage()?.getItem(ACHIEVEMENT_KEY);
     if (saved === 'complete' || saved === 'record-pending' || saved === 'record') {
       record.unlock(saved !== 'complete');
       showAchievement(saved === 'record');
@@ -144,7 +145,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
 
   function startHold(button, input) {
     if (button.hidden || hold || modalOpen() || (button === lightButton && !target)
-      || (button === dogButton && (barkPlaying || barkNeedsTap))) return false;
+      || (button === dogButton && (barkPlaying || barkNeedsTap || !canInteractWithDog()))) return false;
     hold = { id: target?.id, start: performance.now(), button, ring: button.querySelector('.progress'), ...input };
     button.classList.add('holding');
     options.rewardSounds.unlock();
@@ -153,7 +154,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
 
   function finishHold() {
     const greet = hold.button === dogButton && performance.now() - hold.start >= HOLD_MS
-      && dogInReach(getPlayer()) && !dogButton.hidden && !modalOpen();
+      && canInteractWithDog() && !dogButton.hidden && !modalOpen();
     cancelHold();
     if (greet) {
       if (!playDecodedBarks()) playMediaBarks();
@@ -161,9 +162,9 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   }
   dogButton.addEventListener('contextmenu', event => event.preventDefault());
   dogButton.addEventListener('click', () => {
-    if (!barkNeedsTap || barkPlaying || dogButton.hidden || !dogInReach(getPlayer()) || modalOpen()) return;
+    if (!barkNeedsTap || barkPlaying || dogButton.hidden || !canInteractWithDog() || modalOpen()) return;
     options.rewardSounds.unlock();
-    if (!playDecodedBarks()) playMediaBarks();
+    if (!playDecodedBarks()) playMediaBarks(true);
   });
 
   for (const button of [lightButton, dogButton]) {
@@ -243,9 +244,14 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
   };
 
   function dogInReach(player) {
-    return daimiUnlocked && options.artworkProgress('dog').percent === 100
-      && Math.abs(player.y - dog.y) < .65
+    return daimiUnlocked && Math.abs(player.y - dog.y) < .65
       && Math.hypot(player.x - dog.x, player.z - dog.z) < 1.45;
+  }
+  function dogVisible() {
+    return options.artworkProgress('dog').percent === 100 && options.dogInView();
+  }
+  function canInteractWithDog() {
+    return dogInReach(getPlayer()) && dogVisible();
   }
   function offerFeeding() {
     if (!options.feeding || modalOpen() || document.querySelector('dialog[open]')) return false;
@@ -255,11 +261,13 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     feedingPending = false;
     // Closing or declining the game must not reopen it while still beside 呆米.
     feedingApproachArmed = false;
+    options.playSave.mark('feedingOfferedHere');
     lightButton.hidden = dogButton.hidden = shareButton.hidden = true;
     return true;
   }
   function barkEnded() {
     barkPlaying = false;
+    dogHint.textContent = '长按 2 秒';
     options.playSave.mark('dogGreeted');
     if (!roleUnlocked && !record.unlocked) {
       invitationPending = true;
@@ -267,7 +275,6 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     if (options.feeding) {
       feedingPending = true;
       feedingApproachArmed = false;
-      offerFeeding();
     }
   }
 
@@ -282,7 +289,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
     return true;
   }
 
-  function playMediaBarks() {
+  function playMediaBarks(retrying = false) {
     barkPlaying = true;
     barkNeedsTap = false;
     let finished = false;
@@ -302,6 +309,10 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       if (finished) return;
       cleanUp();
       barks.pause();
+      if (retrying) {
+        barkEnded();
+        return;
+      }
       barkPlaying = false;
       barkNeedsTap = true;
       dogHint.textContent = '点按重试';
@@ -401,10 +412,14 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       showModal(dialog);
       return true;
     }
-    if (feedingPending) {
-      offerFeeding();
-      return true;
+    const player = getPlayer();
+    const dogNearby = dogInReach(player);
+    const seesDog = dogNearby && dogVisible();
+    if (!dogNearby && !feedingApproachArmed) {
+      feedingApproachArmed = true;
+      if (options.playSave.state.feedingOfferedHere) options.playSave.mark('feedingOfferedHere', false);
     }
+    if (feedingPending && seesDog && offerFeeding()) return true;
     if (invitationPending && !barkPlaying) {
       invitationPending = false;
       unlockRoles();
@@ -412,12 +427,9 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       showModal(roleDialog);
       return true;
     }
-    const player = getPlayer();
-    const dogNearby = dogInReach(player);
-    if (!dogNearby) feedingApproachArmed = true;
     const metDaimi = options.playSave.state.dogGreeted || options.playSave.state.invitationSeen
       || roleUnlocked || record.unlocked;
-    if (dogNearby && metDaimi && feedingApproachArmed && !barkPlaying && offerFeeding()) return true;
+    if (seesDog && metDaimi && feedingApproachArmed && !barkPlaying && offerFeeding()) return true;
     const shareNearby = record.canShare(player);
     shareButton.hidden = !shareNearby;
     if (shareNearby && !shareCover.hasAttribute('src')) shareCover.src = record.url;
@@ -435,7 +447,7 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
       }
     }
     lightButton.hidden = !target;
-    dogButton.hidden = shareNearby || Boolean(target) || !dogNearby || barkPlaying || invitationPending;
+    dogButton.hidden = shareNearby || Boolean(target) || !seesDog || barkPlaying || invitationPending;
     if (hold?.button.hidden) cancelHold();
     if (!hold) return shareNearby || Boolean(target) || !dogButton.hidden;
 

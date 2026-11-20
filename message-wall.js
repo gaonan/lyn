@@ -1,4 +1,4 @@
-import { keepsakeText, paintCreatorCredit, shareImage, textLines } from './keepsake.js?v=20261113-r85';
+import { keepsakeText, paintCreatorCredit, shareImage, textLines } from './keepsake.js?v=20261120-r87';
 
 const WIDTH = 2048;
 const BASE_HEIGHT = 640;
@@ -75,6 +75,7 @@ export function buildWallProjection(T, scene) {
   const centerY = .12 + planeHeight / 2;
   const back = { pixels: WIDTH, width: 17.36, x: 0, z: 8.908, yaw: Math.PI, slots: BACK_POSITIONS };
   const side = { pixels: 1463, width: 12.35, x: -8.893, z: 2.61, yaw: Math.PI / 2, slots: SIDE_POSITIONS };
+  let intensity = 1;
   function createMap(surface, scale = 1) {
     const canvas = document.createElement('canvas');
     canvas.width = Math.ceil(surface.pixels * scale);
@@ -88,7 +89,7 @@ export function buildWallProjection(T, scene) {
     if (!surface.panel) {
       const map = createMap(surface);
       const panel = new T.Mesh(new T.PlaneGeometry(surface.width, planeHeight), new T.MeshBasicMaterial({
-        map, transparent: true, depthWrite: false, toneMapped: false, blending: T.AdditiveBlending,
+        map, opacity: intensity, transparent: true, depthWrite: false, toneMapped: false, blending: T.AdditiveBlending,
       }));
       panel.name = 'Projected visitor messages';
       panel.position.set(surface.x, centerY, surface.z);
@@ -130,6 +131,12 @@ export function buildWallProjection(T, scene) {
     map.needsUpdate = true;
   }
   return {
+    setIntensity(value) {
+      intensity = value;
+      for (const surface of [back, side]) {
+        if (surface.panel) surface.panel.material.opacity = value;
+      }
+    },
     paint(notes) {
       const sideCount = Math.round(notes.length * SIDE_POSITIONS.length / CAPACITY);
       const split = notes.length - sideCount;
@@ -140,7 +147,7 @@ export function buildWallProjection(T, scene) {
       const originals = [];
       try {
         for (const surface of [back, side]) {
-          if (!surface.panel?.visible) continue;
+          if (!surface.panel || !surface.notes.length) continue;
           const { material } = surface.panel;
           const scale = 1.5;
           const map = createMap(surface, scale);

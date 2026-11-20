@@ -1,4 +1,4 @@
-const FEEDING_PHOTO = './assets/feeding/female-hand-photo.webp?v=20261113-r85';
+const FEEDING_PHOTO = './assets/feeding/female-hand-photo.webp?v=20261120-r87';
 let viewNumber = 0;
 const LIMITS = [-1, -.58, -.18, .18, .58, 1];
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
