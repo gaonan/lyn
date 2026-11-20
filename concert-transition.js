@@ -1,4 +1,4 @@
-import { drawSupporterEtching } from './concert-audience.js?v=20261120-r87';
+import { drawSupporterEtching } from './concert-audience.js?v=20261120-r88';
 
 const TAU = Math.PI * 2;
 

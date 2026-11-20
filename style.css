@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261120-r87") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261120-r88") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261120-r87") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261120-r88") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -1460,8 +1460,24 @@ header .brand-mark { width: 32px; height: 32px; flex: 0 0 auto; }
 #intro {
   padding: max(78px, calc(env(safe-area-inset-top) + 60px)) max(5vw, env(safe-area-inset-right))
     max(24px, env(safe-area-inset-bottom)) max(8vw, env(safe-area-inset-left));
-  background: radial-gradient(ellipse at 20% 41%, rgb(203 159 64 / 10%), transparent 52%),
-    linear-gradient(90deg, #171616cf 0%, #18161585 34%, #18171619 75%);
+  background: #130e18;
+}
+.intro-backdrop,
+.intro-backdrop::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.intro-backdrop { z-index: -1; }
+.intro-backdrop img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.intro-backdrop::after {
+  content: "";
+  background: linear-gradient(90deg, rgb(11 8 14 / 54%), rgb(11 8 14 / 26%) 33%, transparent 62%);
 }
 #intro .intro-copy {
   width: min(416px, 100%);
@@ -1552,11 +1568,23 @@ header .brand-mark { width: 32px; height: 32px; flex: 0 0 auto; }
 @media (orientation: portrait) {
   #intro {
     align-items: flex-end;
-    padding: max(95px, calc(env(safe-area-inset-top) + 88px)) max(20px, env(safe-area-inset-right))
-      max(6vh, calc(env(safe-area-inset-bottom) + 18px)) max(20px, env(safe-area-inset-left));
-    background: radial-gradient(ellipse at 70% 28%, rgb(203 159 64 / 10%), transparent 55%),
-      linear-gradient(0deg, #191817e8 0%, #17161578 51%, #15141530 100%);
+    justify-content: center;
+    padding: max(64px, calc(env(safe-area-inset-top) + 52px)) max(16px, env(safe-area-inset-right))
+      max(3.2vh, calc(env(safe-area-inset-bottom) + 12px)) max(16px, env(safe-area-inset-left));
   }
+  #intro .intro-copy {
+    padding: clamp(16px, 5vw, 26px);
+  }
+  .intro-backdrop::after {
+    background: linear-gradient(0deg, rgb(11 8 14 / 76%), rgb(11 8 14 / 20%) 31%, transparent 57%);
+  }
+}
+@media (orientation: portrait) and (max-height: 650px) {
+  #intro h1 { font-size: 31px; }
+  #intro .intro-copy > p { margin: 6px 0 9px; font-size: 15px; line-height: 1.4; }
+  #intro-loading, #intro .primary { margin-top: 10px; }
+  #intro .intro-note { margin-top: 9px; }
+  #intro-reload.primary { margin: 0; }
 }
 @media (max-width: 700px), (max-height: 550px) {
   header .brand, .entered header .brand { font-size: 15px; gap: 7px; }
@@ -1564,7 +1592,7 @@ header .brand-mark { width: 32px; height: 32px; flex: 0 0 auto; }
 }
 @media (orientation: landscape) and (max-height: 550px) {
   #intro { padding-top: max(56px, calc(env(safe-area-inset-top) + 50px)); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
-  #intro .intro-copy { width: 345px; padding: 15px 22px; border-radius: 16px; }
+  #intro .intro-copy { width: min(345px, 43vw); padding: 15px clamp(12px, 2.6vw, 22px); border-radius: 16px; }
   #intro h1 { font-size: 30px; }
   #intro .intro-copy > p { font-size: 15px; margin: 6px 0 10px; line-height: 1.4; }
   #intro .primary, #intro-loading { margin-top: 8px; }

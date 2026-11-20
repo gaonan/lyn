@@ -1,4 +1,4 @@
-import { createHeroLightstick } from './concert-audience.js?v=20261120-r87';
+import { createHeroLightstick } from './concert-audience.js?v=20261120-r88';
 
 export function createConcertPortal(T, scene) {
   const group = new T.Group();

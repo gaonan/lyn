@@ -1,7 +1,15 @@
-const CACHE='carnation7-20261120-r87';
-const VERSION='20261120-r87';
+const CACHE='carnation7-20261120-r88';
+const VERSION='20261120-r88';
 const BARKS='assets/daimi/two-barks.m4a';
-const FILES=['./','index.html', 'assets/carnation-gold.svg','assets/carnation-gold-32.png','assets/carnation-gold-192.png',...['manifest.webmanifest','app.js','style.css','daimi-feeding.css','visit.js','assets/lighting/atrium-probes.bin','assets/fonts/noto-serif-sc-title.woff2','assets/fonts/noto-serif-sc-film.woff2',BARKS,...['heart','magazine','role','record','celebration'].map(cue=>`assets/sounds/${cue}.m4a`)].map(path=>`${path}?v=${VERSION}`)];
+const FILES=[
+  './','index.html','assets/carnation-gold.svg','assets/carnation-gold-32.png','assets/carnation-gold-192.png',
+  ...[
+    'manifest.webmanifest','app.js','style.css','daimi-feeding.css','visit.js','assets/lighting/atrium-probes.bin',
+    'assets/loading/secret-garden-landscape.webp','assets/loading/secret-garden-portrait.webp',
+    'assets/fonts/noto-serif-sc-title.woff2','assets/fonts/noto-serif-sc-film.woff2',BARKS,
+    ...['heart','magazine','role','record','celebration'].map(cue=>`assets/sounds/${cue}.m4a`),
+  ].map(path=>`${path}?v=${VERSION}`),
+];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('carnation7-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 function isRecoveryURL(url) {
