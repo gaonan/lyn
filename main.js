@@ -1,32 +1,32 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261120-r88';
-import { buildBotanicals } from './botanicals.js?v=20261120-r88';
-import { createHearts } from './hearts.js?v=20261120-r88';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261120-r88';
-import { CONCERT_OUTFIT_VIEWS, PERFORMER_VIEWS } from './performer-views.js?v=20261120-r88';
-import { createConcertPortal } from './concert-portal.js?v=20261120-r88';
-import { sweepStageFog } from './concert-transition.js?v=20261120-r88';
-import { setupMusic } from './music.js?v=20261120-r88';
-import { setupCollection } from './collection.js?v=20261120-r88';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261120-r88';
-import { prepareOffline } from './offline.js?v=20261120-r88';
-import { buildMagazines } from './magazines.js?v=20261120-r88';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261120-r88';
-import { setupDaimiFeeding } from './daimi-feeding.js?v=20261120-r88';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261120-r88';
-import { buildRolePortraits } from './roles.js?v=20261120-r88';
-import { buildRecord } from './record.js?v=20261120-r88';
-import { createRewardSounds } from './reward-sounds.js?v=20261120-r88';
-import { createArtworkQueue } from './artwork.js?v=20261120-r88';
-import { createAtriumLighting } from './atrium-light.js?v=20261120-r88';
-import { createAtriumProbes } from './atrium-probes.js?v=20261120-r88';
-import { setupKeepsake } from './keepsake.js?v=20261120-r88';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261120-r88';
-import { createPlaySave } from './play-save.js?v=20261120-r88';
-import { buildConcertPlatform, CONCERT_STAGE } from './concert-platform.js?v=20261120-r88';
-import { createConcertAudience } from './concert-audience.js?v=20261120-r88';
-import { CONCERT_MIRROR_POSITION, createConcertLighting } from './concert-lighting.js?v=20261120-r88';
-const VERSION = '20261120-r88';
+import { buildArchitecture } from './architecture.js?v=20261120-r89';
+import { buildBotanicals } from './botanicals.js?v=20261120-r89';
+import { createHearts } from './hearts.js?v=20261120-r89';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261120-r89';
+import { CONCERT_OUTFIT_VIEWS, PERFORMER_VIEWS } from './performer-views.js?v=20261120-r89';
+import { createConcertPortal } from './concert-portal.js?v=20261120-r89';
+import { sweepStageFog } from './concert-transition.js?v=20261120-r89';
+import { setupMusic } from './music.js?v=20261120-r89';
+import { setupCollection } from './collection.js?v=20261120-r89';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261120-r89';
+import { prepareOffline } from './offline.js?v=20261120-r89';
+import { buildMagazines } from './magazines.js?v=20261120-r89';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261120-r89';
+import { setupDaimiFeeding } from './daimi-feeding.js?v=20261120-r89';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261120-r89';
+import { buildRolePortraits } from './roles.js?v=20261120-r89';
+import { buildRecord } from './record.js?v=20261120-r89';
+import { createRewardSounds } from './reward-sounds.js?v=20261120-r89';
+import { createArtworkQueue } from './artwork.js?v=20261120-r89';
+import { createAtriumLighting } from './atrium-light.js?v=20261120-r89';
+import { createAtriumProbes } from './atrium-probes.js?v=20261120-r89';
+import { setupKeepsake } from './keepsake.js?v=20261120-r89';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261120-r89';
+import { createPlaySave } from './play-save.js?v=20261120-r89';
+import { buildConcertPlatform, CONCERT_STAGE } from './concert-platform.js?v=20261120-r89';
+import { createConcertAudience } from './concert-audience.js?v=20261120-r89';
+import { CONCERT_MIRROR_POSITION, createConcertLighting } from './concert-lighting.js?v=20261120-r89';
+const VERSION = '20261120-r89';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 // Local lighting inspection opens on the concert floor without touching a player's progress.
@@ -135,7 +135,7 @@ renderer.render(scene,camera);
 loading.update(10);
 const lightButton = $('#light');
 function alignViewStick() {
-  const { left, width } = lightButton.getBoundingClientRect();
+  const { left, width } = (lightButton.hidden ? qualityButton : lightButton).getBoundingClientRect();
   const center = Math.max(innerWidth * .70, Math.min(innerWidth * .78, left + width / 2));
   document.body.style.setProperty('--look-right-center', `${innerWidth - center}px`);
 }
@@ -302,7 +302,7 @@ collection.restore(playSave.state.hearts);
 const wallProjection = buildWallProjection(THREE, scene);
 function restoreWallIntensity() {
   const strength = concertMode ? concertLights.intro.wall : 1;
-  wallProjection.setIntensity(strength * (concertMode && night ? .64 : 1));
+  wallProjection.setIntensity(strength * (concertMode && night ? .72 : 1));
 }
 const messageWall = setupMessageWall($('#message-wall-dialog'), wallProjection, renderWallView, record.ready);
 const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, messageWall, daimi.ready);
@@ -369,9 +369,15 @@ function renderKeepsake(ctx, x, y, width, height, pixelScale, angle) {
     if (rear) {
       wallProjection.setIntensity(1);
       wallProjection.capture(() => renderer.render(scene, photoCamera));
+      ctx.drawImage(canvas, x, y, width, height);
+    } else {
+      const render = () => {
+        renderer.render(scene, photoCamera);
+        ctx.drawImage(canvas, x, y, width, height);
+      };
+      if (concertMode) audience.captureFrontPhoto(photoCamera, render);
+      else render();
     }
-    else renderer.render(scene, photoCamera);
-    ctx.drawImage(canvas, x, y, width, height);
   } finally {
     if (portal) portal.group.visible = record.claimed && !concertMode;
     props.forEach((object, i) => { object.visible = visible[i]; });
@@ -454,12 +460,12 @@ const gardenDestinations = [
   { x: -7.60, y: 7.2, z: .95, yaw: -Math.PI / 2, pitch: 0 },
 ];
 const concertDestinations = [
-  { x: .16, y: 0, z: 6.45, yaw: .03, pitch: .025 },
+  { x: .16, y: 0, z: 6.45, yaw: .03, pitch: .20 },
   { x: 5.11, y: 3.2, z: 6.6, yaw: .74, pitch: -.48 },
   ...gardenDestinations.slice(2),
 ];
 // The rear aisle opens just left of the stair foot. Aim back at the singer from there.
-const portraitConcertEntrance = { x: -1.78, y: 0, z: 7.95, yaw: -.251, pitch: -.045 };
+const portraitConcertEntrance = { x: -1.78, y: 0, z: 7.95, yaw: -.251, pitch: .216 };
 let checkpoint, lastSavedCheckpoint, lastCheckpointSave = 0;
 function captureCheckpoint() {
   if (concertMode || !p.grounded || p.onProp) return;
@@ -493,7 +499,30 @@ function placePlayer({ x, y, z, yaw: heading, pitch: tilt }) {
   flushCheckpoint();
 }
 function setSpot(index) {
-  if (concertMode && index === 0 && portraitViewport.matches) return placePlayer(portraitConcertEntrance);
+  if (concertMode && index === 0) {
+    const width = canvas.clientWidth, height = canvas.clientHeight;
+    if (portraitViewport.matches) {
+      if (width >= 390) return placePlayer(portraitConcertEntrance);
+      if (height / width > 1.95) {
+        const narrow = THREE.MathUtils.clamp((360 - width) / 40, 0, 1);
+        return placePlayer({
+          ...portraitConcertEntrance, yaw: -.22, pitch: .248 + .056 * narrow,
+        });
+      }
+      // A little more distance keeps the singer in frame below the larger constellation.
+      const narrow = THREE.MathUtils.clamp((375 - width) / 55, 0, 1);
+      return placePlayer({
+        ...portraitConcertEntrance, x: -1.58 + .35 * narrow, z: 8.3,
+        yaw: -.224 + .045 * narrow, pitch: .346 + .063 * narrow,
+      });
+    }
+    const spot = concertDestinations[0];
+    const compact = Math.min(
+      THREE.MathUtils.clamp((760 - width) / 125, 0, 1),
+      THREE.MathUtils.clamp((425 - height) / 65, 0, 1),
+    );
+    return placePlayer({ ...spot, z: spot.z + compact * .7, pitch: spot.pitch + compact * .165 });
+  }
   placePlayer((concertMode ? concertDestinations : gardenDestinations)[index]);
 }
 function updateLocation() {
@@ -624,7 +653,9 @@ function selectNight(value) {
   lightButton.setAttribute('aria-label', lightButton.title);
   alignViewStick();
 }
-lightButton.onclick = () => selectNight(!night);
+lightButton.onclick = () => {
+  if (!concertMode) selectNight(!night);
+};
 const lightstickHint = $('#lightstick-hint');
 const firstLightstickHint = lightstickHint.textContent;
 let hintShownAt = 0, waitingForLightstickGesture = false;
@@ -750,6 +781,7 @@ function applyStageMode(next, animateEntrance = false) {
   colliders = [...world.colliders, ...flowers.colliders, performer.collider];
   if (next) colliders.push(platform.barrier);
   lighting.setConcert(next);
+  lightButton.hidden = next;
   selectNight(next || originalNight);
   if (next) audience.reset();
   portal.group.visible = !next;
@@ -1048,7 +1080,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
  collection.update(now,active&&!magazineEngaged);
  if (concertMode) updateCollectibleVisibility();
  updateGate(now, active && !magazineEngaged);
- lighting.update(now/1000);
+ lighting.update(now/1000, !reducedMotion.matches);
  if (concertMode) {
    platform.update(now / 1000, !reducedMotion.matches);
    audience.update(now / 1000, !reducedMotion.matches);

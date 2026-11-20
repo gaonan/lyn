@@ -52,6 +52,27 @@ const HEAD = .23;
 const RADIUS = .083;
 const LIFETIME = 60;
 
+// Saved front photo only. Screen X/Y, room depth, stick scale, and light strength.
+const PHOTO_LIGHTSTICKS = [
+  [.046,.706,1.34,.81,.93], [.113,.689,1.43,.76,.82],
+  [.173,.713,1.49,.70,.77], [.222,.678,1.93,.68,.70],
+  [.761,.719,1.72,.76,.81], [.824,.682,1.67,.69,.74],
+  [.892,.723,1.57,.82,.88], [.955,.705,1.42,.76,.85],
+  [.072,.782,2.38,.92,.95], [.158,.801,2.39,.79,.76],
+  [.204,.760,2.39,.69,.73], [.268,.801,2.67,.74,.91],
+  [.730,.803,2.65,.85,.79], [.796,.750,2.45,.77,.89],
+  [.851,.804,2.63,.70,.75], [.922,.790,2.59,.79,.88],
+  [.031,.896,3.03,.88,.89], [.117,.906,3.15,.92,.98],
+  [.184,.865,3.25,.73,.85], [.235,.952,3.45,.80,.97],
+  [.328,.910,3.31,.75,.96], [.404,.967,3.34,.69,.86],
+  [.581,.978,3.42,.73,.89], [.646,.912,3.34,.74,.92],
+  [.700,.982,3.51,.83,.94], [.757,.922,3.26,.76,.92],
+  [.834,.881,3.08,.86,.91], [.902,.955,3.47,.94,.98],
+  [.969,.882,3.18,.84,.86],
+];
+const PHOTO_LEANS = [-.15, .21, -.36, .17, .30, -.31, .07, -.25, .37, -.16, .29, -.10];
+const PHOTO_YAWS = [-.30, .78, -.53, .27, -.91, .16, .62, -.40, .49, -.72, .31, -.12];
+
 // Both the hand-held markers and the full-size reward use the same optics and etching.
 let etchedDiskTexture;
 function diskTexture(T) {
@@ -354,8 +375,70 @@ export function createConcertAudience(T, scene, { reducedMotion = false, collide
     if (touched) power.needsUpdate=true;
     return touched;
   }
+
+  function captureFrontPhoto(camera, render) {
+    const photoCount = count + PHOTO_LIGHTSTICKS.length;
+    function extend(attribute) {
+      const data = new Float32Array(photoCount * attribute.itemSize);
+      data.set(attribute.array);
+      return new T.InstancedBufferAttribute(data, attribute.itemSize);
+    }
+    const photoBase = extend(base), photoPose = extend(pose);
+    const photoTempo = extend(tempo), photoPaint = extend(power);
+
+    // Light the scene for the saved photo and retain the player's brighter strokes.
+    const expiry = uniforms.clock.value + LIFETIME;
+    for (let index = 0; index < count; index++) {
+      const gain = .54 + .43 * ((index * 53 % 101) / 100);
+      const remaining = paint[2 * index] - uniforms.clock.value;
+      const painted = paint[2 * index + 1] * T.MathUtils.smoothstep(remaining, 0, 1.1);
+      photoPaint.setXY(index, expiry, Math.max(gain, painted));
+    }
+
+    const position = new T.Vector3(), diskOffset = new T.Vector3(), rotation = new T.Euler(0, 0, 0, 'YXZ');
+    for (const [offset, [x, y, depth, scale, brightness]] of PHOTO_LIGHTSTICKS.entries()) {
+      const index = count + offset;
+      const phase = offset * 2.40, speed = .90 + .08 * (offset % 7);
+      const wave = uniforms.motionClock.value * speed + phase;
+      const lean = PHOTO_LEANS[offset % PHOTO_LEANS.length];
+      const yaw = PHOTO_YAWS[offset % PHOTO_YAWS.length];
+      const pitch = (offset % 5 - 2) * .10;
+      rotation.set(pitch + .12 * Math.cos(wave * .87 + phase),
+        yaw + .19 * Math.sin(wave * .69), lean + .21 * Math.sin(wave));
+      diskOffset.set(0, HEAD * scale, 0).applyEuler(rotation);
+      // Project one ray per disk into the set and offset it by its current sway.
+      position.set(x * 2 - 1, 1 - y * 2, .5).unproject(camera).sub(camera.position);
+      position.multiplyScalar((depth - camera.position.z) / position.z).add(camera.position).sub(diskOffset);
+      photoBase.setXYZ(index, position.x - .029 * Math.sin(wave),
+        position.y - .031 * Math.cos(wave * .89), position.z - .019 * Math.cos(wave));
+      photoPose.setXYZW(index, yaw, lean, pitch, scale);
+      photoTempo.setXY(index, phase, speed);
+      photoPaint.setXY(index, expiry, brightness);
+    }
+
+    const originals = group.children.map(mesh => [mesh, mesh.geometry]);
+    try {
+      for (const [mesh, original] of originals) {
+        const geometry = original.clone();
+        mesh.geometry = geometry;
+        geometry.setAttribute('aBase', photoBase);
+        geometry.setAttribute('aPose', photoPose);
+        geometry.setAttribute('aTempo', photoTempo);
+        geometry.setAttribute('aPaint', photoPaint);
+        geometry.instanceCount = photoCount;
+      }
+      return render();
+    } finally {
+      for (const [mesh, original] of originals) {
+        const geometry = mesh.geometry;
+        mesh.geometry = original;
+        if (geometry !== original) geometry.dispose();
+      }
+    }
+  }
+
   return {
-    group, count, paintStroke,
+    group, count, paintStroke, captureFrontPhoto,
     reset() { paint.fill(0); power.needsUpdate = true; },
     get litCount() {
       let n=0;

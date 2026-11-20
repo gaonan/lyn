@@ -1,7 +1,40 @@
 export const MESSAGE_WALL_SKY_EDGE = { height: 10.1, x: -8.9, z: 8.915, color: '#0b0b10' };
 
+// Intermediate stars sit on the stroke at uneven intervals, with their own brightness.
+function straightStroke(start, end, stars) {
+  const [x1, y1] = start;
+  const [x2, y2] = end;
+  return [start, ...stars.map(([along, brightness]) =>
+    [x1 + (x2 - x1) * along, y1 + (y2 - y1) * along, brightness]), end];
+}
+
+const L_CORNER = [-1.49, -.49, .83];
+const Y_FORK = [-.10, -.015, .89];
+const N_TOP = [.615, .475, .91];
+const N_BOTTOM = [1.47, -.385, .94];
+const LYN_STROKES = [
+  straightStroke([-1.39, .47, .97], L_CORNER, [[.20, .37], [.54, .62]]),
+  straightStroke(L_CORNER, [-.73, -.49, .69], [[.22, .42], [.63, .79], [.84, .36]]),
+  straightStroke([-.56, .36, .87], Y_FORK, [[.28, .39], [.57, .64]]),
+  straightStroke(Y_FORK, [.31, .49, .96], [[.38, .53], [.69, .40]]),
+  straightStroke(Y_FORK, [-.10, -.43, .78], [[.54, .48]]),
+  straightStroke([.61, -.45, .84], N_TOP, [[.29, .39], [.62, .66]]),
+  straightStroke(N_TOP, N_BOTTOM, [[.22, .51], [.50, .75], [.65, .40]]),
+  straightStroke(N_BOTTOM, [1.47, .34, .90], [[.35, .46], [.66, .70]]),
+];
+// Calibrated against the apparent bounds from the front of the stage.
+const LYN_SCALE = .117;
+
 export function createAtriumSky(T, scene) {
   const night = { value: true };
+  const constellationVisible = { value: false };
+  const constellationTime = { value: 0 };
+  const constellationDirection = new T.Vector3(.14, .610, -.788).normalize();
+  const constellationRight = new T.Vector3(-constellationDirection.z, 0, constellationDirection.x).normalize();
+  const constellationUp = new T.Vector3().crossVectors(constellationRight, constellationDirection);
+  const constellationPoints = [...new Set(LYN_STROKES.flat())].map(point => new T.Vector3(...point));
+  const lines = LYN_STROKES.flatMap(stroke => stroke.slice(1).map(([x, y], index) =>
+    new T.Vector4(stroke[index][0], stroke[index][1], x, y)));
   const meteorProgress = { value: -1 };
   const meteorFrom = { value: new T.Vector3(-1, 23, 13) };
   const meteorTo = { value: new T.Vector3(-9.5, 9, 9.4) };
@@ -10,7 +43,12 @@ export function createAtriumSky(T, scene) {
   let nextMeteor = interval();
   const parapet = MESSAGE_WALL_SKY_EDGE;
   const material = new T.ShaderMaterial({
-    uniforms: { night, meteorProgress, meteorFrom, meteorTo,
+    uniforms: { night, meteorProgress, meteorFrom, meteorTo, constellationVisible, constellationTime,
+      constellationDirection: { value: constellationDirection },
+      constellationRight: { value: constellationRight },
+      constellationUp: { value: constellationUp },
+      constellationPoints: { value: constellationPoints },
+      constellationLines: { value: lines },
       rimColor: { value: new T.Color(parapet.color).convertLinearToSRGB() } },
     side: T.BackSide,
     depthWrite: false,
@@ -29,6 +67,11 @@ export function createAtriumSky(T, scene) {
       uniform vec3 rimColor;
       uniform float meteorProgress;
       uniform vec3 meteorFrom, meteorTo;
+      uniform bool constellationVisible;
+      uniform float constellationTime;
+      uniform vec3 constellationDirection, constellationRight, constellationUp;
+      uniform vec3 constellationPoints[${constellationPoints.length}];
+      uniform vec4 constellationLines[${lines.length}];
       varying vec3 skyDirection;
 
       vec2 hash2(vec2 p) {
@@ -57,6 +100,63 @@ export function createAtriumSky(T, scene) {
 
       float gaussian(float distance) {
         return exp(-distance * distance);
+      }
+
+      float starBurst(float seed) {
+        vec2 cadence = hash2(vec2(seed, 5.3));
+        float clock = constellationTime * mix(.24, .70, cadence.x) + cadence.y * 13.0;
+        vec2 shape = hash2(vec2(floor(clock), seed + 8.1));
+        vec2 power = hash2(vec2(seed - 13.4, floor(clock)));
+        float start = .035 + .35 * shape.x;
+        float peak = start + .035 + .12 * shape.y;
+        float end = peak + .095 + .30 * power.y;
+        float time = fract(clock);
+        return smoothstep(start, peak, time) * (1.0 - smoothstep(peak, end, time)) * power.x * 1.22;
+      }
+
+      vec3 constellation(vec3 direction) {
+        float facing = dot(direction, constellationDirection);
+        vec2 p = vec2(dot(direction, constellationRight), dot(direction, constellationUp)) /
+          (${LYN_SCALE} * max(facing, .01));
+        float pixel = clamp(max(fwidth(p.x), fwidth(p.y)), .008, .068);
+        if (facing < .92 || abs(p.x) > 1.68 || abs(p.y) > .68) return vec3(0.0);
+
+        float thread = 0.0;
+        for (int i = 0; i < ${lines.length}; i++) {
+          vec4 segment = constellationLines[i];
+          vec2 axis = segment.zw - segment.xy;
+          float along = clamp(dot(p - segment.xy, axis) / dot(axis, axis), .0, 1.0);
+          float distanceToLine = length(p - mix(segment.xy, segment.zw, along));
+          float fade = mix(.26, .77, sin(along * 3.14159));
+          float weight = mix(.52, 1.0, hash2(segment.xy + 4.1).x);
+          thread = max(thread, fade * weight * gaussian(distanceToLine / max(.009, pixel * .48)));
+        }
+
+        vec3 color = vec3(.111, .094, .131) * thread;
+        for (int i = 0; i < ${constellationPoints.length}; i++) {
+          vec3 star = constellationPoints[i];
+          vec2 delta = abs(p - star.xy);
+          if (max(delta.x, delta.y) > .165) continue;
+          float seed = float(i) * 2.39 + 2.61;
+          vec2 tint = hash2(star.xy * 3.4);
+          float pulse = starBurst(seed);
+          float radius = max(mix(.012, .026, star.z), pixel * .57) * (1.0 + pulse * .20);
+          float distanceToStar = length(delta);
+          float core = gaussian(distanceToStar / radius);
+          float halo = gaussian(distanceToStar / (radius * 2.9));
+          vec3 light = mix(vec3(.72, .82, 1.0), vec3(1.0, .87, .71), tint.x);
+          float strength = mix(.11, .58, star.z) + pulse * mix(.53, 1.0, star.z);
+          color += light * strength * (core + (.15 + .22 * pulse) * halo);
+          if (star.z > .82 && pulse > .30) {
+            vec2 axis = normalize(vec2(1.0, tint.y - .52));
+            vec2 glow = abs(vec2(dot(p - star.xy, axis), dot(p - star.xy, vec2(-axis.y, axis.x))));
+            float rayWidth = max(.008, pixel * .51);
+            float primary = gaussian(glow.y / rayWidth) * gaussian(glow.x / (.068 + .04 * pulse));
+            float secondary = gaussian(glow.x / rayWidth) * gaussian(glow.y / (.046 + .03 * pulse));
+            color += light * smoothstep(.30, 1.03, pulse) * (.35 * primary + .25 * secondary);
+          }
+        }
+        return color;
       }
 
       vec3 stars(vec2 uv, float cells, float probability, float radius, float brightness) {
@@ -206,6 +306,7 @@ export function createAtriumSky(T, scene) {
         // A tangent plane over the atrium gives both skies continuous detail at the zenith.
         vec2 plane = direction.xz / (.55 + altitude);
         vec3 color = night ? galaxy(direction, plane, altitude) + meteor(plane) : sunset(direction, plane, altitude);
+        if (night && constellationVisible) color += constellation(direction);
         gl_FragColor = sRGBTransferEOTF(vec4(clamp(color, 0.0, 1.0), 1.0));
         #include <colorspace_fragment>
       }`,
@@ -227,7 +328,7 @@ export function createAtriumSky(T, scene) {
     night.value = Boolean(value);
     if (changed) resetMeteor();
   }
-  function update(seconds) {
+  function update(seconds, animate = true) {
     if (!Number.isFinite(seconds)) return;
     if (previousSeconds === undefined) { previousSeconds = seconds; return; }
     const delta = seconds - previousSeconds;
@@ -236,6 +337,7 @@ export function createAtriumSky(T, scene) {
     if (delta < 0 || delta > 1) { resetMeteor(); previousSeconds = seconds; return; }
     if (!night.value) return;
     nightSeconds += delta;
+    constellationTime.value = animate ? nightSeconds : 0;
     if (nightSeconds >= nextMeteor) {
       meteorStart = nightSeconds;
       meteorCount++;
@@ -246,7 +348,7 @@ export function createAtriumSky(T, scene) {
     const progress = meteorStart < 0 ? -1 : nightSeconds - meteorStart;
     meteorProgress.value = progress >= 0 && progress < 1 ? progress : -1;
   }
-  return { setNight, update, get state() {
+  return { setNight, update, setConstellation(value) { constellationVisible.value = Boolean(value); }, get state() {
     return { visible: sky.visible, night: night.value, meteor: {
       active: meteorProgress.value >= 0,
       progress: meteorProgress.value,

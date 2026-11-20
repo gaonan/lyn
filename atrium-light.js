@@ -1,5 +1,5 @@
-import { createAtriumSky } from './atrium-sky.js?v=20261120-r88';
-import { createStageMist } from './stage-mist.js?v=20261120-r88';
+import { createAtriumSky } from './atrium-sky.js?v=20261120-r89';
+import { createStageMist } from './stage-mist.js?v=20261120-r89';
 
 export function createAtriumLighting(T, renderer, scene, probes, { concert = false } = {}) {
   const atriumSky = createAtriumSky(T, scene);
@@ -263,11 +263,15 @@ export function createAtriumLighting(T, renderer, scene, probes, { concert = fal
   }
   setNight(true);
   return {
-    setConcert(value) { concert = value; setNight(isNight); },
+    setConcert(value) {
+      concert = value;
+      atriumSky.setConstellation(value);
+      setNight(isNight);
+    },
     setNight, setShadows, setRainStage, rainLightPosition: rainSpot.from,
     get skyState() { return atriumSky.state; },
-    update(seconds) {
-      atriumSky.update(seconds);
+    update(seconds, animate) {
+      atriumSky.update(seconds, animate);
       stageMist?.update(seconds);
     },
   };

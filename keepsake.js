@@ -1,4 +1,4 @@
-import { createRecordClaim, formatRecordNumber } from './record-claim.js?v=20261120-r88';
+import { createRecordClaim, formatRecordNumber } from './record-claim.js?v=20261120-r89';
 
 const LIMIT = 50;
 const segmenter = typeof Intl.Segmenter === 'function'
