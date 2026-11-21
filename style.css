@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261121-r91") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261121-r92") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261121-r91") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261121-r92") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -1222,6 +1222,12 @@ body.entered:has(:is(.quest-action, #collect-heart):not([hidden])) #lightstick-h
 #wardrobe-action strong, #wardrobe-action small { display: block; white-space: nowrap; }
 #wardrobe-action strong { font-size: clamp(10px, 3.3vw, 13px); }
 #wardrobe-action small { color: #d1d1d1; font-size: 10px; margin-top: 3px; }
+#wardrobe-action[data-restore] {
+  min-height: 44px;
+  padding-inline: 12px;
+}
+#wardrobe-action[data-restore] svg,
+#wardrobe-action[data-restore] small { display: none; }
 
 /* Music uses the same compact control sizes as the rest of the interface. */
 #music-dialog, #rain-music-dialog {

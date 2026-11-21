@@ -1,4 +1,4 @@
-import { surfaceNoise, surfaceTexture } from './surface-maps.js?v=20261121-r91';
+import { surfaceNoise, surfaceTexture } from './surface-maps.js?v=20261121-r92';
 
 const columns = 8;
 const border = 3;

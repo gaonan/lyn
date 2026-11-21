@@ -1,5 +1,5 @@
-import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261121-r91';
-import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261121-r91';
+import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261121-r92';
+import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261121-r92';
 
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a

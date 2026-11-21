@@ -1,5 +1,5 @@
-import { createAtriumSky } from './atrium-sky.js?v=20261121-r91';
-import { createStageMist } from './stage-mist.js?v=20261121-r91';
+import { createAtriumSky } from './atrium-sky.js?v=20261121-r92';
+import { createStageMist } from './stage-mist.js?v=20261121-r92';
 
 export function createAtriumLighting(T, renderer, scene, probes, { concert = false } = {}) {
   const atriumSky = createAtriumSky(T, scene);
@@ -66,17 +66,16 @@ export function createAtriumLighting(T, renderer, scene, probes, { concert = fal
     { color: '#938cff', from: [3.65, 2.55, -4.7], to: [2.2, .45, -.65], angle: .64, penumbra: .80, day: 0, night: 43 },
   ];
   const rainSpot = {
-    color: '#bdceff', from: [2.64, 6.50, -3.00], to: [-.42, .10, -.32],
-    angle: .24, penumbra: .74, day: 123, night: 137,
+    color: '#bdceff', from: [.04, 6.50, -1.68], to: [.04, .07, -1.68],
+    angle: .17, penumbra: .74, day: 123, night: 137,
   };
 
   const shaftGeometry = new T.PlaneGeometry(1, 1, 1, 4);
   // A depth-tested ribbon turns about the light axis to face the camera. Feather
   // the coverage inside the shader so plants and architecture can cut the shaft.
-  function shaft(from, to, radius, color, day, night, startFade, { endFade = .44, startRadius = .039, clearPerformer = false } = {}) {
+  function shaft(from, to, radius, color, day, night, startFade, { endFade = .44, startRadius = .039 } = {}) {
     const origin = new T.Vector3(...from), end = new T.Vector3(...to);
     const material = new T.ShaderMaterial({
-      defines: clearPerformer ? { KEEP_PERFORMER_CLEAR: 1 } : {},
       uniforms: {
         origin: { value: origin }, end: { value: end }, radius: { value: radius },
         tint: { value: new T.Color(color) }, strength: { value: 0 },
@@ -87,9 +86,6 @@ export function createAtriumLighting(T, renderer, scene, probes, { concert = fal
         uniform float startRadius, radius;
         varying vec2 beamUV;
         varying float scatter;
-        #ifdef KEEP_PERFORMER_CLEAR
-          varying vec3 beamPosition;
-        #endif
         void main() {
           vec3 axis = normalize(end - origin);
           vec3 center = mix(origin, end, uv.y);
@@ -101,9 +97,6 @@ export function createAtriumLighting(T, renderer, scene, probes, { concert = fal
           beamUV = vec2(uv.x, uv.y);
           scatter = .60 + .40 * pow(abs(dot(axis, normalize(toEye))), 2.0);
           vec3 positionInBeam = center + side * (uv.x * 2.0 - 1.0) * r;
-          #ifdef KEEP_PERFORMER_CLEAR
-            beamPosition = positionInBeam;
-          #endif
           gl_Position = projectionMatrix * viewMatrix * vec4(positionInBeam, 1.0);
         }
       `,
@@ -112,33 +105,13 @@ export function createAtriumLighting(T, renderer, scene, probes, { concert = fal
         uniform float strength, startFade, endFade;
         varying vec2 beamUV;
         varying float scatter;
-        #ifdef KEEP_PERFORMER_CLEAR
-          varying vec3 beamPosition;
-        #endif
         void main() {
           float along = beamUV.y;
           float edge = abs(beamUV.x * 2.0 - 1.0);
-          #ifdef KEEP_PERFORMER_CLEAR
-            float crossSection = (1.0 - smoothstep(.12, 1.0, edge)) *
-              mix(.56, 1.0, 1.0 - smoothstep(.03, .72, edge));
-          #else
-            float crossSection = (1.0 - smoothstep(.04, 1.0, edge)) *
-              mix(.42, 1.0, 1.0 - smoothstep(.02, .56, edge));
-          #endif
+          float crossSection = (1.0 - smoothstep(.04, 1.0, edge)) *
+            mix(.42, 1.0, 1.0 - smoothstep(.02, .56, edge));
           float envelope = smoothstep(0.0, startFade, along) *
             (1.0 - smoothstep(endFade, 1.0, along));
-          #ifdef KEEP_PERFORMER_CLEAR
-            // The haze ribbon may cross the photo plane. Feather it around the
-            // body so the transition is soft when viewed from behind.
-            vec2 actorCenter = vec2(0.0, -1.0);
-            float actorDistance = length(beamPosition.xz - actorCenter);
-            float aboveHead = smoothstep(2.13, 2.75, beamPosition.y);
-            // From the front, the light sits mainly behind the performer. Keep
-            // its center continuous there and retain the stronger rear feather.
-            float frontView = .55 * smoothstep(.25, 2.0, cameraPosition.z - actorCenter.y);
-            float clearPhoto = smoothstep(.39, .86, actorDistance);
-            envelope *= mix(clearPhoto, 1.0, max(aboveHead, frontView));
-          #endif
           gl_FragColor = vec4(tint, strength * envelope * crossSection * scatter);
           #include <colorspace_fragment>
         }
@@ -251,8 +224,10 @@ export function createAtriumLighting(T, renderer, scene, probes, { concert = fal
     rainActive = enabled;
     if (enabled && !stageMist) {
       stageMist = createStageMist(T, scene, rainSpot.to);
-      rainBeam = shaft(rainSpot.from, rainSpot.to, 1.93, rainSpot.color, .54, .74, .09,
-        { startRadius: .16, endFade: .73, clearPerformer: true });
+      // Drop the shaft through the open stage so railings and the costume
+      // stay outside its axis across camera angles.
+      rainBeam = shaft(rainSpot.from, rainSpot.to, .91, rainSpot.color, .42, .58, .08,
+        { startRadius: .29, endFade: .68 });
       rainGlow = lampGlow(new T.Vector3(...rainSpot.from), rainSpot.color, .83);
     }
     setNight(isNight);
