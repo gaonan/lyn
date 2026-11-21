@@ -164,6 +164,92 @@ test('overlapping celebration sounds restore the original music mute state once'
   assert.equal(audio.muted, true);
 });
 
+test('the garden entry tap primes silent audio and reveals the song once at its beginning', () => {
+  const audio = new Audio(), player = createMusicPlayback(audio, { tracks });
+  audio.readyState = 2;
+  audio.volume = .32;
+  const cue = player.prepareStageTrack('rain');
+  assert.equal(audio.playCalls, 1);
+  assert.equal(audio.muted, true);
+  audio.currentTime = 2;
+  cue.reveal();
+  assert.equal(audio.muted, false);
+  assert.equal(audio.currentTime, 0);
+  audio.currentTime = 22;
+  cue.cancel();
+  assert.equal(player.prepareStageTrack('rain'), null);
+  assert.equal(audio.playCalls, 1);
+  assert.equal(audio.currentTime, 22);
+  assert.equal(audio.volume, .32);
+});
+
+test('an abandoned stage cue cleans up silent audio and keeps later entry available', () => {
+  const audio = new Audio(), player = createMusicPlayback(audio, { tracks });
+  audio.muted = true;
+  player.prepareStageTrack('rain').cancel();
+  assert.equal(audio.paused, true);
+  assert.equal(audio.src, '');
+  assert.equal(audio.muted, true);
+  assert.equal(player.state.trackId, null);
+  player.prepareStageTrack('rain').reveal();
+  assert.equal(player.state.playing, true);
+  assert.equal(audio.muted, true);
+});
+
+test('a browser-blocked stage cue retries on the next gesture without changing source', async () => {
+  const audio = new Audio(), player = createMusicPlayback(audio, { tracks });
+  const denied = Object.assign(new Error('Tap to play'), { name: 'NotAllowedError' });
+  audio.failure = denied;
+  const cue = player.prepareStageTrack('rain');
+  await Promise.resolve();
+  audio.failure = denied;
+  cue.reveal();
+  await Promise.resolve();
+  assert.match(player.state.error, /再点一次播放/);
+  player.retryStageOnGesture();
+  assert.equal(player.state.playing, true);
+  assert.equal(audio.sources.length, 1);
+  player.pause();
+  player.retryStageOnGesture();
+  assert.equal(player.state.playing, false);
+});
+
+test('an explicit selection wins before the first entrance, even if the listener has not pressed play', () => {
+  const audio = new Audio(), player = createMusicPlayback(audio, { tracks });
+  player.noteSelection();
+  assert.equal(player.prepareStageTrack('rain'), null);
+  assert.deepEqual(audio.sources, []);
+});
+
+test('manual tracks, local files and an explicit pause survive the first garden entry', async () => {
+  const audio = new Audio(), player = createMusicPlayback(audio, { tracks });
+  audio.nativeHls = true;
+  await player.play('live');
+  audio.currentTime = 17;
+  assert.equal(player.prepareStageTrack('rain'), null);
+  assert.equal(player.state.trackId, 'live');
+  assert.equal(audio.currentTime, 17);
+  player.pause();
+  assert.equal(player.prepareStageTrack('rain'), null);
+  assert.equal(audio.playCalls, 1);
+  await player.play('local', new Blob(['test']));
+  assert.equal(player.prepareStageTrack('rain'), null);
+  assert.equal(player.state.trackId, 'local');
+});
+
+test('a selection made while the garden cue is pending also takes priority', async () => {
+  const audio = new Audio(), player = createMusicPlayback(audio, { tracks });
+  audio.nativeHls = true;
+  const cue = player.prepareStageTrack('rain');
+  await player.play('live');
+  audio.currentTime = 15;
+  assert.equal(cue.reveal(), false);
+  cue.cancel();
+  assert.equal(player.state.trackId, 'live');
+  assert.equal(audio.currentTime, 15);
+  assert.equal(audio.muted, false);
+});
+
 test('a source resolver is lazy, can be retried, and does not resolve again for a browser gesture retry', async () => {
   const audio = new Audio();
   const sourceTracks = [{ id: 'rain', kind: 'video', resolveUrl: 'https://example.com/api/music-source?track=rain' }];

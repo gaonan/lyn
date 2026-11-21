@@ -1,4 +1,4 @@
-import { MUSIC_TRACKS } from './music-tracks.js?v=20261120-r86';
+import { MUSIC_TRACKS } from './music-tracks.js?v=20261121-r93';
 
 let hlsScript;
 function loadHls() {
@@ -31,6 +31,7 @@ export function createMusicPlayback(audio, {
   let current = null, hls = null, localUrl = null, generation = 0;
   let loading = false, playing = false, wantsPlaying = false, ready = false, error = '';
   let metadataListener, sourceRequest, blocked = false, celebrationMutes = 0, previousMuted = false;
+  let listenerHasChosen = false, stageIntroduced = false, cancelStageCue = null, stageRetry = null;
   const state = () => ({ trackId: current?.id ?? null, localName: current?.localName ?? '',
     playing, loading, wantsPlaying, ready, error });
   const notify = () => onState(state());
@@ -79,6 +80,7 @@ export function createMusicPlayback(audio, {
     }
   }
   async function play(trackId, file) {
+    stageRetry = null;
     if (current?.id === trackId && !file && (!error || blocked) && (ready || hls)) {
       wantsPlaying = true;
       error = '';
@@ -159,7 +161,13 @@ export function createMusicPlayback(audio, {
       fail(token, '此浏览器暂时无法播放该音源。可以重试、选择本机音频或打开原现场。');
     }
   }
+  function noteSelection() {
+    cancelStageCue?.();
+    listenerHasChosen = true;
+    stageRetry = null;
+  }
   function pause() {
+    noteSelection();
     wantsPlaying = false;
     loading = false;
     playing = false;
@@ -194,18 +202,59 @@ export function createMusicPlayback(audio, {
       if (wantsPlaying) void attemptPlay(generation);
     }
   });
+  function muteTemporarily() {
+    if (!celebrationMutes++) previousMuted = audio.muted;
+    audio.muted = true;
+    let restored = false;
+    return () => {
+      if (restored) return;
+      restored = true;
+      if (!--celebrationMutes) audio.muted = previousMuted;
+    };
+  }
+  function prepareStageTrack(trackId) {
+    if (stageIntroduced || listenerHasChosen || cancelStageCue) return null;
+    // Start a fresh player's actual media element inside the entry tap. Keep it
+    // silent through the countdown, then play the opening note at the reveal.
+    const unmute = muteTemporarily();
+    void play(trackId);
+    let finished = false;
+    const cue = {
+      reveal() {
+        if (finished) return false;
+        finished = stageIntroduced = true;
+        cancelStageCue = null;
+        if (audio.readyState >= 1 && audio.currentTime > 0) audio.currentTime = 0;
+        unmute();
+        if (!wantsPlaying || audio.paused) void play(trackId);
+        stageRetry = trackId;
+        return true;
+      },
+      cancel() {
+        if (finished) return;
+        finished = true;
+        cancelStageCue = null;
+        generation++;
+        wantsPlaying = loading = false;
+        current = null;
+        error = '';
+        blocked = false;
+        destroySource();
+        unmute();
+        notify();
+      },
+    };
+    cancelStageCue = cue.cancel;
+    return cue;
+  }
   return {
-    play, pause, get state() { return state(); },
+    play(trackId, file) { noteSelection(); return play(trackId, file); },
+    noteSelection, pause, prepareStageTrack, muteForCelebration: muteTemporarily, get state() { return state(); },
     start() { if (current && wantsPlaying && audio.paused) void play(current.id); },
-    muteForCelebration() {
-      if (!celebrationMutes++) previousMuted = audio.muted;
-      audio.muted = true;
-      let restored = false;
-      return () => {
-        if (restored) return;
-        restored = true;
-        if (!--celebrationMutes) audio.muted = previousMuted;
-      };
+    retryStageOnGesture() {
+      if (stageRetry && current?.id === stageRetry && (blocked || (wantsPlaying && ready && audio.paused))) {
+        void play(stageRetry);
+      }
     },
   };
 }
@@ -245,7 +294,6 @@ export function setupMusic() {
   const status = dialog.querySelector('#music-status');
   const playButton = dialog.querySelector('#play-live');
   const sourceLink = dialog.querySelector('.source-link');
-  const label = trigger.querySelector('.music-label');
   let selected = MUSIC_TRACKS[0]?.id, closeOnPlaying = false;
   const rows = MUSIC_TRACKS.filter(track => track.available !== false).map(track => {
     const button = document.createElement('button');
@@ -256,6 +304,7 @@ export function setupMusic() {
     button.querySelector('b').textContent = track.title;
     button.querySelector('small').textContent = track.subtitle;
     button.onclick = () => {
+      playback.noteSelection();
       if (selected === track.id) return;
       const resume = playback.state.playing || playback.state.wantsPlaying;
       selected = track.id;
@@ -267,10 +316,9 @@ export function setupMusic() {
   });
   function render(state) {
     trigger.classList.toggle('music-on', state.playing);
-    label.textContent = '音乐';
     const current = MUSIC_TRACKS.find(track => track.id === state.trackId);
-    trigger.setAttribute('aria-label', state.playing ? `音乐设置，正在播放《${current?.title || state.localName}》` : '音乐设置');
-    trigger.title = '选择歌曲或暂停音乐';
+    trigger.title = state.playing ? `音乐设置，正在播放《${current?.title || state.localName}》` : '音乐设置';
+    trigger.setAttribute('aria-label', trigger.title);
     const track = MUSIC_TRACKS.find(item => item.id === selected);
     for (const row of rows) {
       const checked = row.dataset.track === selected;
@@ -296,6 +344,12 @@ export function setupMusic() {
     if (state.error) closeOnPlaying = false;
   }
   const playback = createMusicPlayback(audio, { onState: render });
+  function retryGardenAudio(event) {
+    if (event.isTrusted && selected === 'garden' && event.target.closest?.('#world, #joystick, #look-joystick')) {
+      playback.retryStageOnGesture();
+    }
+  }
+  document.addEventListener('pointerup', retryGardenAudio);
   function startSelected() {
     closeOnPlaying = true;
     void playback.play(selected);
@@ -332,6 +386,18 @@ export function setupMusic() {
   return {
     start: playback.start,
     muteForCelebration: playback.muteForCelebration,
+    prepareGardenEntrance() {
+      const cue = playback.prepareStageTrack('garden');
+      if (!cue) return null;
+      return {
+        reveal() {
+          if (!cue.reveal()) return;
+          selected = 'garden';
+          render(playback.state);
+        },
+        cancel: cue.cancel,
+      };
+    },
     offerRainPlayback() {
       if (!MUSIC_TRACKS.some(track => track.id === 'rain' && track.available !== false)) return;
       if (playback.state.trackId === 'rain' && playback.state.playing) return;

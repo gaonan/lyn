@@ -1,7 +1,15 @@
-const CACHE='carnation7-20261120-r86';
-const VERSION='20261120-r86';
+const CACHE='carnation7-20261121-r93';
+const VERSION='20261121-r93';
 const BARKS='assets/daimi/two-barks.m4a';
-const FILES=['./','index.html','manifest.webmanifest','assets/icon.svg',...['app.js','style.css','daimi-feeding.css','visit.js','assets/lighting/atrium-probes.bin','assets/fonts/noto-serif-sc-title.woff2','assets/fonts/noto-serif-sc-film.woff2',BARKS,...['heart','magazine','role','record','celebration'].map(cue=>`assets/sounds/${cue}.m4a`)].map(path=>`${path}?v=${VERSION}`)];
+const FILES=[
+  './','index.html','assets/carnation-gold.svg','assets/carnation-gold-32.png','assets/carnation-gold-192.png',
+  ...[
+    'manifest.webmanifest','app.js','style.css','daimi-feeding.css','visit.js','assets/lighting/atrium-probes.bin',
+    'assets/loading/secret-garden-landscape.webp','assets/loading/secret-garden-portrait.webp',
+    'assets/fonts/noto-serif-sc-title.woff2','assets/fonts/noto-serif-sc-film.woff2',BARKS,
+    ...['heart','magazine','role','record','celebration'].map(cue=>`assets/sounds/${cue}.m4a`),
+  ].map(path=>`${path}?v=${VERSION}`),
+];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('carnation7-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 function isRecoveryURL(url) {
@@ -28,7 +36,8 @@ self.addEventListener('fetch',event=>{
       || (event.request.mode==='navigate' ? await caches.match('./') : undefined);
     if(immutable&&cached){
       const range=event.request.headers.get('range');
-      return bark ? (range ? audioRange(cached,range) : audioResponse(cached)) : cached;
+      if (range && url.pathname.endsWith('.m4a')) return audioRange(cached, range);
+      return bark ? audioResponse(cached) : cached;
     }
     const network=fetch(event.request).then(response=>{
       if(response.ok&&response.status!==206){
@@ -57,7 +66,7 @@ function audioResponse(response) {
   return new Response(response.body,{status:response.status,headers});
 }
 
-// iOS asks for byte ranges even for this short, fully precached audio clip.
+// iOS asks for byte ranges for audio files already stored in full.
 async function audioRange(response, range) {
   const bytes=await response.arrayBuffer();
   const size=bytes.byteLength;

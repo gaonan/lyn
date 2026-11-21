@@ -57,9 +57,9 @@ body.daimi-feeding .vignette { visibility: hidden !important; }
   min-height: 44px;
   padding: 0 18px;
   margin: 0;
-  border: 1px solid #ddcfad66;
+  border: 1px solid var(--glass-stroke);
   border-radius: 12px;
-  background: #282d28eb;
+  background: var(--glass-fill);
   color: #f3ead8;
   font-size: 13px;
   font-weight: 500;
@@ -69,8 +69,8 @@ body.daimi-feeding .vignette { visibility: hidden !important; }
   touch-action: manipulation;
 }
 #daimi-feeding-dialog button:focus-visible { outline: 2px solid #f9d69a; outline-offset: 4px; }
-#daimi-feeding-dialog button:active { background: #4d5143; }
-#daimi-feeding-dialog button.feeding-primary { background: #e9d4a5; border-color: #e9d4a5; color: #302f27; }
+#daimi-feeding-dialog button:active { background: #555159; }
+#daimi-feeding-dialog button.feeding-primary { background: #f6d77e; border-color: transparent; color: #272116; }
 #daimi-feeding-dialog button.feeding-primary:active { background: #cbb785; }
 #daimi-feeding-dialog .feeding-exit {
   position: absolute;
@@ -81,8 +81,8 @@ body.daimi-feeding .vignette { visibility: hidden !important; }
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #222823c9;
-  border-color: #e8dccb44;
+  background: var(--glass-fill);
+  border-color: var(--glass-stroke);
   font-size: 12px;
 }
 #daimi-feeding-dialog .feeding-exit svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
@@ -98,10 +98,12 @@ body.daimi-feeding .vignette { visibility: hidden !important; }
   max-width: calc(100% - 36px);
   min-width: min(330px, calc(100% - 36px));
   padding: 20px 24px 22px;
-  border: 1px solid #dbc89a4d;
+  border: 1px solid var(--glass-stroke);
   border-radius: 18px;
-  background: #1c2620ed;
-  box-shadow: 0 12px 50px #0005;
+  background: var(--glass-panel);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
   text-align: center;
 }
 #daimi-feeding-dialog .feeding-card-mark { display: block; color: #e6cda0; font-size: 27px; line-height: 1; }

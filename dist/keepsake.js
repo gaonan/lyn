@@ -1,4 +1,4 @@
-import { createRecordClaim, formatRecordNumber } from './record-claim.js?v=20261120-r86';
+import { createRecordClaim, formatRecordNumber } from './record-claim.js?v=20261121-r93';
 
 const LIMIT = 50;
 const segmenter = typeof Intl.Segmenter === 'function'
@@ -28,7 +28,7 @@ export function textLines(ctx, text, maxWidth) {
   });
 }
 
-const FILM_TITLE = '康乃馨 7.0';
+const FILM_TITLE = '康乃馨缘计划';
 const FILM_LINES = ['如果我拥有一座花园', '邀请你常来停歇'];
 const FILM_FONT = '"Noto Serif SC Film", "Songti SC", "Noto Serif CJK SC", serif';
 const FILM_SCALE = 2;
@@ -248,11 +248,15 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
   let savedText = '';
   try { savedText = keepsakeText(localStorage.getItem(key) || ''); } catch {}
   record.setMessage(savedText);
-  let file, url, wallReady, currentAngle = 0, generating = false, generation = 0;
+  let file, url, wallReady, currentAngle = 0, activeRequest, generation = 0;
   let publishable;
 
   function discardImage() {
     generation++;
+    activeRequest?.abort();
+    activeRequest = undefined;
+    retryWhenOnline = false;
+    generate.disabled = save.disabled = previous.disabled = next.disabled = false;
     if (url) URL.revokeObjectURL(url);
     url = undefined;
     file = undefined;
@@ -288,9 +292,11 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
   });
 
   async function generateView(angle, text) {
-    if (generating) return;
+    if (activeRequest) return;
     const attempt = generation;
-    generating = generate.disabled = save.disabled = previous.disabled = next.disabled = true;
+    const controller = new AbortController();
+    activeRequest = controller;
+    generate.disabled = save.disabled = previous.disabled = next.disabled = true;
     download.removeAttribute('href');
     if (file) angleLabel.textContent = '正在切换机位…';
     status.textContent = '正在准备留影…';
@@ -308,7 +314,7 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
       const receipt = await claim.get((tryNumber, total) => {
         if (attempt === generation && dialog.open) status.textContent = tryNumber === 1
           ? '正在领取收藏编号…' : `网络较忙，正在重试领取（${tryNumber}/${total}）…`;
-      });
+      }, controller.signal);
       const ticketRequest = receipt.requestId;
       const recordNumber = formatRecordNumber(receipt.number);
       if (attempt !== generation || !dialog.open) return;
@@ -340,8 +346,8 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
       status.textContent = '';
       saveStatus.textContent = '';
     } catch (error) {
-      retryWhenOnline = stage === 'number' && error.retryable !== false;
-      if (attempt === generation) {
+      if (attempt === generation && dialog.open) {
+        retryWhenOnline = stage === 'number' && error.retryable !== false;
         const receipt = claim.peek();
         status.textContent = stage === 'number'
           ? error.status === 403
@@ -353,20 +359,23 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
               ? error.message : '留言已保留。留影生成失败，请再试一次。';
       }
     } finally {
-      generating = generate.disabled = save.disabled = previous.disabled = next.disabled = false;
-      if (attempt === generation && file) {
-        angleLabel.textContent = angleNames[currentAngle];
-        download.href = url;
+      if (activeRequest === controller) {
+        activeRequest = undefined;
+        generate.disabled = save.disabled = previous.disabled = next.disabled = false;
+        if (file) {
+          angleLabel.textContent = angleNames[currentAngle];
+          download.href = url;
+        }
       }
     }
   }
 
-  window.addEventListener('online', () => {
-    if (retryWhenOnline && dialog.open && !generating) void generateView(0, savedText);
+  globalThis.window?.addEventListener('online', () => {
+    if (retryWhenOnline && dialog.open && !activeRequest) void generateView(0, savedText);
   });
 
   generate.addEventListener('click', () => {
-    if (generating) return;
+    if (activeRequest) return;
     claim.start();
     updateLimit();
     savedText = input.value.trim().replace(/\n+/g, ' ');
@@ -376,7 +385,7 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
     void generateView(0, savedText);
   });
   function switchAngle(offset) {
-    if (!file || generating) return;
+    if (!file || activeRequest) return;
     void generateView((currentAngle + offset + angleNames.length) % angleNames.length, savedText);
   }
   previous.addEventListener('click', () => switchAngle(-1));
@@ -400,7 +409,7 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
   });
 
   download.addEventListener('click', () => {
-    if (file && !generating) saveStatus.textContent = '已发起留影下载。';
+    if (file && !activeRequest) saveStatus.textContent = '已发起留影下载。';
   });
   save.addEventListener('click', async () => {
     if (!file) return;

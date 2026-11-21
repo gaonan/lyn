@@ -1,5 +1,5 @@
-import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261120-r86';
-import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261120-r86';
+import { makeConcreteFloorColor, makeSurfaceMaps } from './surface-maps.js?v=20261121-r93';
+import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261121-r93';
 
 // Event-space reconstruction from the user's photographs 1–8.
 // Ground flowers and performance area face the rear book wall. Photo 1 shows a
@@ -9,6 +9,10 @@ import { applyStairFinish, makeStairFinishes } from './stair-finishes.js?v=20261
 export function buildArchitecture(THREE, scene, bakeSolid) {
   const colliders = [], surfaces = [], railPaths = [], flowerBeds = [], contactShadows = [];
   const group = new THREE.Group(); group.name = 'Flower cafe architecture'; scene.add(group);
+  const loungeStair = new THREE.Group();
+  loungeStair.name = 'Lounge stairs to the ground floor';
+  group.add(loungeStair);
+  let batchParent = group;
   const batches = new Map(), temp = new THREE.Object3D();
   // Keep the original placement sequence independent of the material textures.
   let seed = 1863998497;
@@ -58,6 +62,10 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
     truss: material('#58616b', { metalness: .35, roughness: .6 }),
   };
   mats.deck.userData.varyInstanceUv = true;
+  const bookcaseStrip = mats.light.clone();
+  const unlitUpperBooks = mats.book.clone();
+  const unlitUpperPrint = mats.ivory.clone();
+  for (const material of [unlitUpperBooks, unlitUpperPrint]) material.userData.concertShade = .30;
   const stairSupport = mats.concrete.clone();
   for (const material of [mats.stairConcrete, mats.stairWood, stairSupport]) {
     material.userData.nightShade = .60;
@@ -68,11 +76,14 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
     const value = Math.sin(a * 19.41 + b * 43.89 + c * 67.21) * 43758.5453;
     return value - Math.floor(value);
   }
+  function entriesFor(geo, mat) {
+    const key = `${batchParent.id}/${geo.uuid}/${mat.uuid}`;
+    if (!batches.has(key)) batches.set(key, { geo, mat, parent: batchParent, entries: [] });
+    return batches.get(key).entries;
+  }
   function instance(geo, mat, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0, color, tile) {
-    const key = `${geo.uuid}/${mat.uuid}`;
-    if (!batches.has(key)) batches.set(key, { geo, mat, entries: [] });
     temp.position.set(x, y, z); temp.rotation.set(rx, ry, rz); temp.scale.set(sx, sy, sz); temp.updateMatrix();
-    batches.get(key).entries.push({ matrix: temp.matrix.clone(), color, tile });
+    entriesFor(geo, mat).push({ matrix: temp.matrix.clone(), color, tile });
   }
   function box(m, x, y, z, w, h, d, ry = 0, color, tile) {
     instance(boxGeo, m, x, y, z, w, h, d, 0, ry, 0, color, tile);
@@ -90,9 +101,7 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
     temp.position.copy(va).add(vb).multiplyScalar(.5);
     temp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.clone().normalize());
     temp.scale.set(width, delta.length(), width); temp.updateMatrix();
-    const key = `${boxGeo.uuid}/${m.uuid}`;
-    if (!batches.has(key)) batches.set(key, { geo: boxGeo, mat: m, entries: [] });
-    batches.get(key).entries.push({ matrix: temp.matrix.clone() });
+    entriesFor(boxGeo, m).push({ matrix: temp.matrix.clone() });
   }
   function collider(minX, maxX, minZ, maxZ, minY, maxY, type) { colliders.push({ minX, maxX, minZ, maxZ, minY, maxY, type }); }
   function floor(minX, maxX, minZ, maxZ, y) {
@@ -115,7 +124,9 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
         }
       }
     }
-    surfaces.push({ minX, maxX, minZ, maxZ, y });
+    const surface = { minX, maxX, minZ, maxZ, y };
+    surfaces.push(surface);
+    return surface;
   }
   function rail(a, b, flowering = true) {
     const distance = Math.hypot(b[0] - a[0], b[2] - a[2]);
@@ -138,7 +149,7 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   floor(-8.9, 8.9, -6.9, 8.9, 0);
   for (const y of [2.4, 4.8, 7.2]) floor(-8.8, 8.8, -6.8, -5.1, y);
   floor(4.5, 8.8, -2.1, -.7, 3.2);
-  floor(4.8, 8.8, -.7, 8.7, 3.2);
+  const loungeDeck = floor(4.8, 8.8, -.7, 8.7, 3.2);
   // A small upper-left turn landing returns to the highest book walk; no right U.
   floor(-8.8, -4.9, .6, 2, 7.2);
   floor(-6.5, -4.9, -5.1, .6, 7.2);
@@ -195,7 +206,7 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   const gardenMat=material('#507347',{roughness:1});
   for(let i=0;i<22;i++)instance(ballGeo,gardenMat,8.99,4.5+random()*4.2,-6.4+random()*3.7,.018,.28+random()*.4,.25+random()*.4,0,0,0,new THREE.Color().setHSL(.25+random()*.05,.18,.28+random()*.12));
   // The thin warm lines are attached to the book-walk slab undersides.
-  for(const y of [2.4,4.8,7.2])box(mats.light,0,y-.22,-5.087,17.5,.025,.025);
+  for(const y of [2.4,4.8,7.2])box(bookcaseStrip,0,y-.22,-5.087,17.5,.025,.025);
   box(mats.light,4.787,2.98,4,.025,.025,9.1);
 
   let stairCount = 0;
@@ -240,7 +251,13 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   stairs({ min: -8.5, max: -6.7, start: 1.6, end: -5.1, yStart: 0, yEnd: 2.4 });
   stairs({ min: 4.5, max: 6.3, start: -5.1, end: -2.1, yStart: 2.4, yEnd: 3.2 });
   stairs({ min: 6.7, max: 8.5, start: -5.1, end: -2.1, yStart: 4.8, yEnd: 3.2 });
+  const firstLoungeCollider = colliders.length, firstLoungeRail = railPaths.length;
+  batchParent = loungeStair;
   stairs({ axis: 'x', min: 7.02, max: 8.7, start: 4.8, end: -1.15, yStart: 3.2, yEnd: 0, underside: true });
+  batchParent = group;
+  const loungeStairSurface = surfaces.at(-1);
+  const loungeStairColliders = new Set(colliders.slice(firstLoungeCollider));
+  for (const path of railPaths.slice(firstLoungeRail)) path.concertHidden = true;
   stairs({ min: -8.5, max: -6.7, start: -5.1, end: .6, yStart: 4.8, yEnd: 7.2 });
   if (!bakeSolid) {
     const finishes = makeStairFinishes(THREE, stairCount);
@@ -275,6 +292,8 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   // Full height face-out library: hundreds of colored book jackets, all instanced.
   const bookColors = ['#ae5946', '#d3ae63', '#97a595', '#607c87', '#c9bd9f', '#b9b491', '#586566', '#c2876b', '#e2c9a1', '#8a786f', '#98a9b4', '#ae7b6d'];
   for (const level of [0, 2.4, 4.8, 7.2]) {
+    const coverMaterial = level === 0 ? mats.book : unlitUpperBooks;
+    const printMaterial = level === 0 ? mats.ivory : unlitUpperPrint;
     const compactTier = true;
     const shelfSpacing = compactTier ? .4 : .53;
     box(mats.black, 0, level + (compactTier ? 1.08 : 1.4), -6.82, 17.6, compactTier ? 2.16 : 2.8, .12);
@@ -291,11 +310,11 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
              : ['#c27b56','#c4825c','#b97350','#d09065','#bd7554'])
           : ['#dfd7bd','#bdc5ad','#d6ba64','#6b9ba1','#ab6956','#d2d3bd','#b58462','#637b89'];
         const color = new THREE.Color(rowPalette[Math.floor(random() * rowPalette.length)]);
-        box(mats.book, x + w / 2, y + h / 2 + .03, -6.56, w, h, .10, 0, color);
+        box(coverMaterial, x + w / 2, y + h / 2 + .03, -6.56, w, h, .10, 0, color);
         // Cover border and typesetting marks, visible close up but cheap in a batch.
         const pale = random() > .6;
-        box(pale ? mats.ivory : mats.darkWood, x + w / 2, y + h * .67, -6.501, w * .57, .016, .006);
-        box(pale ? mats.ivory : mats.darkWood, x + w / 2, y + h * .56, -6.5, w * .4, .009, .006);
+        box(pale ? printMaterial : mats.darkWood, x + w / 2, y + h * .67, -6.501, w * .57, .016, .006);
+        box(pale ? printMaterial : mats.darkWood, x + w / 2, y + h * .56, -6.5, w * .4, .009, .006);
         if (random() > .6) box(mats.brass, x + w / 2, y + h * .29, -6.5, w * .28, h * .15, .007);
         x += w + .023 + random() * .025;
       }
@@ -522,11 +541,13 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   collider(stoolBounds.min.x, stoolBounds.max.x, stoolBounds.min.z, stoolBounds.max.z,
     0, stoolBounds.max.y);
   // Compact drum kit is tucked into the far-right corner of the stage.
+  const drumSkin = mats.ivory.clone();
+  drumSkin.userData.concertShade = .16;
   instance(cylGeo, mats.darkWood, 4.4, .43, -4.7, .43, .5, .43, Math.PI / 2);
-  instance(cylGeo, mats.ivory, 4.4, .43, -4.44, .39, .02, .39, Math.PI / 2);
+  instance(cylGeo, drumSkin, 4.4, .43, -4.44, .39, .02, .39, Math.PI / 2);
   for (const [x, z] of [[4, -5], [4.8, -5.1], [5, -4.4]]) {
     cylinder(mats.darkWood, x, .88, z, .23, .3);
-    cylinder(mats.ivory, x, 1.035, z, .23, .012);
+    cylinder(drumSkin, x, 1.035, z, .23, .012);
     cylinder(mats.chrome, x, .42, z, .018, .7);
   }
   for (const [x, z, y] of [[3.7, -4.8, 1.45], [5.25, -5, 1.52]]) {
@@ -543,7 +564,7 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
   }
 
   // Assemble static geometry into GPU instances, so the room remains lightweight.
-  for (const { geo, mat, entries } of batches.values()) {
+  for (const { geo, mat, entries, parent } of batches.values()) {
     const stairSurface = !bakeSolid && (mat === mats.stairWood || mat === mats.stairConcrete);
     const geometry = stairSurface ? geo.clone() : geo;
     if (stairSurface) {
@@ -562,15 +583,24 @@ export function buildArchitecture(THREE, scene, bakeSolid) {
     mesh.castShadow = mat === mats.black || mat === mats.truss;
     // The risers retain baked contact shading without the sharp repeated rail bars.
     mesh.receiveShadow = mat !== mats.floor && mat !== mats.stairConcrete;
-    mesh.computeBoundingSphere(); group.add(mesh);
+    mesh.computeBoundingSphere(); parent.add(mesh);
   }
+  const concertColliders = colliders.filter(c => !loungeStairColliders.has(c));
+  const openDeck = { ...loungeDeck, dropAtMinX: { minZ: loungeStairSurface.minZ, maxZ: loungeStairSurface.maxZ } };
+  const concertSurfaces = surfaces.filter(s => s !== loungeStairSurface).map(s => s === loungeDeck ? openDeck : s);
   return {
-    colliders, surfaces, railPaths, flowerBeds, stoolSeat, contactShadows, floorMaterial: mats.floor,
+    get colliders() { return loungeStair.visible ? colliders : concertColliders; },
+    get surfaces() { return loungeStair.visible ? surfaces : concertSurfaces; },
+    railPaths, flowerBeds, stoolSeat, contactShadows, floorMaterial: mats.floor,
+    setConcert(enabled) { loungeStair.visible = !enabled; },
     setNight(value) { ceiling.visible = !value; },
     get ceilingVisible() { return ceiling.visible; },
-    setPracticalLights(enabled) {
+    setPracticalLights(enabled, level = 1, { bookcase = true } = {}) {
       mats.light.visible = enabled;
-      mats.glass.emissiveIntensity = enabled ? .2 : .016;
+      mats.light.color.set('#ffe6be').multiplyScalar(level);
+      bookcaseStrip.visible = enabled && bookcase;
+      bookcaseStrip.color.copy(mats.light.color);
+      mats.glass.emissiveIntensity = enabled ? .2 * level : 0;
     },
     landmarks: [
       { name: '花海舞台', x: 0, y: 0, z: 2.1 },

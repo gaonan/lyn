@@ -37,3 +37,24 @@ test('private browsing or unavailable storage leaves the session playable', () =
   save.collect('hearts', 'stage-path');
   assert.deepEqual(save.state.hearts, ['stage-path']);
 });
+
+test('a dog visit survives a reload and can be cleared without losing older quest progress', () => {
+  let data = JSON.stringify({ version: 1, seed: 17, dogGreeted: true, roles: ['role-3'] });
+  const storage = () => ({ getItem: () => data, setItem: (_, value) => { data = value; } });
+  const visit = createPlaySave(storage);
+  const otherTab = createPlaySave(storage);
+  assert.equal(visit.state.feedingOfferedHere, false);
+
+  visit.mark('feedingOfferedHere');
+  otherTab.collect('roles', 'role-4');
+  const reloaded = createPlaySave(storage);
+  assert.equal(reloaded.state.feedingOfferedHere, true);
+  reloaded.mark('feedingOfferedHere', false);
+  visit.mark('invitationSeen');
+
+  const nextVisit = createPlaySave(storage);
+  assert.equal(nextVisit.state.feedingOfferedHere, false);
+  assert.equal(nextVisit.state.dogGreeted, true);
+  assert.equal(nextVisit.state.invitationSeen, true);
+  assert.deepEqual(nextVisit.state.roles, ['role-3', 'role-4']);
+});

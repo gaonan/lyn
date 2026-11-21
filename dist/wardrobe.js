@@ -6,6 +6,7 @@ export function setupWardrobe(T, scene, camera, button, changeOutfit) {
   const label = button.querySelector('strong');
   const hint = button.querySelector('small');
   const ring = button.querySelector('.progress');
+  const destinations = document.querySelector('.destinations');
   const canvas = document.createElement('canvas');
   canvas.width = 640;
   canvas.height = 144;
@@ -25,8 +26,10 @@ export function setupWardrobe(T, scene, camera, button, changeOutfit) {
   let restorePressed = false;
   function drawSign() {
     const ctx = canvas.getContext('2d');
-    const width = canvas.width;
+    const width = white ? 328 : canvas.width;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate((canvas.width - width) / 2, 0);
     ctx.beginPath();
     ctx.moveTo(38, 14); ctx.lineTo(width - 35, 14); ctx.lineTo(width - 16, 34);
     ctx.lineTo(width - 16, 110); ctx.lineTo(width - 37, 130); ctx.lineTo(35, 130);
@@ -46,6 +49,7 @@ export function setupWardrobe(T, scene, camera, button, changeOutfit) {
     ctx.font = '500 21px sans-serif';
     ctx.fillStyle = '#d1d1d1';
     ctx.fillText(white ? '点击切换' : '长按 2 秒', width / 2, 106);
+    ctx.restore();
     map.needsUpdate = true;
   }
   drawSign();
@@ -65,6 +69,7 @@ export function setupWardrobe(T, scene, camera, button, changeOutfit) {
       if (await changeOutfit(!restore)) {
         white = !restore;
         label.textContent = white ? RESTORE : CHANGE;
+        button.toggleAttribute('data-restore', white);
         drawSign();
       }
     } finally {
@@ -123,8 +128,16 @@ export function setupWardrobe(T, scene, camera, button, changeOutfit) {
     }
     const halfWidth = button.offsetWidth / 2 + 12;
     const screenX = (projected.x + 1) * innerWidth / 2;
-    button.style.left = `${Math.max(halfWidth, Math.min(innerWidth - halfWidth, screenX))}px`;
-    button.style.top = `${(1 - projected.y) * 50}%`;
+    const x = Math.max(halfWidth, Math.min(innerWidth - halfWidth, screenX));
+    let y = (1 - projected.y) * innerHeight / 2;
+    if (white && destinations) {
+      const nav = destinations.getBoundingClientRect();
+      if (nav.width && x + halfWidth > nav.left && x - halfWidth < nav.right) {
+        y = Math.min(y, nav.top - button.offsetHeight / 2 - 8);
+      }
+    }
+    button.style.left = `${x}px`;
+    button.style.top = `${y}px`;
     if (hold) {
       const progress = Math.min(1, (now - hold.since) / HOLD_MS);
       ring.style.strokeDashoffset = String(100 * (1 - progress));

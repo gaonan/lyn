@@ -15,11 +15,11 @@ function worker(fetcher, cached) {
       put: async (request, response) => saved.push([request.url, await response.text()]),
     }) },
   });
-  return { saved, request(path, mode = 'cors', method = 'GET') {
+  return { saved, request(path, mode = 'cors', method = 'GET', headers = {}) {
     let response;
     const waits = [];
     listeners.fetch({ request: { url: `https://example.test${path}`, method, mode,
-      referrer: '', headers: new Headers() },
+      referrer: '', headers: new Headers(headers) },
     respondWith: value => { response = value; }, waitUntil: value => waits.push(value) });
     return response === undefined ? undefined : Promise.resolve(response).then(async value => {
       await Promise.all(waits); return value;
@@ -29,7 +29,7 @@ function worker(fetcher, cached) {
 test('versioned startup code is served from cache without another overseas round trip', async () => {
   let calls = 0;
   const sw = worker(async () => { calls++; return new Response('network'); }, new Response('cached app'));
-  assert.equal(await (await sw.request('/app.js?v=20261120-r86')).text(), 'cached app');
+  assert.equal(await (await sw.request('/app.js?v=20261121-r93')).text(), 'cached app');
   assert.equal(calls, 0);
 });
 test('an origin 502 still opens the previously cached flower room', async () => {
@@ -45,6 +45,14 @@ test('API and private statistics never use the service worker cache', () => {
 });
 test('repair and asset retries explicitly bypass the cache', async () => {
   const sw = worker(async () => new Response('fresh'), new Response('old'));
-  assert.equal(await (await sw.request('/app.js?v=20261120-r86&asset-retry=1')).text(), 'fresh');
+  assert.equal(await (await sw.request('/app.js?v=20261121-r93&asset-retry=1')).text(), 'fresh');
   assert.equal(await (await sw.request('/?repair=1', 'navigate')).text(), 'fresh');
+});
+
+test('a cached garden track still honors Safari byte-range requests', async () => {
+  const sw = worker(async () => { throw Error('must not reach the network'); }, new Response('track'));
+  const response = await sw.request('/assets/music/secret-garden.m4a?v=20261121-r93', 'cors', 'GET', { Range: 'bytes=0-1' });
+  assert.equal(response.status, 206);
+  assert.equal(response.headers.get('Content-Range'), 'bytes 0-1/5');
+  assert.equal(await response.text(), 'tr');
 });

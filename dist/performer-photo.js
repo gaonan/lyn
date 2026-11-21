@@ -38,6 +38,7 @@ uniform vec2 photoFromFit;
 uniform vec2 photoToFit;
 uniform vec2 photoFromSize;
 uniform vec2 photoToSize;
+uniform vec4 photoFromFace, photoToFace;
 uniform float photoFromLight, photoToLight, photoBlend;
 #ifdef PHOTO_RIM_LIGHT
 uniform vec2 photoRimDirection;
@@ -53,7 +54,7 @@ vec4 photoTap(sampler2D photoMap, vec2 uv) {
   vec4 c = texture2D(photoMap, uv);
   return vec4(c.rgb * c.a, c.a);
 }
-vec4 photoSample(sampler2D photoMap, vec4 rect, vec2 fit, vec2 size, float light) {
+vec4 photoSample(sampler2D photoMap, vec4 rect, vec2 fit, vec2 size, float light, vec4 face) {
   vec2 localUV = vec2(vMapUv.x * fit.x + fit.y, vMapUv.y);
   if (localUV.x < 0.0 || localUV.x > 1.0 || localUV.y < 0.0 || localUV.y > 1.0) return vec4(0.0);
   vec2 p = (rect.xy + localUV * rect.zw) * size - 0.5;
@@ -63,6 +64,15 @@ vec4 photoSample(sampler2D photoMap, vec4 rect, vec2 fit, vec2 size, float light
   vec4 high = mix(photoTap(photoMap, a + vec2(0.0, stepUV.y)), photoTap(photoMap, a + stepUV), f.x);
   vec4 photo = mix(low, high, f.y);
   photo.rgb *= light;
+  #ifdef PHOTO_FACE_GAIN
+    // Each view has its own feathered oval in top-left image coordinates.
+    if (face.z > 0.0) {
+      vec2 offset = (vec2(localUV.x, 1.0 - localUV.y) - face.xy) / face.zw;
+      float mask = 1.0 - smoothstep(.48, 1.0, length(offset));
+      float protectRedMic = smoothstep(.09, .30, photo.g / max(photo.r, .0001));
+      photo.rgb *= mix(1.0, PHOTO_FACE_GAIN, mask * protectRedMic);
+    }
+  #endif
   #ifdef PHOTO_RIM_LIGHT
     if (photo.a > .025) {
       vec2 uv = rect.xy + localUV * rect.zw;
@@ -76,9 +86,9 @@ vec4 photoSample(sampler2D photoMap, vec4 rect, vec2 fit, vec2 size, float light
 }
 `;
 const PHOTO_FRAGMENT = `
-vec4 photoColor = photoSample(photoFromMap, photoFromRect, photoFromFit, photoFromSize, photoFromLight);
+vec4 photoColor = photoSample(photoFromMap, photoFromRect, photoFromFit, photoFromSize, photoFromLight, photoFromFace);
 if (photoBlend > 0.0) {
-  vec4 nextPhoto = photoSample(photoToMap, photoToRect, photoToFit, photoToSize, photoToLight);
+  vec4 nextPhoto = photoSample(photoToMap, photoToRect, photoToFit, photoToSize, photoToLight, photoToFace);
   photoColor = mix(photoColor, nextPhoto, photoBlend);
 }
 diffuseColor *= vec4(photoColor.a > 0.00001 ? photoColor.rgb / photoColor.a : vec3(0.0), photoColor.a);
@@ -86,8 +96,9 @@ diffuseColor *= vec4(photoColor.a > 0.00001 ? photoColor.rgb / photoColor.a : ve
 
 /** Transparent photos on one ground-anchored cylindrical billboard. */
 export function buildPhotographicPerformer(T, scene, options = {}) {
-  const baseHeight = options.height ?? DEFAULT_HEIGHT;
-  const lowerBodyExtension = options.lowerBodyExtension ?? 0;
+  const scale = options.scale ?? 1;
+  const baseHeight = (options.height ?? DEFAULT_HEIGHT) * scale;
+  const lowerBodyExtension = (options.lowerBodyExtension ?? 0) * scale;
   const height = baseHeight + lowerBodyExtension;
   const root = new T.Group(); root.name = options.name || 'Photographic multi-view performer'; root.position.set(...(options.position || [0, 0, -1])); scene.add(root);
   const facing = new T.Group(); facing.name = 'Camera-facing photo'; root.add(facing);
@@ -116,6 +127,9 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
     const offset = commonLeft / f.displayWidth + f.anchorX;
     uniforms[`photo${prefix}Fit`].value.set(view.mirror ? -scale : scale, view.mirror ? 1 - offset : offset);
     uniforms[`photo${prefix}Size`].value.set(f.width, f.height);
+    if (options.faceExposureEV) {
+      uniforms[`photo${prefix}Face`].value.fromArray(options.views[view.name].faceRegion ?? [0, 0, 0, 0]);
+    }
     uniforms[`photo${prefix}Light`].value = options.viewLight?.[view.name] ?? 1;
   }
   function samples(a, b, blend) { setSample('From', a); setSample('To', b); uniforms.photoBlend.value = blend; state.fromView = PHOTO_VIEWS[a]; state.currentView = PHOTO_VIEWS[b]; state.blend = blend; }
@@ -147,6 +161,11 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
       photoFromSize: { value: new T.Vector2() }, photoToSize: { value: new T.Vector2() },
       photoFromLight: { value: 1 }, photoToLight: { value: 1 }, photoBlend: { value: 0 },
     };
+    if (options.faceExposureEV) {
+      material.defines = { ...material.defines, PHOTO_FACE_GAIN: (2 ** options.faceExposureEV).toFixed(6) };
+      uniforms.photoFromFace = { value: new T.Vector4() };
+      uniforms.photoToFace = { value: new T.Vector4() };
+    }
     if (rimLight) {
       material.defines = { ...material.defines, PHOTO_RIM_LIGHT: 1 };
       uniforms.photoRimDirection = { value: new T.Vector2(0, 1) };
@@ -264,5 +283,18 @@ export function buildPhotographicPerformer(T, scene, options = {}) {
     }
     return viewReady;
   }
-  return { object: root, ready, update, setNight, collider: { minX: root.position.x - .39, maxX: root.position.x + .39, minZ: root.position.z - .3, maxZ: root.position.z + .35, minY: root.position.y, maxY: root.position.y + height + .11 } };
+  function setStageTint(tint, rimStrength) {
+    nightTint.splice(0, 3, ...tint);
+    if (rimLight) {
+      rimLight.strength = rimStrength;
+      uniforms?.photoRimColor.value.set(rimLight.color).multiplyScalar(rimStrength);
+    }
+    setNight(night);
+  }
+  const collider = {
+    minX: root.position.x - .39 * scale, maxX: root.position.x + .39 * scale,
+    minZ: root.position.z - .3 * scale, maxZ: root.position.z + .35 * scale,
+    minY: root.position.y, maxY: root.position.y + height + .11 * scale,
+  };
+  return { object: root, ready, update, setNight, setStageTint, collider };
 }

@@ -1,4 +1,4 @@
-// Public source streams are requested only after the listener chooses Play.
+// Audio is requested on play or when the listener enters the secret garden.
 export const MUSIC_TRACKS = [
   {
     id: 'reunion',
@@ -9,6 +9,14 @@ export const MUSIC_TRACKS = [
     sourceUrl: 'https://weibo.com/l/wblive/p/show/1022:2321325332684670370133',
     start: 8455,
     end: 8734,
+  },
+  {
+    id: 'garden',
+    title: '如果我有一座花园',
+    subtitle: '刘宇宁 · 秘密花园舞台',
+    kind: 'audio',
+    url: './assets/music/secret-garden.m4a?v=20261121-r93',
+    sourceUrl: 'https://weibo.com/1699432410/5367389331918016',
   },
   {
     id: 'rain',

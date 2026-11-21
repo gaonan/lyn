@@ -4,13 +4,12 @@ export function heightAt(s, z, x) {
   return s.yStart+(s.yEnd-s.yStart)*Math.max(0,Math.min(1,t));
 }
 export function nextPosition(p, dx, dz, surfaces, colliders) {
-  const radius = .19;
   function attempt(x, z, from) {
     const candidates = surfaces.filter(s=>x>=s.minX && x<=s.maxX && z>=s.minZ && z<=s.maxZ)
       .map(s=>({y:heightAt(s,z,x),stair:s.y===undefined})).filter(c=>Math.abs(c.y-from.y)<.27).sort((a,b)=>Number(b.stair)-Number(a.stair)||Math.abs(a.y-from.y)-Math.abs(b.y-from.y));
     if (!candidates.length) return from;
     const y=candidates[0].y;
-    if(colliders.some(c=>x+radius>c.minX&&x-radius<c.maxX&&z+radius>c.minZ&&z-radius<c.maxZ&&y+1.45>c.minY&&y+.2<c.maxY))return from;
+    if(colliders.some(c=>overlaps(c,x,z)&&y+1.45>c.minY&&y+.2<c.maxY))return from;
     return {x,y,z};
   }
   let next=attempt(p.x+dx,p.z,p);return attempt(next.x,next.z+dz,next);
@@ -27,6 +26,9 @@ export function spawnPlayer(point) {
 }
 
 function overlaps(box, x, z) {
+  if (box.radius !== undefined) {
+    return (x - box.x) ** 2 + (z - box.z) ** 2 < (box.radius + RADIUS) ** 2;
+  }
   return x + RADIUS > box.minX && x - RADIUS < box.maxX
     && z + RADIUS > box.minZ && z - RADIUS < box.maxZ;
 }
@@ -51,9 +53,12 @@ export function stepPlayer(player, moveX, moveZ, elapsed, jump, surfaces, collid
     const dx = moveX * GROUND_SPEED * dt, dz = moveZ * GROUND_SPEED * dt;
     if (!player.onProp) {
       const walked = nextPosition(player, dx, dz, surfaces, colliders);
-      return walked.x === x && walked.z === z ? player : { ...player, ...walked };
+      const stepsOffEdge = dx < 0 && walked.x === x && surfaces.some(s =>
+        s.dropAtMinX && Math.abs(y - s.y) < .01 && x >= s.minX && x + dx < s.minX
+        && z + dz > s.dropAtMinX.minZ + RADIUS && z + dz < s.dropAtMinX.maxZ - RADIUS);
+      if (!stepsOffEdge) return walked.x === x && walked.z === z ? player : { ...player, ...walked };
     }
-    // Recover normal walking after standing on top of a prop.
+    // Continue under gravity when leaving an open ledge or stepping off a prop.
     grounded = false;
     velocityY = 0;
   }

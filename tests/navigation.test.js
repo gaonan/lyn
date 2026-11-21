@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import * as THREE from '../dist/vendor/three.module.min.js';
 import { buildArchitecture } from '../dist/architecture.js';
 import { buildBotanicals } from '../dist/botanicals.js';
-import { nextPosition, spawnPlayer, stepPlayer } from '../dist/navigation.js';
+import { canRestorePosition, nextPosition, spawnPlayer, stepPlayer } from '../dist/navigation.js';
+import { buildConcertPlatform, CONCERT_STAGE } from '../dist/concert-platform.js';
 import { chooseMagazineSpots, magazineInReach } from '../dist/magazines.js';
 import { chooseRoleSpots, roleInReach } from '../dist/roles.js';
 import { RECORD_POSITION, recordInReach } from '../dist/record.js';
@@ -157,4 +158,67 @@ test('jumping beneath the lounge cannot pass through its ceiling', () => {
   const path = simulate({x:5.8,y:0,z:5.2}, 100, 0, 0, [0, 22]);
   assert.ok(Math.max(...path.map(point=>point.y)) < 1.42);
   assert.equal(path.at(-1).y, 0);
+});
+
+test('concert removes only the lounge descent and allows walking or jumping off its open landing', () => {
+  const room = buildArchitecture(THREE, new THREE.Scene());
+  const originalSurfaces = room.surfaces, originalColliders = room.colliders;
+  const flight = room.group.getObjectByName('Lounge stairs to the ground floor');
+  const slope = originalSurfaces.find(s => s.xStart === 4.8 && s.yEnd === 0);
+  assert.ok(flight.visible && slope && flight.children.length);
+  assert.equal(room.railPaths.filter(p => p.concertHidden).length, 2);
+  room.setConcert(true);
+  assert.equal(flight.visible, false);
+  assert.ok(!room.surfaces.includes(slope));
+  assert.equal(room.surfaces.length, originalSurfaces.length - 1);
+  assert.ok(room.colliders.length < originalColliders.length);
+  for (const jump of [false, true]) {
+    let p = spawnPlayer({x:4.93, y:3.2, z:7.86});
+    for (let i=0; i<140; i++) {
+      p=stepPlayer(p,i<70?-1:0,0,1/60,jump && i===0,room.surfaces,room.colliders);
+    }
+    assert.ok(p.grounded && p.y === 0 && p.x < 4.4, JSON.stringify(p));
+  }
+  let uphill = {x:-7.5, y:0, z:1.6};
+  for (let i=0; i<140; i++) uphill=nextPosition(uphill,0,-.05,room.surfaces,room.colliders);
+  assert.ok(Math.abs(uphill.y-2.4)<.01);
+  room.setConcert(false);
+  assert.equal(flight.visible, true);
+  assert.equal(room.colliders, originalColliders);
+  assert.equal(room.surfaces, originalSurfaces);
+  assert.ok(room.surfaces.includes(slope));
+});
+
+test('only the round end of the concert stage blocks walking, jumping and checkpoint restoration', () => {
+  const roomScene = new THREE.Scene();
+  const room = buildArchitecture(THREE, roomScene);
+  const flowers = buildBotanicals(THREE, roomScene, room.railPaths, { concertStage: CONCERT_STAGE });
+  const deck = buildConcertPlatform(THREE, roomScene);
+  room.setConcert(true);
+  flowers.setConcert(true);
+  const floors = [...room.surfaces, ...deck.surfaces];
+  const barriers = [...room.colliders, ...flowers.colliders, deck.barrier];
+  const { x, z, radius, y } = CONCERT_STAGE;
+  const clearance = radius + .19;
+  for (let i = 0; i < 8; i++) {
+    const nx = Math.cos(i * Math.PI / 4), nz = Math.sin(i * Math.PI / 4);
+    const start = { x: x + 2.8 * nx, y: i === 6 ? y : 0, z: z + 2.8 * nz };
+    for (const jump of [false, true]) {
+      let p = spawnPlayer(start);
+      for (let frame = 0; frame < 140; frame++) {
+        p = stepPlayer(p, -nx, -nz, 1 / 60, jump && (frame === 0 || frame === 22), floors, barriers);
+        assert.ok(Math.hypot(p.x - x, p.z - z) >= clearance - 1e-7, 'stays outside the stage rim');
+      }
+      assert.ok(Math.hypot(p.x - x, p.z - z) < clearance + .06, 'can approach the rim from every side');
+    }
+  }
+  assert.equal(canRestorePosition({ x, y, z }, floors, barriers), false);
+  for (const point of [
+    { x: x + 1.8, y: 0, z: z + 1.8 }, // inside the bounding square, outside the circle
+    { x, y, z: z - clearance - .025 }, // the runway reaches the back of the circle
+    { x: -3.3, y, z: -4.5 }, { x: 3.3, y, z: -4.5 },
+  ]) assert.ok(canRestorePosition(point, floors, barriers), JSON.stringify(point));
+  let p = spawnPlayer({ x: -2.5, y: 0, z: z + clearance + .015 });
+  for (let frame = 0; frame < 143; frame++) p = stepPlayer(p, 1, 0, 1 / 60, false, floors, barriers);
+  assert.ok(p.x > 2.49, 'can walk past the circle on a tangent');
 });

@@ -1,4 +1,4 @@
-import { MESSAGE_WALL_SKY_EDGE } from './atrium-sky.js?v=20261120-r86';
+import { MESSAGE_WALL_SKY_EDGE } from './atrium-sky.js?v=20261121-r93';
 
 export const PROBE_SIZE = [24, 18, 22];
 export const PROBE_MIN = [-9, 0, -7];
@@ -13,6 +13,7 @@ export function createAtriumProbes(T, version) {
   const ready = { value: 0 };
   const intensity = { value: .23 };
   const nightAmount = { value: 1 };
+  const concertShade = { value: 0 };
   const wallRim = { value: new T.Color(MESSAGE_WALL_SKY_EDGE.color) };
   let night = true;
   let stage = false;
@@ -29,6 +30,7 @@ export function createAtriumProbes(T, version) {
     night = value;
     stage = stageActive;
     nightAmount.value = Number(night);
+    concertShade.value = Number(night && stageActive);
     intensity.value = stage ? (night ? .055 : .085) : (night ? .23 : .88);
     if (maps) map.value = maps[Number(night)];
   }
@@ -54,7 +56,7 @@ export function createAtriumProbes(T, version) {
     for (const material of materials) {
       const varyInstanceUv = material.userData.varyInstanceUv === true;
       const nightWallGradient = material.userData.nightWallGradient === true;
-      const nightShade = material.userData.nightShade ?? 1;
+      const nightShade = material.userData.concertShade ?? material.userData.nightShade ?? 1;
       const compile = material.onBeforeCompile;
       const finishKey = material.customProgramCacheKey();
       material.onBeforeCompile = function (shader, renderer) {
@@ -105,7 +107,7 @@ export function createAtriumProbes(T, version) {
             irradiance += bakedLight.rgb * bakedLight.rgb * ${PROBE_IRRADIANCE_RANGE.toFixed(1)} *
               atriumLightReady * atriumLightIntensity;`);
         if (nightWallGradient || nightShade !== 1) {
-          shader.uniforms.atriumNight = nightAmount;
+          shader.uniforms.atriumNight = material.userData.concertShade ? concertShade : nightAmount;
           shader.fragmentShader = shader.fragmentShader.replace('#include <common>',
             '#include <common>\nuniform float atriumNight;');
         }

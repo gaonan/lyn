@@ -8,7 +8,7 @@ export function buildImportedPerformer(T, scene, options = {}) {
   Object.assign(state,{technology:'image-to-3D textured GLB',textureStatus:'loading',height:1.92,reference:'Image 8 standing singing pose'});
   const loader=options.loader||new GLTFLoader();
   if(loader instanceof GLTFLoader)loader.setMeshoptDecoder(MeshoptDecoder);
-  const url=options.url||'./assets/performer/standing.glb?v=20261113-r3';
+  const url=options.url||'./assets/performer/standing.glb?v=20261121-r93';
   const ready=new Promise(resolve=>{
     let settled=false;
     function notify(name,value){try{options[name]?.(value);}catch(error){console.warn(`Performer ${name} callback failed`,error);}}

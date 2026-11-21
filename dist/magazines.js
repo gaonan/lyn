@@ -106,6 +106,7 @@ export function buildMagazines(T, scene, version, random = Math.random, loader =
       edges.visible = false;
       display.add(edges);
       scene.add(display);
+      item.display = display;
       item.illuminate = () => {
         base.material.color.set('#b98345');
         cover.material.color.set(0xffffff);

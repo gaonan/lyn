@@ -26,6 +26,7 @@ VISIT_PATH = "/api/visit"
 STATS_PATH = "/api/visitor-stats"
 WALL_PATH = "/api/wall-messages"
 MUSIC_PATH = "/api/music/rain"
+GARDEN_AUDIO_PATH = "/assets/music/secret-garden.m4a"
 MUSIC_SOURCE_URL = (
     "https://interface.sina.cn/wap_api/video_location.d.html?cid=&table_id="
     "&did=niyqwtt0965785&vt=4&creator_id=9805&vid=60122948830&video_id=601229488"
@@ -372,6 +373,8 @@ class RecordHandler(SimpleHTTPRequestHandler):
                 self.log_message("response_disconnected endpoint=%s", self.endpoint)
 
     def do_GET(self):
+        if self.server.serve_static and self.endpoint == GARDEN_AUDIO_PATH:
+            return self.serve_garden_audio()
         if self.endpoint == MUSIC_PATH:
             return self.serve_music()
         if self.endpoint == WALL_PATH:
@@ -402,6 +405,8 @@ class RecordHandler(SimpleHTTPRequestHandler):
         self.respond(200, {"latest": latest})
 
     def do_HEAD(self):
+        if self.server.serve_static and self.endpoint == GARDEN_AUDIO_PATH:
+            return self.serve_garden_audio()
         if self.endpoint not in (API_PATH, STATS_PATH, VISIT_PATH, WALL_PATH, MUSIC_PATH) and self.server.serve_static:
             return super().do_HEAD()
         self.do_GET()
@@ -454,6 +459,52 @@ class RecordHandler(SimpleHTTPRequestHandler):
             self.sqlite_failure = getattr(error, "sqlite_errorname", type(error).__name__)
             return self.respond(503, {"error": "temporarily_unavailable"})
         self.respond(200, {"number": number})
+
+    def serve_garden_audio(self):
+        # Safari probes the audio with a two-byte request before starting playback.
+        try:
+            stream = open(self.translate_path(GARDEN_AUDIO_PATH), "rb")
+        except FileNotFoundError:
+            return self.send_error(404)
+        with stream:
+            size = os.fstat(stream.fileno()).st_size
+            start, stop = 0, size
+            values = self.headers.get_all("Range", [])
+            if values:
+                try:
+                    if len(values) != 1:
+                        raise ValueError
+                    first, last = validate_music_range(values[0])[6:].split("-")
+                    if first:
+                        start = int(first)
+                        stop = min(size, int(last) + 1) if last else size
+                    else:
+                        start = max(0, size - int(last))
+                    if start >= stop:
+                        raise ValueError
+                except ValueError:
+                    return self.respond(416, None, [("Content-Range", f"bytes */{size}")])
+            self.send_response(206 if values else 200)
+            self.send_header("Content-Type", "audio/mp4")
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", str(stop - start))
+            self.send_header("Cache-Control", "public, max-age=3600")
+            if values:
+                self.send_header("Content-Range", f"bytes {start}-{stop - 1}/{size}")
+            self.end_headers()
+            if self.command == "HEAD":
+                return
+            stream.seek(start)
+            try:
+                remaining = stop - start
+                while remaining:
+                    chunk = stream.read(min(MUSIC_CHUNK_SIZE, remaining))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     def serve_music(self):
         origin = self.headers.get("Origin")

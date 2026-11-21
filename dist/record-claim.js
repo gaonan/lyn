@@ -11,6 +11,25 @@ export class ClaimError extends Error {
   }
 }
 
+function checkCancelled(signal) {
+  if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
+}
+
+function waitForRetry(ms, signal) {
+  return new Promise((resolve, reject) => {
+    checkCancelled(signal);
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', cancel);
+      resolve();
+    }, ms);
+    function cancel() {
+      clearTimeout(timer);
+      reject(new DOMException('Cancelled', 'AbortError'));
+    }
+    signal?.addEventListener('abort', cancel, { once: true });
+  });
+}
+
 // Persist the receipt before rendering an image. Retrying this request never
 // consumes another number, even when the original response was lost in transit.
 export function createRecordClaim({
@@ -23,7 +42,7 @@ export function createRecordClaim({
   random = Math.random,
   makeId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)),
     byte => byte.toString(16).padStart(2, '0')).join(''),
-  sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
+  sleep = waitForRetry,
   timeoutMs = 15000,
   attempts = 4,
 } = {}) {
@@ -46,7 +65,8 @@ export function createRecordClaim({
     try { session()?.setItem(LEGACY_KEY, receipt.requestId); } catch {}
     return receipt;
   }
-  async function claim(onProgress) {
+  async function claim(onProgress, signal) {
+    checkCancelled(signal);
     let receipt = read();
     if (!receipt) {
       let legacy;
@@ -55,9 +75,12 @@ export function createRecordClaim({
     }
     if (validNumber(receipt.number)) return receipt;
     for (let attempt = 1; attempt <= attempts; attempt++) {
+      checkCancelled(signal);
       onProgress?.(attempt, attempts);
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const abort = () => controller.abort();
+      signal?.addEventListener('abort', abort, { once: true });
+      const timer = setTimeout(abort, timeoutMs);
       let failure;
       try {
         const response = await fetcher(endpoint, {
@@ -76,15 +99,18 @@ export function createRecordClaim({
           });
         }
         const data = await response.json();
+        checkCancelled(signal);
         if (!validNumber(data.number)) throw new ClaimError('编号响应不完整');
         return save({ ...receipt, number: data.number, completed: false });
       } catch (error) {
+        checkCancelled(signal);
         failure = error instanceof ClaimError ? error : new ClaimError('暂时无法连接编号服务');
       } finally {
         clearTimeout(timer);
+        signal?.removeEventListener('abort', abort);
       }
       if (!failure.retryable || attempt === attempts) throw failure;
-      await sleep(Math.max(failure.retryAfter, 800 * 2 ** (attempt - 1) + random() * 500));
+      await sleep(Math.max(failure.retryAfter, 800 * 2 ** (attempt - 1) + random() * 500), signal);
     }
   }
   return {
@@ -101,13 +127,17 @@ export function createRecordClaim({
         save({ ...receipt, completed: true });
       }
     },
-    get(onProgress) {
-      if (!inFlight) {
-        const task = () => claim(onProgress);
-        inFlight = Promise.resolve().then(() => locks?.request
-          ? locks.request(CLAIM_KEY, task) : task()).finally(() => { inFlight = undefined; });
+    get(onProgress, signal) {
+      if (!inFlight || inFlight.signal?.aborted) {
+        const flight = { signal };
+        const task = () => claim(onProgress, signal);
+        flight.promise = Promise.resolve().then(() => locks?.request
+          ? locks.request(CLAIM_KEY, task) : task()).finally(() => {
+          if (inFlight === flight) inFlight = undefined;
+        });
+        inFlight = flight;
       }
-      return inFlight;
+      return inFlight.promise;
     },
   };
 }
