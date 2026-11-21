@@ -1,32 +1,33 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261121-r90';
-import { buildBotanicals } from './botanicals.js?v=20261121-r90';
-import { createHearts } from './hearts.js?v=20261121-r90';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261121-r90';
-import { CONCERT_OUTFIT_VIEWS, PERFORMER_VIEWS } from './performer-views.js?v=20261121-r90';
-import { createConcertPortal } from './concert-portal.js?v=20261121-r90';
-import { sweepStageFog } from './concert-transition.js?v=20261121-r90';
-import { setupMusic } from './music.js?v=20261121-r90';
-import { setupCollection } from './collection.js?v=20261121-r90';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261121-r90';
-import { prepareOffline } from './offline.js?v=20261121-r90';
-import { buildMagazines } from './magazines.js?v=20261121-r90';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261121-r90';
-import { setupDaimiFeeding } from './daimi-feeding.js?v=20261121-r90';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261121-r90';
-import { buildRolePortraits } from './roles.js?v=20261121-r90';
-import { buildRecord } from './record.js?v=20261121-r90';
-import { createRewardSounds } from './reward-sounds.js?v=20261121-r90';
-import { createArtworkQueue } from './artwork.js?v=20261121-r90';
-import { createAtriumLighting } from './atrium-light.js?v=20261121-r90';
-import { createAtriumProbes } from './atrium-probes.js?v=20261121-r90';
-import { setupKeepsake } from './keepsake.js?v=20261121-r90';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261121-r90';
-import { createPlaySave } from './play-save.js?v=20261121-r90';
-import { buildConcertPlatform, CONCERT_STAGE } from './concert-platform.js?v=20261121-r90';
-import { createConcertAudience } from './concert-audience.js?v=20261121-r90';
-import { CONCERT_MIRROR_POSITION, createConcertLighting } from './concert-lighting.js?v=20261121-r90';
-const VERSION = '20261121-r90';
+import { buildArchitecture } from './architecture.js?v=20261121-r91';
+import { buildBotanicals } from './botanicals.js?v=20261121-r91';
+import { createHearts } from './hearts.js?v=20261121-r91';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261121-r91';
+import { CONCERT_OUTFIT_VIEWS, PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261121-r91';
+import { setupWardrobe } from './wardrobe.js?v=20261121-r91';
+import { createConcertPortal } from './concert-portal.js?v=20261121-r91';
+import { sweepStageFog } from './concert-transition.js?v=20261121-r91';
+import { setupMusic } from './music.js?v=20261121-r91';
+import { setupCollection } from './collection.js?v=20261121-r91';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261121-r91';
+import { prepareOffline } from './offline.js?v=20261121-r91';
+import { buildMagazines } from './magazines.js?v=20261121-r91';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261121-r91';
+import { setupDaimiFeeding } from './daimi-feeding.js?v=20261121-r91';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261121-r91';
+import { buildRolePortraits } from './roles.js?v=20261121-r91';
+import { buildRecord } from './record.js?v=20261121-r91';
+import { createRewardSounds } from './reward-sounds.js?v=20261121-r91';
+import { createArtworkQueue } from './artwork.js?v=20261121-r91';
+import { createAtriumLighting } from './atrium-light.js?v=20261121-r91';
+import { createAtriumProbes } from './atrium-probes.js?v=20261121-r91';
+import { setupKeepsake } from './keepsake.js?v=20261121-r91';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261121-r91';
+import { createPlaySave } from './play-save.js?v=20261121-r91';
+import { buildConcertPlatform, CONCERT_STAGE } from './concert-platform.js?v=20261121-r91';
+import { createConcertAudience } from './concert-audience.js?v=20261121-r91';
+import { CONCERT_MIRROR_POSITION, createConcertLighting } from './concert-lighting.js?v=20261121-r91';
+const VERSION = '20261121-r91';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 // Local lighting inspection opens on the concert floor without touching a player's progress.
@@ -117,15 +118,18 @@ camera.rotation.order = 'YXZ';
 const world = buildArchitecture(THREE, scene);
 const flowers = buildBotanicals(THREE, scene, world.railPaths, { concertStage: CONCERT_STAGE });
 let concertMode = false, transitioning = false, originalNight = true;
+let gardenWardrobeWhite = false, stageRevision = 0;
 let platform, audience, concertLights, portal;
 let surfaces = world.surfaces;
 const roomFloorTone = world.floorMaterial.color.clone();
 function setEnvironmentNight(value) {
+  const rainStage = !concertMode && gardenWardrobeWhite;
   world.setNight(value);
   lighting.setNight(value);
   world.floorMaterial.color.copy(roomFloorTone);
   if (concertMode) world.floorMaterial.color.multiplyScalar(value ? .20 : .75);
-  world.setPracticalLights(!concertMode || !value, concertMode ? .8 : 1, { bookcase: !concertMode });
+  if (rainStage) world.floorMaterial.color.multiplyScalar(.75);
+  world.setPracticalLights(!rainStage && (!concertMode || !value), concertMode ? .8 : 1, { bookcase: !concertMode });
 }
 setEnvironmentNight(true);
 atriumProbes.apply(scene);
@@ -172,7 +176,7 @@ const gardenPerformer = buildPhotographicPerformer(THREE, scene, {
   loader: openingArtwork.loaderFor('performer'),
   deferredLoader: artwork.loaderFor('performer-angles'),
 });
-let performer = gardenPerformer, concertPerformer;
+let performer = gardenPerformer, concertPerformer, rainPerformer;
 function prepareConcertOutfit(retry = false) {
   if (concertPerformer && !(retry && concertPerformer.object.userData.textureStatus === 'error')) {
     return concertPerformer.ready;
@@ -276,6 +280,14 @@ const performerShadow = new THREE.Mesh(new THREE.PlaneGeometry(.72 * singerScale
 performerShadow.rotation.x = -Math.PI / 2;
 performerShadow.position.set(0, .018, -.12 * singerScale);
 performer.object.add(performerShadow);
+function showPerformer(nextPerformer) {
+  performer.object.visible = false;
+  performer = nextPerformer;
+  performer.object.visible = true;
+  performer.object.add(performerShadow);
+  colliders = [...world.colliders, ...flowers.colliders, performer.collider];
+  if (concertMode) colliders.push(platform.barrier);
+}
 const daimiShadow = new THREE.Mesh(new THREE.PlaneGeometry(.255 * daimiScale, .205 * daimiScale), shadowMaterial);
 daimiShadow.rotation.x = -Math.PI / 2;
 daimiShadow.position.copy(dogSeat);
@@ -446,6 +458,39 @@ const magazineQuest = setupMagazineQuest(magazines, roles, dogSeat, record, () =
   rewardSounds,
   muteForCelebration: music.muteForCelebration,
   toast,
+});
+const updateWardrobe = setupWardrobe(THREE, scene, camera, $('#wardrobe-action'), async white => {
+  if (concertMode || transitioning) return false;
+  const revision = stageRevision;
+  if (white && !rainPerformer) {
+    const lowerBodyExtension = .25 / singerScale;
+    rainPerformer = buildPhotographicPerformer(THREE, scene, {
+      name: '归期雨抄 · 白色舞台装', reference: '音乐缘计划3 · 归期雨抄',
+      views: RAIN_OUTFIT_VIEWS, version: VERSION,
+      position: gardenPerformer.object.position.toArray(),
+      height: gardenPerformer.object.userData.height / singerScale - lowerBodyExtension,
+      scale: singerScale, lowerBodyExtension,
+      nightTint: [.49, .54, .60], dayTint: [.68, .71, .76],
+      viewLight: { front: .86, right: .94, back: 1.10, left: .90 },
+      rimLight: { position: lighting.rainLightPosition, color: '#bfd5ff', strength: .86 },
+      renderOrder: 3,
+    });
+    rainPerformer.object.visible = false;
+    if (!await rainPerformer.ready) {
+      rainPerformer.object.removeFromParent();
+      rainPerformer = undefined;
+      if (revision === stageRevision) toast('新服装未加载成功，可以再长按试一次。');
+      return false;
+    }
+  }
+  if (revision !== stageRevision) return false;
+  gardenWardrobeWhite = white;
+  showPerformer(white ? rainPerformer : gardenPerformer);
+  lighting.setRainStage(white);
+  selectNight(night);
+  resetInput();
+  renderer.shadowMap.needsUpdate = true;
+  return true;
 });
 let introTime=0;
 const keys = new Set();
@@ -695,7 +740,7 @@ const gateReturnLabel = '回到初始的舞台';
 let gateAvailable = false;
 let countdownAnchor = null;
 const fogCurtain = $('#concert-fog');
-const gateObstacles = document.querySelectorAll('.destinations, #joystick, #look-joystick, header a, .tools, #achievement-badge, #pure-view-toggle, #map-toggle, #map-panel, #heart-counter, #magazine-counter, #role-counter');
+const gateObstacles = document.querySelectorAll('.destinations, #joystick, #look-joystick, header a, .tools, #achievement-badge, #pure-view-toggle, #map-toggle, #map-panel, #heart-counter, #magazine-counter, #role-counter, #wardrobe-action');
 let gateRects = [], nextGateMeasure = 0;
 function invalidateGateLayout() { nextGateMeasure = 0; }
 window.addEventListener('resize', invalidateGateLayout);
@@ -773,14 +818,10 @@ function applyStageMode(next, animateEntrance = false) {
   flowers.setConcert(next, atriumProbes.apply);
   gardenShadows.visible = !next;
   surfaces = next ? [...world.surfaces, ...platform.surfaces] : world.surfaces;
-  performer.object.visible = false;
-  performer = next ? concertPerformer : gardenPerformer;
-  performer.object.visible = true;
-  performer.object.add(performerShadow);
+  showPerformer(next ? concertPerformer : gardenWardrobeWhite ? rainPerformer : gardenPerformer);
   if (next) applyConcertEntrance(concertLights.prepareIntro(animateEntrance));
-  colliders = [...world.colliders, ...flowers.colliders, performer.collider];
-  if (next) colliders.push(platform.barrier);
   lighting.setConcert(next);
+  if (gardenWardrobeWhite) lighting.setRainStage(!next);
   lightButton.hidden = next;
   selectNight(next || originalNight);
   if (next) audience.reset();
@@ -801,6 +842,8 @@ async function startStageChange(tapPoint) {
   const next = !concertMode;
   const musicCue = next ? music.prepareGardenEntrance() : null;
   transitioning = true;
+  stageRevision++;
+  updateWardrobe(performance.now(), false, false, p);
   showLightstickHint(false);
   resetInput();
   const controls = [$('#hud'), $('header'), $('#achievement-badge')];
@@ -1073,11 +1116,13 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
  }
  else if(!entered){introTime+=dt;camera.position.set(5.1+Math.sin(introTime*.06)*.22,5.6,7.5);camera.lookAt(-1.1,2.7,-2.8)}
  const active=entered&&!transitioning&&!pureView&&p.grounded&&!document.querySelector('dialog[open]');
- const magazineEngaged=magazineQuest.update(now,active&&!wallPreview&&!collection.celebrating);
+ const wardrobeEngaged = updateWardrobe(now, active && !concertMode && !wallPreview && canMove(),
+   magazineQuest.roleUnlocked || record.unlocked, p);
+ const magazineEngaged=magazineQuest.update(now,active&&!wallPreview&&!collection.celebrating&&!wardrobeEngaged);
  if(feeding.cameraActive)focusFeedingCamera();
  performer.update(now/1000,camera);
  if(daimi.object.visible)daimi.update(now/1000,camera);
- collection.update(now,active&&!magazineEngaged);
+ collection.update(now,active&&!magazineEngaged&&!wardrobeEngaged);
  if (concertMode) updateCollectibleVisibility();
  updateGate(now, active && !magazineEngaged);
  lighting.update(now/1000, !reducedMotion.matches);

@@ -1,5 +1,5 @@
-const CACHE='carnation7-20261121-r90';
-const VERSION='20261121-r90';
+const CACHE='carnation7-20261121-r91';
+const VERSION='20261121-r91';
 const BARKS='assets/daimi/two-barks.m4a';
 const FILES=[
   './','index.html','assets/carnation-gold.svg','assets/carnation-gold-32.png','assets/carnation-gold-192.png',
