@@ -1,6 +1,7 @@
 export const CONCERT_MIRROR_POSITION = Object.freeze([.55, 6.08, -2.62]);
 
 const INTRO_SECONDS = 2.05;
+const COLOUR_CUE_SECONDS = 4;
 const DECK_KEY_POWER = 90;
 const MIRROR_SCALE = Math.cbrt(.70);
 const MIRROR_RADIUS = .57 * MIRROR_SCALE;
@@ -29,6 +30,7 @@ const roundMirrorProjection = /* glsl */ `
 
 const beamColour = /* glsl */ `
   vec3 beamColour(float hue, vec3 violet, vec3 magenta, vec3 gold) {
+    if (hue < 0.0) return vec3(.72, .80, 1.0);
     return hue < .5 ? mix(violet, magenta, hue * 2.0)
       : mix(magenta, gold, smoothstep(.5, .98, hue));
   }
@@ -46,16 +48,16 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
   const clock = { value: 1.25 };
   const keyTint = { value: new T.Color() };
   const accentTint = { value: new T.Color() };
+  const goldTint = { value: new T.Color() };
+  const ballTint = { value: new T.Color() };
   const levels = { value: .85 };
-  const goldTint = { value: new T.Color('#ffbb32') };
   const ballCenter = { value: new T.Vector3(...CONCERT_MIRROR_POSITION) };
   const ballGain = { value: 1 };
   const ballTurn = { value: .2 };
   const cues = [
-    ['#8e29e8', '#cb248b'],
-    ['#782ceb', '#e1338b'],
-    ['#a531eb', '#c22989'],
-    ['#8a22ce', '#ce2483'],
+    ['#ff9b25', '#ff6422', '#ffd259'],
+    ['#7826e8', '#c023ba', '#f19738'],
+    ['#983bdc', '#df318b', '#fbb343'],
   ].map(pair => pair.map(color => new T.Color(color)));
   function quads(origins, attributes, vertexShader, fragmentShader, order = 2, verticalSegments = 1) {
     const geometry = new T.InstancedBufferGeometry().copy(new T.PlaneGeometry(1, 1, 1, verticalSegments));
@@ -76,35 +78,44 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
     return mesh;
   }
 
-  // The shafts turn around their own axes to present a soft edge from any floor.
+  // The rear fixtures form a low arc. Aim each beam at the face of the sphere
+  // it actually hits, so it cannot continue through the glass as a horizontal bar.
+  const [ballX, ballY, ballZ] = CONCERT_MIRROR_POSITION;
+  const toMirror = from => new T.Vector3(...from).sub(ballCenter.value)
+    .normalize().multiplyScalar(MIRROR_RADIUS * .97).add(ballCenter.value).toArray();
+  const rearFixtures = [.48, 1.52, 2.56, 3.65, 4.83, 6.04, 7.32].flatMap((offset, row) =>
+    [-1, 1].map(side => {
+      const spread = offset / 7.32;
+      const arc = spread ** 2;
+      const from = [ballX + side * offset, 1.37 + 1.55 * arc, -5.15 + 2.12 * arc];
+      const hue = side < 0 ? .10 + .49 * spread : .29 + .62 * spread;
+      return { from, to: toMirror(from), radius: .205 + .046 * spread, hue,
+        gain: .86 - .16 * spread, delay: .06 + row * .070 + (side > 0 ? .045 : 0), fixed: true };
+    }));
+  const pinOrigin = [ballX - .095, 6.99, ballZ + .066];
+  const pinspot = { from: pinOrigin, to: toMirror(pinOrigin), radius: .105, hue: -1,
+    gain: .72, delay: .36, fixed: true };
+  const upperFixtures = [-5.53, -3.93, -2.34, 2.64, 4.18, 5.65].map((x, index) => ({
+    from: [x, 6.94, -4.68], to: [x * 1.58, 9.12 + .11 * (index % 3), -2.29],
+    radius: .40 + Math.abs(x) * .042, hue: index < 3 ? .86 - index * .18 : .32 - (index - 3) * .125,
+    gain: .46, delay: .53 + .07 * Math.abs(index - 2.5), fixed: false,
+  }));
+  const fixtures = [...rearFixtures, pinspot, ...upperFixtures];
   const heads = [], endpoints = [], profiles = [], tracking = [];
-  // High moving heads hang just below the fourth-floor book walk. The two gold
-  // units flanking the cantilever converge on the sphere throughout the show.
-  const target = ballCenter.value.toArray();
-  const fixtures = [
-    [[-5.52, 6.96, -4.76], [-3.40, .18, -.61], .54, 1],
-    [[-4.25, 6.92, -4.62], [-5.45, .12,  .68], .76, .04],
-    [[-2.88, 6.96, -4.78], [-2.98, .26, -.31], .52, .44],
-    [[-1.48, 6.94, -4.54], target,              .17, 1],
-    [[ 2.50, 6.94, -4.54], target,              .17, 1],
-    [[ 3.17, 6.96, -4.78], [ 1.96, .23, -.87], .64, .48],
-    [[ 4.13, 6.92, -4.62], [ 4.62, .12,  .13], .82, .00],
-    [[ 5.49, 6.96, -4.76], [ 5.93, .18, -.88], .52, 1],
-  ];
   const fixtureGain = { value: new Float32Array(fixtures.length).fill(1) };
   const atmosphereGain = { value: 1 };
   const uniforms = {
-    clock, keyTint, accentTint, goldTint, levels, fixtureGain, atmosphereGain,
+    clock, keyTint, accentTint, goldTint, ballTint, levels, fixtureGain, atmosphereGain,
     ballCenter, ballGain, ballTurn,
   };
-  fixtures.forEach(([origin, destination, radius, tint], i) => {
-    heads.push(...origin);
-    endpoints.push(...destination);
-    profiles.push(.056, radius, i * 1.37, tint);
-    tracking.push(destination === target ? 1 : 0);
+  fixtures.forEach(({ from, to, radius, hue, fixed }, i) => {
+    heads.push(...from);
+    endpoints.push(...to);
+    profiles.push(.041, radius, i * 1.37, hue);
+    tracking.push(fixed ? 1 : 0);
   });
   // Subdivide the taper so its centreline and soft edges interpolate evenly.
-  quads(heads, { end: [endpoints, 3], profile: [profiles, 4], tracked: [tracking, 1] }, /* glsl */`
+  const beams = quads(heads, { end: [endpoints, 3], profile: [profiles, 4], tracked: [tracking, 1] }, /* glsl */`
     uniform float clock, fixtureGain[${fixtures.length}];
     attribute vec3 anchor, end;
     attribute vec4 profile;
@@ -121,7 +132,8 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
       vec3 toCamera = cameraPosition - center;
       vec3 crossAxis = cross(axis, toCamera);
       vec3 side = crossAxis / max(length(crossAxis), .001);
-      float beamRadius = mix(profile.x, profile.y * 1.36, uv.y);
+      float spread = mix(profile.x, profile.y * .50, uv.y) + profile.y * .59 * sin(3.141593 * uv.y);
+      float beamRadius = mix(mix(profile.x, profile.y * 1.36, uv.y), spread, tracked);
       beamUv = uv;
       hue = profile.w;
       power = fixtureGain[gl_InstanceID] * (.62 + .38 * pow(abs(dot(axis, normalize(toCamera))), 2.0)) *
@@ -135,17 +147,18 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
     varying float hue, power, stationary;
     void main() {
       float crossSection = abs(beamUv.x * 2.0 - 1.0);
-      float narrow = exp(-7.4 * crossSection * crossSection);
-      float edge = 1.0 - smoothstep(.08, 1.0, crossSection);
-      float reach = mix(.76, .98, stationary);
+      float narrow = exp(-5.4 * crossSection * crossSection);
+      float edge = 1.0 - smoothstep(.10, 1.0, crossSection);
+      float reach = mix(.66, .935, stationary);
       float falloff = smoothstep(0.0, .026, beamUv.y) * (1.0 - smoothstep(reach, 1.0, beamUv.y));
       float air = .76 + .14*sin(beamUv.y * 11.0 - clock * .36 + hue * 8.0)
         + .07*sin(beamUv.y * 23.4 + crossSection * 2.4 + clock * .26);
       vec3 tint = beamColour(hue, keyTint, accentTint, goldTint);
       tint = mix(tint, vec3(1.0, .87, .74), .2 * narrow * exp(-9.0 * beamUv.y));
-      gl_FragColor = vec4(tint, levels*power*falloff*air*edge*(.14 + narrow*.66));
+      gl_FragColor = vec4(tint, levels*power*falloff*air*edge*(.16 + narrow*.62));
       #include <colorspace_fragment>
     }`, 2, 24);
+  beams.name = 'Rear mirrorball fan, overhead pinspot and upper beams';
 
   const glowVertex = /* glsl */`
     uniform float fixtureGain[${fixtures.length}];
@@ -181,7 +194,7 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
   for (let i = 0; i < heads.length / 3; i++) {
     const x = heads[i*3], y = heads[i*3 + 1], z = heads[i*3 + 2];
     lampSockets.push(x, y - .018, z + .025);
-    glareData.push(.54, i * .23 + 1.1, profiles[i * 4 + 3], .65);
+    glareData.push(i < rearFixtures.length ? .37 : .46, i * .23 + 1.1, fixtures[i].hue, .65);
   }
   quads(lampSockets, { glowData: [glareData, 4] }, glowVertex, glowFragment, 3);
 
@@ -191,8 +204,7 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
     new T.MeshBasicMaterial({ color: '#ffffff', toneMapped: false }), heads.length / 3);
   const up = new T.Vector3(0, 1, 0), axis = new T.Vector3(), former = new T.Object3D();
   const lensColor = new T.Color();
-  const lampTints = fixtures.map(([, , , tint]) =>
-    new T.Color(tint > .94 ? '#ffd560' : tint < .15 ? '#bb70ff' : '#fc66ad'));
+  const pinTint = new T.Color(.72, .80, 1.0);
   for (let i = 0; i < heads.length / 3; i++) {
     const offset = i * 3;
     former.position.fromArray(heads, offset);
@@ -204,7 +216,7 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
     former.position.fromArray(heads, offset).addScaledVector(axis, .01);
     former.updateMatrix();
     lens.setMatrixAt(i, former.matrix);
-    lens.setColorAt(i, lampTints[i]);
+    lens.setColorAt(i, lensColor);
   }
   group.add(fixture, lens);
 
@@ -340,19 +352,20 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
       }`,
     fragmentShader: /* glsl */`
       uniform float ballGain;
+      uniform vec3 ballTint;
       varying vec3 facet, surfacePoint;
       varying float grain;
       void main() {
         vec3 direction = normalize(facet);
         vec3 eye = normalize(cameraPosition - surfacePoint);
-        vec3 incident = normalize(vec3(-1.48, 7.0, -4.52) - surfacePoint);
-        vec3 crossLight = normalize(vec3(2.5, 7.0, -4.52) - surfacePoint);
-        vec3 violetFill = normalize(vec3(-3.3, 6.6, .7) - surfacePoint);
+        vec3 incident = normalize(vec3(${rearFixtures[4].from.join(', ')}) - surfacePoint);
+        vec3 crossLight = normalize(vec3(${rearFixtures[5].from.join(', ')}) - surfacePoint);
+        vec3 overhead = normalize(vec3(${pinOrigin.join(', ')}) - surfacePoint);
         vec3 stageBounce = normalize(vec3(-2.0, 6.95, 3.2) - surfacePoint);
         vec3 secondaryBounce = normalize(vec3(2.5, 7.48, 1.4) - surfacePoint);
         float left = max(0.0, dot(direction, incident));
         float right = max(0.0, dot(direction, crossLight));
-        float purple = max(0.0, dot(direction, violetFill));
+        float pinFill = max(0.0, dot(direction, overhead));
         float focusLeft = max(0.0, dot(reflect(-incident, direction), eye));
         float focusRight = max(0.0, dot(reflect(-crossLight, direction), eye));
         float frontFocus = max(0.0, dot(reflect(-stageBounce, direction), eye));
@@ -364,10 +377,10 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
         float bounce = max(0.0, dot(direction, stageBounce)) * smoothstep(-.87, .55, direction.y);
         float rim = pow(1.0 - max(0.0, dot(eye, direction)), 2.8);
         vec3 colour = vec3(.027, .020, .035) * (.56 + .62 * grain);
-        colour += vec3(1.0, .58, .045) * ((.19 * left + .22 * right + .78 * pool + .38 * bounce)
+        colour += ballTint * ((.24 * left + .27 * right + .83 * pool + .39 * bounce)
           * (.30 + 1.05 * grain) + .29 * rim);
-        colour += vec3(.35, .019, .59) * purple * (.046 + .084 * grain);
-        colour += vec3(1., .88, .56) * (2.15 * flash * (.26 + 1.29 * grain));
+        colour += vec3(.72, .79, 1.0) * pinFill * (.045 + .075 * grain);
+        colour += mix(ballTint, vec3(1.0, .89, .80), .46) * (1.72 * flash * (.26 + 1.29 * grain));
         gl_FragColor = vec4(colour * ballGain, 1.0);
         #include <colorspace_fragment>
       }`,
@@ -412,7 +425,6 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
     piece.scale.y = length;
     hanger.add(piece);
   }
-  const [ballX, ballY, ballZ] = ballCenter.value.toArray();
   strut(new T.BoxGeometry(.075, 1, .075), steel, [ballX, 7.04, -5.39], [ballX, 7.04, ballZ]);
   strut(new T.BoxGeometry(.050, 1, .050), steel, [ballX, 7.26, -5.14], [ballX, 7.05, -4.49]);
   strut(new T.CylinderGeometry(.072, .072, 1, 12), steel, [ballX, 6.92, ballZ], [ballX, 7.055, ballZ]);
@@ -428,9 +440,10 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
     void main() {
       point = uv * 2.0 - 1.0;
       vec4 eye = roundMirrorInView(viewMatrix * vec4(anchor, 1.0));
-      gl_Position = projectionMatrix * (eye + vec4(position.xy * ${3.95 * MIRROR_SCALE}, 0.0, 0.0));
+      gl_Position = projectionMatrix * (eye + vec4(position.xy * ${3.30 * MIRROR_SCALE}, 0.0, 0.0));
     }`, /* glsl */`
     uniform float ballGain, ballTurn;
+    uniform vec3 ballTint;
     varying vec2 point;
     void main() {
       vec2 p = point;
@@ -439,8 +452,7 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
       float split = sin(angle * 10.0 + .7) * sin(angle * 7.0 - 1.5 + ballTurn);
       float streak = pow(.5 + .5 * cos(angle * 19.0 + .53 + .54 * split), 7.0);
       float fade = exp(-3.8 * distance) * (1.0 - smoothstep(.53, 1.0, distance));
-      vec3 tint = mix(vec3(1.0, .57, .12), vec3(.83, .24, .53), .25 * (1.0 + sin(angle + .3)));
-      gl_FragColor = vec4(tint, ballGain * fade * (.16 + .55 * streak));
+      gl_FragColor = vec4(ballTint, ballGain * fade * (.19 + .27 * streak));
       #include <colorspace_fragment>
     }`, 3);
 
@@ -509,34 +521,32 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
   deckKey.position.set(0, 4.88, 1.0);
   deckKey.target.position.set(0, .26, 1.0);
   group.add(deckKey, deckKey.target);
-  const wingFill = fixtures.map(([origin, destination], i) => {
-    if (i !== 1 && i !== 6) return null;
-    const light = new T.SpotLight(lampTints[i], 0, 9, .27, .75, 2);
+  const wingFill = [
+    [[-4.25, 6.92, -4.62], [-5.45, .12, .68]],
+    [[4.13, 6.92, -4.62], [4.62, .12, .13]],
+  ].map(([origin, destination]) => {
+    const light = new T.SpotLight('#bb70ff', 0, 9, .27, .75, 2);
     light.position.set(...origin);
     light.target.position.set(...destination);
     group.add(light, light.target);
     return light;
   });
 
-  // Wait behind the closed curtain, then bring up purple-to-rose backlight
-  // before the pale rim and the front light resolve the singer's outline.
+  // Reveal the low rear fan first, then the mirrorball, rim and singer's front light.
   const intro = { seconds: INTRO_SECONDS, rim: 1, front: 1, deck: 1, wall: 1 };
-  let introStart = null;
+  let introStart = null, colourStart = null;
   function applyIntro(seconds) {
     intro.seconds = seconds;
     for (let i = 0; i < fixtures.length; i++) {
-      const start = .15 + i * .14;
-      const gain = fadeBetween(seconds, start, start + .55);
-      fixtureGain.value[i] = gain;
-      lens.setColorAt(i, lensColor.copy(lampTints[i]).multiplyScalar(gain));
-      if (wingFill[i]) wingFill[i].intensity = 52 * gain;
+      const { delay, gain } = fixtures[i];
+      fixtureGain.value[i] = gain * fadeBetween(seconds, delay, delay + .52);
     }
-    lens.instanceColor.needsUpdate = true;
-    atmosphereGain.value = fadeBetween(seconds, .20, 1.52);
-    ballGain.value = fadeBetween(seconds, .51, 1.39);
+    for (const light of wingFill) light.intensity = 52 * fadeBetween(seconds, .52, 1.47);
+    atmosphereGain.value = fadeBetween(seconds, .17, 1.37);
+    ballGain.value = fadeBetween(seconds, .27, 1.18);
     steel.emissiveIntensity = .13 * ballGain.value;
     cableSteel.emissiveIntensity = .31 * ballGain.value;
-    intro.rim = fadeBetween(seconds, .43, 1.21);
+    intro.rim = fadeBetween(seconds, .48, 1.25);
     intro.front = fadeBetween(seconds, .87, INTRO_SECONDS);
     intro.deck = fadeBetween(seconds, .99, 1.86);
     intro.wall = fadeBetween(seconds, .84, 1.97);
@@ -544,31 +554,61 @@ export function createConcertLighting(T, scene, { reducedMotion = false } = {}) 
     return intro;
   }
 
-  function update(time, motion = true) {
-    if (motion && !reducedMotion) clock.value = time;
-    const cue = (clock.value / 5.8) % cues.length;
+  function applyColour(seconds) {
+    const cue = (seconds / COLOUR_CUE_SECONDS) % cues.length;
     const index = Math.floor(cue);
-    const fraction = cue - index;
-    const blend = fraction*fraction*(3 - 2*fraction);
+    const blend = fadeBetween(cue, index, index + 1);
     const next = cues[(index + 1) % cues.length];
     keyTint.value.copy(cues[index][0]).lerp(next[0], blend);
     accentTint.value.copy(cues[index][1]).lerp(next[1], blend);
+    goldTint.value.copy(cues[index][2]).lerp(next[2], blend);
+    ballTint.value.copy(keyTint.value).lerp(accentTint.value, .39);
+    for (let i = 0; i < fixtures.length; i++) {
+      const { hue } = fixtures[i];
+      if (hue < 0) lensColor.copy(pinTint);
+      else if (hue < .5) lensColor.copy(keyTint.value).lerp(accentTint.value, hue * 2);
+      else lensColor.copy(accentTint.value).lerp(goldTint.value, fadeBetween(hue, .5, .98));
+      lens.setColorAt(i, lensColor.multiplyScalar(fixtureGain.value[i]));
+    }
+    lens.instanceColor.needsUpdate = true;
+    for (const light of wingFill) light.color.copy(keyTint.value);
+  }
+
+  function update(time, motion = true) {
+    const animate = motion && !reducedMotion;
+    if (animate) {
+      clock.value = time;
+      if (introStart !== Infinity) colourStart ??= time;
+    }
+    const showTime = !animate ? COLOUR_CUE_SECONDS : colourStart === null ? 0 : Math.max(0, time - colourStart);
+    let entrance = null;
+    if (introStart !== null) {
+      const seconds = animate ? Math.min(INTRO_SECONDS, Math.max(0, time - introStart)) : INTRO_SECONDS;
+      if (seconds === INTRO_SECONDS) introStart = null;
+      if (seconds !== intro.seconds) entrance = applyIntro(seconds);
+    }
+    applyColour(showTime);
     levels.value = .92 + .06*Math.sin(clock.value*.86);
     ballTurn.value = .2 + clock.value * .118;
     mirrorBody.rotation.y = -ballTurn.value;
-    if (introStart === null) return null;
-    const seconds = motion ? Math.min(INTRO_SECONDS, Math.max(0, time - introStart)) : INTRO_SECONDS;
-    if (seconds === INTRO_SECONDS) introStart = null;
-    return seconds === intro.seconds ? null : applyIntro(seconds);
+    return entrance;
   }
   update(1.25, false);
   return {
     group, update, beams: fixtures.length, stars: 0,
     prepareIntro(animate) {
       introStart = animate && !reducedMotion ? Infinity : null;
-      return applyIntro(introStart === Infinity ? 0 : INTRO_SECONDS);
+      colourStart = null;
+      const pending = introStart === Infinity;
+      const entrance = applyIntro(pending ? 0 : INTRO_SECONDS);
+      applyColour(pending ? 0 : COLOUR_CUE_SECONDS);
+      return entrance;
     },
-    beginIntro(time) { if (introStart === Infinity) introStart = time; },
+    beginIntro(time) {
+      if (introStart !== Infinity) return;
+      introStart = time;
+      colourStart = time;
+    },
     get intro() { return intro; },
   };
 }

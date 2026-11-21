@@ -1,4 +1,4 @@
-import { createRecordClaim, formatRecordNumber } from './record-claim.js?v=20261120-r89';
+import { createRecordClaim, formatRecordNumber } from './record-claim.js?v=20261121-r90';
 
 const LIMIT = 50;
 const segmenter = typeof Intl.Segmenter === 'function'
@@ -28,7 +28,7 @@ export function textLines(ctx, text, maxWidth) {
   });
 }
 
-const FILM_TITLE = '康乃馨 7.0';
+const FILM_TITLE = '康乃馨缘计划';
 const FILM_LINES = ['如果我拥有一座花园', '邀请你常来停歇'];
 const FILM_FONT = '"Noto Serif SC Film", "Songti SC", "Noto Serif CJK SC", serif';
 const FILM_SCALE = 2;
