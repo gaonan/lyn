@@ -1,5 +1,5 @@
-import { createAtriumSky } from './atrium-sky.js?v=20261121-r92';
-import { createStageMist } from './stage-mist.js?v=20261121-r92';
+import { createAtriumSky } from './atrium-sky.js?v=20261121-r93';
+import { createStageMist } from './stage-mist.js?v=20261121-r93';
 
 export function createAtriumLighting(T, renderer, scene, probes, { concert = false } = {}) {
   const atriumSky = createAtriumSky(T, scene);
@@ -66,8 +66,8 @@ export function createAtriumLighting(T, renderer, scene, probes, { concert = fal
     { color: '#938cff', from: [3.65, 2.55, -4.7], to: [2.2, .45, -.65], angle: .64, penumbra: .80, day: 0, night: 43 },
   ];
   const rainSpot = {
-    color: '#bdceff', from: [.04, 6.50, -1.68], to: [.04, .07, -1.68],
-    angle: .17, penumbra: .74, day: 123, night: 137,
+    color: '#b3ccff', from: [2.61, 6.50, -1.76], to: [-.56, .07, -1.76],
+    angle: .27, penumbra: .76, day: 134, night: 152,
   };
 
   const shaftGeometry = new T.PlaneGeometry(1, 1, 1, 4);
@@ -137,6 +137,112 @@ export function createAtriumLighting(T, renderer, scene, probes, { concert = fal
     shaft(warmFrom, [-1.55, 1.30, -.35], .33, '#ffdfae', 0, .39, .10),
     shaft([8.77, 6.7, -4.75], [.45, .4, -.34], 1.4, '#ffdfac', .13, 0, .28),
   ];
+
+  function rainShaft() {
+    const origin = new T.Vector3(...rainSpot.from);
+    const end = new T.Vector3(...rainSpot.to);
+    const length = origin.distanceTo(end);
+    const axis = end.clone().sub(origin).divideScalar(length);
+    const startRadius = .23, endRadius = 2.09;
+    const strength = { value: 0 };
+    const time = { value: 0 };
+    const material = new T.ShaderMaterial({
+      uniforms: {
+        origin: { value: origin }, axis: { value: axis }, span: { value: length },
+        startRadius: { value: startRadius }, endRadius: { value: endRadius },
+        tint: { value: new T.Color(rainSpot.color) }, strength, time,
+      },
+      vertexShader: /* glsl */ `
+        varying vec3 proxyPoint;
+        void main() {
+          vec4 world = modelMatrix * vec4(position, 1.0);
+          proxyPoint = world.xyz;
+          gl_Position = projectionMatrix * viewMatrix * world;
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        uniform vec3 origin, axis, tint;
+        uniform float span, startRadius, endRadius, strength, time;
+        varying vec3 proxyPoint;
+
+        void addSide(float t, float h, float dh, inout float nearT, inout float farT) {
+          float z = h + dh * t;
+          if (t >= 0.0 && z >= 0.0 && z <= span) {
+            nearT = min(nearT, t);
+            farT = max(farT, t);
+          }
+        }
+
+        void addCap(float t, float radius, vec3 offset, vec3 lateral,
+                    inout float nearT, inout float farT) {
+          vec3 point = offset + lateral * t;
+          if (t >= 0.0 && dot(point, point) <= radius * radius) {
+            nearT = min(nearT, t);
+            farT = max(farT, t);
+          }
+        }
+
+        void main() {
+          vec3 ray = normalize(proxyPoint - cameraPosition);
+          vec3 eye = cameraPosition - origin;
+          float h = dot(eye, axis), dh = dot(ray, axis);
+          vec3 offset = eye - axis * h, lateral = ray - axis * dh;
+          float spread = (endRadius - startRadius) / span;
+          float r = startRadius + spread * h, dr = spread * dh;
+          float a = dot(lateral, lateral) - dr * dr;
+          float b = dot(offset, lateral) - r * dr;
+          float c = dot(offset, offset) - r * r;
+          bool inside = h >= 0.0 && h <= span && c < 0.0;
+          if (inside == gl_FrontFacing) discard;
+          float nearT = inside ? 0.0 : 1.e4, farT = -1.0;
+
+          // Integrate the finite cone between its wall and cap intersections.
+          float discriminant = b * b - a * c;
+          if (abs(a) > .00001 && discriminant >= 0.0) {
+            float root = sqrt(discriminant);
+            addSide((-b - root) / a, h, dh, nearT, farT);
+            addSide((-b + root) / a, h, dh, nearT, farT);
+          } else if (abs(a) <= .00001 && abs(b) > .00001) {
+            addSide(-c / (2.0 * b), h, dh, nearT, farT);
+          }
+          if (abs(dh) > .00001) {
+            addCap(-h / dh, startRadius, offset, lateral, nearT, farT);
+            addCap((span - h) / dh, endRadius, offset, lateral, nearT, farT);
+          }
+          if (farT <= nearT) discard;
+
+          const int samples = 12;
+          float stepSize = (farT - nearT) / float(samples);
+          float density = 0.0;
+          for (int i = 0; i < samples; i++) {
+            float t = nearT + (float(i) + .5) * stepSize;
+            vec3 p = eye + ray * t;
+            float z = dot(p, axis), along = clamp(z / span, 0.0, 1.0);
+            float radial = length(p - axis * z) / mix(startRadius, endRadius, along);
+            float edge = 1.0 - smoothstep(.54, 1.0, radial);
+            float ends = smoothstep(0.0, .045, along) * (1.0 - smoothstep(.82, 1.0, along));
+            float haze = .85 + .09 * sin(dot(p, vec3(3.7, 1.6, 2.9)) + .31 * time)
+              * sin(dot(p, vec3(-2.4, 3.1, 1.4)) - .23 * time)
+              + .05 * sin(dot(p, vec3(5.2, 4.6, -3.8)));
+            density += edge * ends * haze * mix(1.7, .92, along);
+          }
+          float alpha = 1.0 - exp(-.77 * density * stepSize);
+          gl_FragColor = vec4(tint, strength * alpha);
+          #include <colorspace_fragment>
+        }
+      `,
+      depthWrite: false, transparent: true, side: T.DoubleSide, forceSinglePass: true,
+      blending: T.AdditiveBlending, toneMapped: false,
+    });
+    const geometry = new T.CylinderGeometry(startRadius, endRadius, length, 48);
+    const mesh = new T.Mesh(geometry, material);
+    mesh.position.copy(origin).lerp(end, .5);
+    mesh.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), axis.clone().negate());
+    mesh.name = 'White outfit volumetric spotlight';
+    mesh.renderOrder = 2;
+    scene.add(mesh);
+    return { mesh, strength, time, day: .42, night: .58 };
+  }
 
   const aureole = document.createElement('canvas');
   aureole.width = aureole.height = 64;
@@ -224,10 +330,7 @@ export function createAtriumLighting(T, renderer, scene, probes, { concert = fal
     rainActive = enabled;
     if (enabled && !stageMist) {
       stageMist = createStageMist(T, scene, rainSpot.to);
-      // Drop the shaft through the open stage so railings and the costume
-      // stay outside its axis across camera angles.
-      rainBeam = shaft(rainSpot.from, rainSpot.to, .91, rainSpot.color, .42, .58, .08,
-        { startRadius: .29, endFade: .68 });
+      rainBeam = rainShaft();
       rainGlow = lampGlow(new T.Vector3(...rainSpot.from), rainSpot.color, .83);
     }
     setNight(isNight);
@@ -248,6 +351,7 @@ export function createAtriumLighting(T, renderer, scene, probes, { concert = fal
     update(seconds, animate) {
       atriumSky.update(seconds, animate);
       stageMist?.update(seconds);
+      if (rainBeam?.mesh.visible) rainBeam.time.value = animate ? seconds : 2;
     },
   };
 }
