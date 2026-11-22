@@ -1,5 +1,5 @@
-import { createAtriumSky } from './atrium-sky.js?v=20261121-r93';
-import { createStageMist } from './stage-mist.js?v=20261121-r93';
+import { createAtriumSky } from './atrium-sky.js?v=20261122-r94';
+import { createStageMist } from './stage-mist.js?v=20261122-r94';
 
 export function createAtriumLighting(T, renderer, scene, probes, { concert = false } = {}) {
   const atriumSky = createAtriumSky(T, scene);
@@ -335,6 +335,17 @@ export function createAtriumLighting(T, renderer, scene, probes, { concert = fal
     }
     setNight(isNight);
   }
+  function withoutRainOverhead(render) {
+    if (!rainActive) return render();
+    const overhead = [spots[0], rainBeam.mesh, rainGlow];
+    const visibility = overhead.map(object => object.visible);
+    try {
+      for (const object of overhead) object.visible = false;
+      return render();
+    } finally {
+      overhead.forEach((object, index) => { object.visible = visibility[index]; });
+    }
+  }
   function setShadows(enabled) {
     renderer.shadowMap.enabled = enabled;
     if (enabled) renderer.shadowMap.needsUpdate = true;
@@ -346,7 +357,7 @@ export function createAtriumLighting(T, renderer, scene, probes, { concert = fal
       atriumSky.setConstellation(value);
       setNight(isNight);
     },
-    setNight, setShadows, setRainStage, rainLightPosition: rainSpot.from,
+    setNight, setShadows, setRainStage, withoutRainOverhead, rainLightPosition: rainSpot.from,
     get skyState() { return atriumSky.state; },
     update(seconds, animate) {
       atriumSky.update(seconds, animate);

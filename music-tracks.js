@@ -15,7 +15,7 @@ export const MUSIC_TRACKS = [
     title: '如果我有一座花园',
     subtitle: '刘宇宁 · 秘密花园舞台',
     kind: 'audio',
-    url: './assets/music/secret-garden.m4a?v=20261121-r93',
+    url: './assets/music/secret-garden.m4a?v=20261122-r94',
     sourceUrl: 'https://weibo.com/1699432410/5367389331918016',
   },
   {

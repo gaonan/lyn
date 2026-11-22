@@ -1,33 +1,33 @@
 import * as THREE from './vendor/three.module.min.js';
-import { buildArchitecture } from './architecture.js?v=20261121-r93';
-import { buildBotanicals } from './botanicals.js?v=20261121-r93';
-import { createHearts } from './hearts.js?v=20261121-r93';
-import { buildPhotographicPerformer } from './performer-photo.js?v=20261121-r93';
-import { CONCERT_OUTFIT_VIEWS, PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261121-r93';
-import { setupWardrobe } from './wardrobe.js?v=20261121-r93';
-import { createConcertPortal } from './concert-portal.js?v=20261121-r93';
-import { sweepStageFog } from './concert-transition.js?v=20261121-r93';
-import { setupMusic } from './music.js?v=20261121-r93';
-import { setupCollection } from './collection.js?v=20261121-r93';
-import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261121-r93';
-import { prepareOffline } from './offline.js?v=20261121-r93';
-import { buildMagazines } from './magazines.js?v=20261121-r93';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261121-r93';
-import { setupDaimiFeeding } from './daimi-feeding.js?v=20261121-r93';
-import { DAIMI_VIEWS } from './daimi-views.js?v=20261121-r93';
-import { buildRolePortraits } from './roles.js?v=20261121-r93';
-import { buildRecord } from './record.js?v=20261121-r93';
-import { createRewardSounds } from './reward-sounds.js?v=20261121-r93';
-import { createArtworkQueue } from './artwork.js?v=20261121-r93';
-import { createAtriumLighting } from './atrium-light.js?v=20261121-r93';
-import { createAtriumProbes } from './atrium-probes.js?v=20261121-r93';
-import { setupKeepsake } from './keepsake.js?v=20261121-r93';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261121-r93';
-import { createPlaySave } from './play-save.js?v=20261121-r93';
-import { buildConcertPlatform, CONCERT_STAGE } from './concert-platform.js?v=20261121-r93';
-import { createConcertAudience } from './concert-audience.js?v=20261121-r93';
-import { CONCERT_MIRROR_POSITION, createConcertLighting } from './concert-lighting.js?v=20261121-r93';
-const VERSION = '20261121-r93';
+import { buildArchitecture } from './architecture.js?v=20261122-r94';
+import { buildBotanicals } from './botanicals.js?v=20261122-r94';
+import { createHearts } from './hearts.js?v=20261122-r94';
+import { buildPhotographicPerformer } from './performer-photo.js?v=20261122-r94';
+import { CONCERT_OUTFIT_VIEWS, PERFORMER_VIEWS, RAIN_OUTFIT_VIEWS } from './performer-views.js?v=20261122-r94';
+import { setupWardrobe } from './wardrobe.js?v=20261122-r94';
+import { createConcertPortal } from './concert-portal.js?v=20261122-r94';
+import { sweepStageFog } from './concert-transition.js?v=20261122-r94';
+import { setupMusic } from './music.js?v=20261122-r94';
+import { setupCollection } from './collection.js?v=20261122-r94';
+import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261122-r94';
+import { prepareOffline } from './offline.js?v=20261122-r94';
+import { buildMagazines } from './magazines.js?v=20261122-r94';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261122-r94';
+import { setupDaimiFeeding } from './daimi-feeding.js?v=20261122-r94';
+import { DAIMI_VIEWS } from './daimi-views.js?v=20261122-r94';
+import { buildRolePortraits } from './roles.js?v=20261122-r94';
+import { buildRecord } from './record.js?v=20261122-r94';
+import { createRewardSounds } from './reward-sounds.js?v=20261122-r94';
+import { createArtworkQueue } from './artwork.js?v=20261122-r94';
+import { createAtriumLighting } from './atrium-light.js?v=20261122-r94';
+import { createAtriumProbes } from './atrium-probes.js?v=20261122-r94';
+import { setupKeepsake } from './keepsake.js?v=20261122-r94';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261122-r94';
+import { createPlaySave } from './play-save.js?v=20261122-r94';
+import { buildConcertPlatform, CONCERT_STAGE } from './concert-platform.js?v=20261122-r94';
+import { createConcertAudience } from './concert-audience.js?v=20261122-r94';
+import { CONCERT_MIRROR_POSITION, createConcertLighting } from './concert-lighting.js?v=20261122-r94';
+const VERSION = '20261122-r94';
 const $=s=>document.querySelector(s), canvas=$('#world');
 const loading = window.bloomLoading;
 // Local lighting inspection opens on the concert floor without touching a player's progress.
@@ -317,7 +317,7 @@ function restoreWallIntensity() {
   wallProjection.setIntensity(strength * (concertMode && night ? .72 : 1));
 }
 const messageWall = setupMessageWall($('#message-wall-dialog'), wallProjection, renderWallView, record.ready);
-const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, messageWall, daimi.ready);
+const openKeepsake = setupKeepsake($('#record-finale'), record, renderKeepsake, messageWall, daimi.ready, () => concertMode);
 
 function renderWallView(target) {
   if (rendererSuspended) return false;
@@ -380,7 +380,9 @@ function renderKeepsake(ctx, x, y, width, height, pixelScale, angle) {
     renderer.setDrawingBufferSize(Math.round(width * captureScale), Math.round(height * captureScale), 1);
     if (rear) {
       wallProjection.setIntensity(1);
-      wallProjection.capture(() => renderer.render(scene, photoCamera));
+      const capture = () => wallProjection.capture(() => renderer.render(scene, photoCamera));
+      if (!concertMode && performer === rainPerformer) lighting.withoutRainOverhead(capture);
+      else capture();
       ctx.drawImage(canvas, x, y, width, height);
     } else {
       const render = () => {

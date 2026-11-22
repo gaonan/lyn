@@ -1,4 +1,4 @@
-import { createRecordClaim, formatRecordNumber } from './record-claim.js?v=20261121-r93';
+import { createRecordClaim, formatRecordNumber } from './record-claim.js?v=20261122-r94';
 
 const LIMIT = 50;
 const segmenter = typeof Intl.Segmenter === 'function'
@@ -28,9 +28,10 @@ export function textLines(ctx, text, maxWidth) {
   });
 }
 
-const FILM_TITLE = '康乃馨缘计划';
+const GARDEN_FILM_TITLE = '康乃馨 7.0';
+const CONCERT_FILM_TITLE = '康乃馨缘计划';
 const FILM_LINES = ['如果我拥有一座花园', '邀请你常来停歇'];
-const FILM_FONT = '"Noto Serif SC Film", "Songti SC", "Noto Serif CJK SC", serif';
+const FILM_FONT = '"Noto Serif SC Film", "Noto Serif SC", "Songti SC", "Noto Serif CJK SC", serif';
 const FILM_SCALE = 2;
 
 function createFilmCanvas() {
@@ -42,7 +43,7 @@ function createFilmCanvas() {
 
 async function loadFilmFont() {
   await document.fonts?.load(
-    `600 64px ${FILM_FONT}`, FILM_TITLE + FILM_LINES.join('') + '唱片留影写给这一晚',
+    `600 64px ${FILM_FONT}`, GARDEN_FILM_TITLE + CONCERT_FILM_TITLE + FILM_LINES.join('') + '唱片留影写给这一晚',
   ).catch(() => {});
 }
 
@@ -116,7 +117,7 @@ export function paintCreatorCredit(ctx, x, baseline, size = 16) {
   ctx.restore();
 }
 
-function paintFilmPhoto(out, render, { album, text, recordNumber, angle }) {
+function paintFilmPhoto(out, render, { album, text, recordNumber, angle, filmTitle }) {
   const ctx = out.getContext('2d');
   const width = out.width / FILM_SCALE, height = out.height / FILM_SCALE;
   const x = 48, y = 54, right = width - x;
@@ -194,7 +195,7 @@ function paintFilmPhoto(out, render, { album, text, recordNumber, angle }) {
   ctx.textAlign = 'right';
   ctx.font = `600 49px ${FILM_FONT}`;
   ctx.fillStyle = '#f5e5bf';
-  ctx.fillText(FILM_TITLE, right - 29, footerY + 81);
+  ctx.fillText(filmTitle, right - 29, footerY + 81);
   ctx.font = `600 25px ${FILM_FONT}`;
   ctx.fillStyle = '#cbb282';
   ctx.fillText('唱片留影', right - 29, footerY + 123);
@@ -218,7 +219,7 @@ export async function shareImage(file, title) {
   }
 }
 
-export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
+export function setupKeepsake(dialog, record, render, messageWall, dogReady, isConcert = () => false) {
   const key = 'carnation7-wall-note';
   const claim = createRecordClaim();
   let retryWhenOnline = false;
@@ -321,7 +322,8 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady) {
       stage = 'image';
       status.textContent = '正在生成留影…';
       const out = createFilmCanvas();
-      paintFilmPhoto(out, render, { album, text, recordNumber, angle });
+      const filmTitle = isConcert() ? CONCERT_FILM_TITLE : GARDEN_FILM_TITLE;
+      paintFilmPhoto(out, render, { album, text, recordNumber, angle, filmTitle });
       const blob = await new Promise(resolve => out.toBlob(resolve, 'image/jpeg', .96));
       if (!blob) throw new Error('No image was encoded');
       if (attempt !== generation || !dialog.open) return;
