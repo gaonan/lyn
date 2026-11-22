@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Noto Serif SC";
-  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261122-r94") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-title.woff2?v=20261122-r95") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261122-r94") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261122-r95") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -648,11 +648,20 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
 #message-wall-dialog h2 { color: #ffe7b5; font-size: clamp(21px, 4vw, 34px); margin: 0; }
 #message-wall-dialog button { background: #2c3a2e; }
 .wall-toolbar, .wall-actions { flex-wrap: wrap; }
+.wall-toolbar { margin-top: 9px; }
 .wall-actions { display: flex; align-items: center; gap: 8px; }
 #download-wall-image { color: #ffe7b5; padding-inline: 6px; font-size: 13px; }
 .wall-projection { margin: 12px 0 10px; border: 1px solid #c8aa7358; background: #131b16; }
 .wall-projection canvas { display: block; width: 100%; height: auto; }
-.wall-count, .wall-status { color: #dfcba0; font-size: 12px; }
+.wall-count {
+  margin: 4px 0 0;
+  color: #ffdda4;
+  font-size: clamp(14px, 2.4vw, 17px);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.wall-count:empty { display: none; }
+.wall-selection, .wall-status { color: #dfcba0; font-size: 12px; }
 .wall-status { margin: 8px 0 0; }
 .wall-status:empty, .wall-readings:empty { display: none; }
 .wall-readings {

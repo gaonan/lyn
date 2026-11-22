@@ -1,4 +1,4 @@
-import { keepsakeText, paintCreatorCredit, shareImage, textLines } from './keepsake.js?v=20261122-r94';
+import { keepsakeText, paintCreatorCredit, shareImage, textLines } from './keepsake.js?v=20261122-r95';
 
 const WIDTH = 2048;
 const BASE_HEIGHT = 640;
@@ -199,6 +199,8 @@ export function setupMessageWall(dialog, projection, drawView, recordReady) {
   const status = dialog.querySelector('[role=status]');
   const list = dialog.querySelector('.wall-readings');
   const count = dialog.querySelector('.wall-count');
+  const selection = dialog.querySelector('.wall-selection');
+  const number = new Intl.NumberFormat('zh-CN');
   const shuffle = dialog.querySelector('#shuffle-wall');
   const retry = dialog.querySelector('#retry-wall');
   const save = dialog.querySelector('#save-wall-image');
@@ -235,14 +237,17 @@ export function setupMessageWall(dialog, projection, drawView, recordReady) {
     try {
       const data = await wallRequest();
       if (!dialog.open || attempt !== revision) return;
+      if (!Number.isSafeInteger(data.total) || data.total < 0) throw new Error('Invalid wall message total');
       const notes = visibleNotes(data.messages);
       showNotes(notes);
       save.disabled = !notes.length;
       shuffle.hidden = data.total <= CAPACITY;
-      count.textContent = data.total ? `墙上 ${notes.length} 条 · 共 ${data.total} 条留言` : '';
+      count.textContent = `共 ${number.format(data.total)} 条留言`;
+      selection.textContent = data.total > notes.length ? `本批展示 ${number.format(notes.length)} 条` : '';
       status.textContent = notes.length ? '' : '还没有公开留言。';
     } catch {
       if (!dialog.open || attempt !== revision) return;
+      count.textContent = '';
       retry.hidden = false;
       status.textContent = '暂时无法读取留言。';
     } finally {
@@ -298,6 +303,7 @@ export function setupMessageWall(dialog, projection, drawView, recordReady) {
       if (dialog.open) return;
       shuffle.hidden = true;
       count.textContent = '';
+      selection.textContent = '';
       list.replaceChildren();
       dialog.showModal();
       drawView(canvas);

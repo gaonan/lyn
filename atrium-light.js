@@ -1,5 +1,5 @@
-import { createAtriumSky } from './atrium-sky.js?v=20261122-r94';
-import { createStageMist } from './stage-mist.js?v=20261122-r94';
+import { createAtriumSky } from './atrium-sky.js?v=20261122-r95';
+import { createStageMist } from './stage-mist.js?v=20261122-r95';
 
 export function createAtriumLighting(T, renderer, scene, probes, { concert = false } = {}) {
   const atriumSky = createAtriumSky(T, scene);
