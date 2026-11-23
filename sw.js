@@ -1,10 +1,10 @@
-const CACHE='carnation7-20261122-r95';
+const CACHE='carnation7-20261123-r97';
 const VERSION='20261122-r95';
 const BARKS='assets/daimi/two-barks.m4a';
 const FILES=[
-  './','index.html','assets/carnation-gold.svg','assets/carnation-gold-32.png','assets/carnation-gold-192.png',
+  './','index.html','app.js?v=20261123-r97','visit.js?v=20261123-r97','phonograph-entrance.css?v=20261123-r96','assets/fonts/noto-serif-sc-archive.woff2?v=20261123-r96','assets/carnation-gold.svg','assets/carnation-gold-32.png','assets/carnation-gold-192.png',
   ...[
-    'manifest.webmanifest','app.js','style.css','daimi-feeding.css','visit.js','assets/lighting/atrium-probes.bin',
+    'manifest.webmanifest','style.css','daimi-feeding.css','assets/lighting/atrium-probes.bin',
     'assets/loading/secret-garden-landscape.webp','assets/loading/secret-garden-portrait.webp',
     'assets/fonts/noto-serif-sc-title.woff2','assets/fonts/noto-serif-sc-film.woff2',BARKS,
     ...['heart','magazine','role','record','celebration'].map(cue=>`assets/sounds/${cue}.m4a`),
@@ -17,7 +17,7 @@ function isRecoveryURL(url) {
 }
 self.addEventListener('fetch',event=>{
   const url=new URL(event.request.url);
-  if(event.request.method!=='GET'||url.origin!==location.origin||url.pathname.startsWith('/api/')||url.pathname.startsWith('/stats/')||!url.pathname.startsWith(new URL(self.registration.scope).pathname))return;
+  if(event.request.method!=='GET'||url.origin!==location.origin||url.pathname.startsWith('/api/')||url.pathname.startsWith('/phonograph/')||url.pathname==='/song-archive.html'||url.pathname.startsWith('/stats/')||!url.pathname.startsWith(new URL(self.registration.scope).pathname))return;
   const recoveryNavigation = event.request.mode === 'navigate' && isRecoveryURL(url);
   const fromRecoveryPage = event.request.referrer && isRecoveryURL(new URL(event.request.referrer));
   if (recoveryNavigation || fromRecoveryPage) {

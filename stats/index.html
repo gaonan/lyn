@@ -5,6 +5,7 @@
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#18231c">
+<link rel="icon" href="/assets/carnation-gold-32.png" type="image/png">
 <title>康乃馨 7.0 · 访问统计</title>
 <style>
   :root { color-scheme: dark; font: 16px/1.55 system-ui, sans-serif; background: #17231c; color: #f5eedc; }
@@ -75,6 +76,7 @@
   <div class="toolbar"><p id="status" role="status">正在读取…</p><button id="refresh" type="button" hidden>刷新</button></div>
   <div class="view-tabs" id="data-views" role="group" aria-label="查看统计或留言" hidden>
     <button type="button" data-view="statistics" aria-controls="statistics" aria-pressed="true">访问统计</button>
+    <button type="button" data-view="phonograph" aria-controls="phonograph" aria-pressed="false">留声机</button>
     <button type="button" data-view="messages" aria-controls="messages" aria-pressed="false">全部留言</button>
   </div>
   <div id="statistics" hidden>
@@ -103,12 +105,24 @@
       <div class="challenge-cards" aria-live="polite"></div>
       <p class="definition">各挑战独立按浏览器和站点去重。完成率以该时段开始挑战的玩家为分母。统计从本版上线后开始。</p>
     </section>
+    <section aria-labelledby="scenes-title">
+      <h2 id="scenes-title">花园场景访问</h2>
+      <div class="history-table"><table id="scenes"><thead><tr><th scope="col">场景</th><th scope="col">今日进入</th><th scope="col">累计进入</th><th scope="col">累计访客</th></tr></thead><tbody></tbody></table></div>
+      <p id="scene-definition" class="definition"></p>
+    </section>
     <section aria-labelledby="history-title">
       <h2 id="history-title">近 7 天</h2>
       <div class="history-table"><table id="history"><thead><tr><th scope="col">日期</th><th scope="col">访客</th><th scope="col">打开</th><th scope="col">进场</th><th scope="col">就绪</th><th scope="col">失败</th><th scope="col">首收集</th></tr></thead><tbody></tbody></table></div>
     </section>
     <p class="definition">访客按同一浏览器、同一站点去重。进场按点过「开始收集」的页面计数。日期以北京时间为准。</p>
   </div>
+  <section id="phonograph" aria-labelledby="phonograph-title" hidden>
+    <h2 id="phonograph-title">宁的留声机</h2>
+    <table id="phonograph-metrics"><thead><tr><th scope="col">指标</th><th scope="col">今天</th><th scope="col">累计</th></tr></thead><tbody></tbody></table>
+    <p class="definition" id="phonograph-queue"></p>
+    <p class="definition" id="phonograph-definition"></p>
+    <p class="definition">访客和录过唱段的访客按浏览器去重，已发布人数按账号去重。试听从音频开始播放时计入，同一访客反复播放同一段只计一次，平均段数以全部访客为分母。排队时长从服务器接收完成到首次开始处理，包含等待失败的任务。</p>
+  </section>
   <section id="messages" aria-labelledby="messages-title" hidden>
     <div class="section-heading">
       <h2 id="messages-title">全部留言</h2>
@@ -129,7 +143,7 @@
 <script>
   const $ = selector => document.querySelector(selector);
   const form = $('#access'), status = $('#status'), refresh = $('#refresh'), stats = $('#statistics');
-  const viewTabs = $('#data-views'), messagePanel = $('#messages');
+  const viewTabs = $('#data-views'), messagePanel = $('#messages'), phonographPanel = $('#phonograph');
   const messageRows = $('#messages-table tbody'), messageCount = $('#messages-count');
   const viewButtons = [...viewTabs.querySelectorAll('button')];
   const format = new Intl.NumberFormat('zh-CN');
@@ -145,7 +159,7 @@
   }
   function unlock(message) {
     form.hidden = false;
-    refresh.hidden = stats.hidden = viewTabs.hidden = messagePanel.hidden = true;
+    refresh.hidden = stats.hidden = viewTabs.hidden = messagePanel.hidden = phonographPanel.hidden = true;
     messageRows.replaceChildren();
     messageCount.textContent = '';
     status.textContent = message;
@@ -193,7 +207,7 @@
     for (const choice of periodButtons) choice.setAttribute('aria-pressed', String(choice === button));
     renderChallenges();
   };
-  function renderStatistics({ total, days, challenges }) {
+  function renderStatistics({ total, days, challenges, scenes, scene_start }) {
     challengeStats = challenges;
     renderChallenges();
     const fill = (selector, data) => document.querySelectorAll(selector + ' dd')
@@ -208,6 +222,12 @@
       row.insertCell().textContent = format.format(total[name] ?? 0);
       return row;
     }));
+    const sceneLabels = { garden: '初始花园', rain: '归期雨抄', secret: '秘密花园' };
+    const sceneCount = value => value == null ? '—' : format.format(value);
+    $('#scenes tbody').replaceChildren(...Object.entries(sceneLabels).map(([name, label]) =>
+      metricRow([label, ...['today_opens', 'opens', 'visitors'].map(key => sceneCount(scenes?.[name]?.[key]))])));
+    $('#scene-definition').textContent = scene_start
+      ? `自 ${scene_start} 起计。同一页面重复进入同一场景只计一次。` : '等待场景统计数据。';
     $('#history tbody').replaceChildren(...[...days].reverse().map(day => {
       const row = document.createElement('tr');
       [day.day.slice(5), ...values(day), ...['ready', 'failed', 'first_collection'].map(name => milestoneCount(day, name))]
@@ -217,6 +237,29 @@
     fetch('/api/record-number', { cache: 'no-store' }).then(result => result.json()).then(({ latest }) => {
       $('#number').textContent = Number.isSafeInteger(latest) ? 'No.' + String(latest).padStart(6, '0') : '尚未发号';
     }).catch(() => { $('#number').textContent = '暂时无法查询'; });
+  }
+  function metricRow(values) {
+    const row = document.createElement('tr');
+    for (const value of values) row.insertCell().textContent = value;
+    return row;
+  }
+  function renderPhonograph({ start, today, total, pending }) {
+    const decimal = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 });
+    const count = value => value == null ? '—' : format.format(value);
+    const fraction = value => value == null ? '—' : decimal.format(value);
+    const seconds = value => value == null ? '—' : decimal.format(value) + ' 秒';
+    const metrics = [
+      ['进入次数', 'opens'], ['去重访客', 'visitors'], ['录过至少一段的访客', 'recorded'],
+      ['成功发布过的账号', 'singers'], ['成功发布唱段数', 'published'], ['当前公开唱段数', 'available'],
+      ['听过同担的访客', 'listeners'], ['试听段数', 'listened'], ['人均试听段数', 'average_listened', fraction],
+      ['排队样本数', 'queue_samples'], ['平均排队', 'average_queue_seconds', seconds],
+      ['最长排队', 'longest_queue_seconds', seconds],
+    ];
+    $('#phonograph-metrics tbody').replaceChildren(...metrics.map(([label, key, print = count]) =>
+      metricRow([label, print(today[key]), print(total[key])])));
+    $('#phonograph-queue').textContent = `等待或处理中 ${count(pending)} 段。`;
+    $('#phonograph-definition').textContent =
+      `访问、录制、试听和排队自 ${start} 起统计。发布数据包含已有历史，重录和随后删除的唱段仍计入成功发布数。今日公开数指今天发布且仍公开的唱段。`;
   }
   function renderMessages({ messages }) {
     messageRows.replaceChildren(...messages.map(({ number, text }) => {
@@ -230,6 +273,7 @@
   function showView() {
     stats.hidden = view !== 'statistics';
     messagePanel.hidden = view !== 'messages';
+    phonographPanel.hidden = view !== 'phonograph';
     for (const button of viewButtons) button.setAttribute('aria-pressed', String(view === button.dataset.view));
   }
   for (const button of viewButtons) button.onclick = () => {
@@ -249,7 +293,7 @@
     refresh.hidden = false;
     refresh.disabled = true;
     try {
-      const endpoint = messages ? '/api/visitor-stats?view=messages' : '/api/visitor-stats';
+      const endpoint = view === 'statistics' ? '/api/visitor-stats' : '/api/visitor-stats?view=' + view;
       const response = await fetch(endpoint, {
         headers: { Authorization: 'Bearer ' + key },
         cache: 'no-store',
@@ -261,6 +305,7 @@
       const data = await response.json();
       if (pending !== controller) return;
       if (messages) renderMessages(data);
+      else if (view === 'phonograph') renderPhonograph(data);
       else renderStatistics(data);
       try { sessionStorage.setItem('carnation7-stats-key', key); } catch {}
       form.hidden = true;

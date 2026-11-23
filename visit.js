@@ -44,6 +44,14 @@
       else pendingEvents.push(event);
     }, { once: true });
   }
+  const sceneEvents = new Set();
+  window.addEventListener('bloom-scene', ({ detail }) => {
+    if (!['garden', 'rain', 'secret'].includes(detail) || sceneEvents.has(detail)) return;
+    sceneEvents.add(detail);
+    const event = 'scene-' + detail;
+    if (opened) report(event);
+    else pendingEvents.push(event);
+  });
   const challengeEvents = new Set();
   window.addEventListener('bloom-challenge', ({ detail: event }) => {
     if (challengeEvents.has(event)) return;

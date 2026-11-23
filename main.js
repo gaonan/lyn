@@ -487,6 +487,7 @@ const updateWardrobe = setupWardrobe(THREE, scene, camera, $('#wardrobe-action')
   }
   if (revision !== stageRevision) return false;
   gardenWardrobeWhite = white;
+  reportGardenScene(white ? 'rain' : 'garden');
   showPerformer(white ? rainPerformer : gardenPerformer);
   lighting.setRainStage(white);
   selectNight(night);
@@ -626,6 +627,11 @@ guideDismiss.onclick = () => {
   try { localStorage.setItem(joystickGuideKey, 'complete'); } catch {}
 };
 
+function reportGardenScene(sceneName) {
+  if (!entered || wallPreview) return;
+  window.dispatchEvent(new CustomEvent('bloom-scene', { detail: sceneName }));
+}
+
 async function enter() {
   if (entered || !modelReady || rendererSuspended) return;
   if (wallPreview) {
@@ -657,6 +663,7 @@ async function enter() {
     showLightstickHint(false);
     $('#hint').hidden = true;
   } else {
+    reportGardenScene('garden');
     startJoystickGuide();
     const saved = playSave.state.position;
     placePlayer(saved && canRestorePosition(saved, surfaces, colliders) ? saved : gardenDestinations[0]);
@@ -816,6 +823,7 @@ function applyStageMode(next, animateEntrance = false) {
   }
   if (next) originalNight = night;
   concertMode = next;
+  reportGardenScene(next ? 'secret' : gardenWardrobeWhite ? 'rain' : 'garden');
   platform.group.visible = audience.group.visible = concertLights.group.visible = next;
   flowers.setConcert(next, atriumProbes.apply);
   gardenShadows.visible = !next;
