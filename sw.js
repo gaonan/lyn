@@ -1,8 +1,8 @@
-const CACHE='carnation7-20261123-r97';
+const CACHE='carnation7-20261123-r98';
 const VERSION='20261122-r95';
 const BARKS='assets/daimi/two-barks.m4a';
 const FILES=[
-  './','index.html','app.js?v=20261123-r97','visit.js?v=20261123-r97','phonograph-entrance.css?v=20261123-r96','assets/fonts/noto-serif-sc-archive.woff2?v=20261123-r96','assets/carnation-gold.svg','assets/carnation-gold-32.png','assets/carnation-gold-192.png',
+  './','index.html','app.js?v=20261123-r98','visit.js?v=20261123-r97','phonograph-entrance.css?v=20261123-r96','assets/fonts/noto-serif-sc-archive.woff2?v=20261123-r96','assets/carnation-gold.svg','assets/carnation-gold-32.png','assets/carnation-gold-192.png',
   ...[
     'manifest.webmanifest','style.css','daimi-feeding.css','assets/lighting/atrium-probes.bin',
     'assets/loading/secret-garden-landscape.webp','assets/loading/secret-garden-portrait.webp',

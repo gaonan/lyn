@@ -117,6 +117,17 @@ export function paintCreatorCredit(ctx, x, baseline, size = 16) {
   ctx.restore();
 }
 
+export function paintGardenLink(ctx, x, baseline, size) {
+  ctx.save();
+  ctx.textAlign = 'right';
+  ctx.font = `500 ${size}px system-ui, sans-serif`;
+  ctx.fillStyle = '#f5e5bf';
+  ctx.shadowColor = '#15120f';
+  ctx.shadowBlur = 5;
+  ctx.fillText('https://lyn.lipopo.org/', x, baseline);
+  ctx.restore();
+}
+
 function paintFilmPhoto(out, render, { album, text, recordNumber, angle, filmTitle }) {
   const ctx = out.getContext('2d');
   const width = out.width / FILM_SCALE, height = out.height / FILM_SCALE;
@@ -199,10 +210,11 @@ function paintFilmPhoto(out, render, { album, text, recordNumber, angle, filmTit
   ctx.font = `600 25px ${FILM_FONT}`;
   ctx.fillStyle = '#cbb282';
   ctx.fillText('唱片留影', right - 29, footerY + 123);
+  ctx.textAlign = 'left';
   ctx.font = '500 25px "IBM Plex Mono", "Courier New", monospace';
   ctx.fillStyle = '#ecc68f';
-  ctx.fillText(photoDate(new Date()), right - 29, footerBottom - 32);
-  ctx.textAlign = 'left';
+  ctx.fillText(photoDate(new Date()), quoteX, footerBottom - 32);
+  paintGardenLink(ctx, right - 29, footerBottom - 32, 27);
 
   paintFilmStrip(ctx, 0, width);
   paintFilmStrip(ctx, footerBottom, width);

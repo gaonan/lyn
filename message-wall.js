@@ -1,4 +1,4 @@
-import { keepsakeText, paintCreatorCredit, shareImage, textLines } from './keepsake.js?v=20261122-r95';
+import { keepsakeText, paintCreatorCredit, paintGardenLink, shareImage, textLines } from './keepsake.js?v=20261123-r98';
 
 const WIDTH = 2048;
 const BASE_HEIGHT = 640;
@@ -271,7 +271,9 @@ export function setupMessageWall(dialog, projection, drawView, recordReady) {
         output.width = canvas.width * 2;
         output.height = canvas.height * 2;
         if (!projection.capture(() => drawView(output))) throw new Error('Wall render unavailable');
-        paintCreatorCredit(output.getContext('2d'), output.width - 50, output.height - 36, 30);
+        const context = output.getContext('2d');
+        paintCreatorCredit(context, output.width - 50, output.height - 76, 30);
+        paintGardenLink(context, output.width - 50, output.height - 36, 34);
         const blob = await new Promise(resolve => output.toBlob(resolve, 'image/jpeg', .97));
         if (!dialog.open || attempt !== revision) return;
         if (!blob) throw new Error('Wall image unavailable');
