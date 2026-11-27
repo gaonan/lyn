@@ -180,42 +180,6 @@ function drapeTrouserHems(image, ids, look, shoes) {
   }
 }
 
-const frontInkCollar = [
-  [153, 367.5, 435], [158, 372, 430.5], [165, 374, 428],
-  [172, 373, 429], [178, 370, 432], [184, 368, 435],
-];
-
-function finishInkFrontCollar(painter, fabric) {
-  const { width, data } = fabric;
-  const unit = width / 800;
-  const left = Math.floor(355 * unit), top = Math.floor(153 * unit);
-  const patch = painter.getImageData(left, top, Math.ceil(90 * unit), Math.ceil(32 * unit));
-  for (let row = 0; row < patch.height; row++) {
-    const y = (top + row + .5) / unit;
-    const taper = smoothstep(153, 160, y) * (1 - smoothstep(174, 184, y));
-    for (let column = 0; column < patch.width; column++) {
-      const x = (left + column + .5) / unit;
-      const i = (row * patch.width + column) * 4;
-      const isSkin = patch.data[i + 3] > 12
-        && patch.data[i] - patch.data[i + 1] > 9 && patch.data[i + 1] - patch.data[i + 2] > 5;
-      if (!isSkin) continue;
-      const onLeft = x < 400;
-      const edge = seamAt(frontInkCollar, y, onLeft ? 1 : 2);
-      const outside = onLeft ? edge - x : x - edge;
-      const coverage = taper * smoothstep(-.8, .8, outside);
-      if (!coverage) continue;
-      const sampleX = Math.round((onLeft ? 365 - outside * .32 : 435 + outside * .32) * unit);
-      const sampleY = Math.round(Math.max(180, y + 20) * unit);
-      const source = (sampleY * width + sampleX) * 4;
-      if (data[source + 3] < 180) continue;
-      for (let channel = 0; channel < 3; channel++) {
-        patch.data[i + channel] += (data[source + channel] - patch.data[i + channel]) * coverage;
-      }
-    }
-  }
-  painter.putImageData(patch, left, top);
-}
-
 function garmentPart(look, x, y, r, g, b, original) {
   if (isHandPixel(look, x, y)) return 0;
   if (look === "ivory" && y >= 211 && y <= 224.5

@@ -39,6 +39,7 @@ const loading = byId("stage-loading");
 const loadingLabel = byId("stage-loading-label");
 const loadingProgress = byId("stage-progress");
 const retryLook = byId("stage-retry");
+const baseColor = byId("base-color");
 const fabricGlints = byId("fabric-glints");
 let goldGlintKey = "";
 const angleFog = byId("angle-fog");
@@ -190,8 +191,8 @@ async function loadLook(look, advance) {
   return model;
 }
 
-function press(group, value) {
-  for (const button of group.children) button.setAttribute("aria-pressed", String(button.value === String(value)));
+function press(group, value, selector = "button") {
+  for (const button of group.querySelectorAll(selector)) button.setAttribute("aria-pressed", String(button.value === String(value)));
 }
 
 function makeButton(label, value, className, callback) {
@@ -233,7 +234,7 @@ function looksUI() {
         : `linear-gradient(160deg, ${start}, ${middle}, ${end})`;
       button.style.setProperty("--swatch-image", gleam + gradient);
     }
-    palette.append(button);
+    palette.insertBefore(button, baseColor);
   }
 }
 
@@ -241,11 +242,14 @@ function syncControls() {
   const paint = drafts[selected.id][part];
   press(byId("looks"), selected.id);
   press(byId("parts"), part);
+  byId("fabric-panel").setAttribute("aria-labelledby", "fabric-part-" + part);
   press(byId("patterns"), paint.pattern);
   press(byId("angles"), angle);
-  press(byId("palette"), paint.color);
+  press(byId("palette"), paint.color, ".swatch");
   byId("compare").setAttribute("aria-pressed", String(comparing));
-  byId("compare").textContent = comparing ? "回到涂色" : "看原色";
+  const comparisonLabel = comparing ? "回到涂色" : "看原色";
+  byId("compare").setAttribute("aria-label", comparisonLabel);
+  byId("compare").title = comparisonLabel;
   const pickerColor = fabricFinishes.get(paint.color)?.colors[1] || paint.color || selected.tone;
   colorPicker.sync({ color: pickerColor, thread: paint.thread }, selected.id + ":" + part, {
     color: Boolean(active),
@@ -259,6 +263,7 @@ function syncControls() {
   byId("undo").disabled = !active || !histories[selected.id]?.length;
   byId("reset").disabled = !active || !drafts[selected.id].some(isEdited);
   byId("save").disabled = !active;
+  byId("rate").disabled = !active;
   byId("compare").disabled = !active;
 }
 
@@ -273,8 +278,12 @@ async function selectLook(look) {
   comparing = false;
   drafts[look.id] ||= look.parts.map(() => ({ ...defaultPaint }));
   byId("stage-name").textContent = look.name;
-  byId("parts").replaceChildren(...look.parts.map((name, index) =>
-    makeButton(name, index, "", () => selectPart(index))));
+  byId("parts").replaceChildren(...look.parts.map((name, index) => {
+    const button = makeButton(name, index, "", () => selectPart(index));
+    button.id = "fabric-part-" + index;
+    button.setAttribute("aria-controls", "fabric-panel");
+    return button;
+  }));
   ctx.clearRect(0, 0, width, height);
   fabricGlints.replaceChildren();
   goldGlintKey = "";
@@ -300,7 +309,7 @@ async function selectLook(look) {
     loadingProgress.value = loadingProgress.max;
     loading.hidden = true;
     performer.setAttribute("aria-busy", "false");
-    status("点衣料或用布片按钮，选一处开始。");
+    status("");
   } catch {
     if (version !== loadVersion) return;
     active = null;
@@ -408,7 +417,6 @@ function render() {
   const portrait = active.heads[shownAngle];
   const { layer, left, top } = portrait;
   figurePainter.drawImage(layer, left, top);
-  if (selected.id === "ink" && shownAngle === "front") finishInkFrontCollar(figurePainter, fabric);
 
   const source = fitFigure(fittedPainter, figure, selected.id, shownAngle);
   const { x, y, scale } = active.placement;
@@ -594,13 +602,16 @@ reducedMotion.addEventListener("change", () => {
 });
 
 const stageBackdrops = {
-  carnation: "scene-carnation-walkway.jpg", secret: "scene-secret.jpg", warm: "scene-warm-halo.webp"
+  carnation: "scene-library-panorama.webp", secret: "secret-gallery.webp", warm: "scene-warm-reference.webp"
 };
 const goldPoints = [[14,27,2],[25,58,1],[33,16,2],[35,71,1],[20,45,2],[75,29,2],
   [83,53,1],[88,67,2],[68,18,1],[77,76,2],[58,25,1],[61,69,1],
   [11,63,1],[22,19,1],[28,81,2],[41,49,1],[65,40,2],[81,15,1],[92,36,2],[73,56,1]];
 const sceneImage = byId("scene-image");
 const dust = byId("gold-dust");
+let stagePreview;
+let stageViewport;
+let stageLoading;
 for (const [i, [x, y, radius]] of goldPoints.entries()) {
   const spark = document.createElement("i");
   spark.style.setProperty("--x", x + "%");
@@ -617,10 +628,20 @@ function setStage(mode) {
   sceneImage.hidden = !filename;
   if (filename && sceneImage.getAttribute("src") !== asset(filename)) sceneImage.src = asset(filename);
   stage.dataset.light = mode;
+  stageViewport ??= import("./stage-preview.js?v=20261127-palette-r14")
+    .then(({ mountStagePreview }) => {
+      stagePreview = mountStagePreview(stage.querySelector(".set"), asset);
+      return stagePreview;
+    })
+    .catch(() => null);
+  stageLoading = stageViewport.then(preview => {
+    if (stage.dataset.light === mode) return preview?.show(mode);
+  });
 }
 
 function paintStage(painter, width, height, feetY) {
   const mode = stage.dataset.light;
+  if (stagePreview?.capture(painter, width, height, feetY, mode)) return;
   const sky = getComputedStyle(stage);
   const glow = painter.createRadialGradient(width / 2, height * .43, 52, width / 2, height * .50, width * .81);
   glow.addColorStop(0, sky.getPropertyValue("--haze").trim());
@@ -629,11 +650,7 @@ function paintStage(painter, width, height, feetY) {
   painter.fillRect(0, 0, width, height);
   const backdropReady = !sceneImage.hidden && sceneImage.complete && sceneImage.naturalWidth;
   if (backdropReady && mode === "warm") {
-    painter.save();
-    painter.globalCompositeOperation = "screen";
-    painter.globalAlpha = .83;
     painter.drawImage(sceneImage, 0, 0, width, height);
-    painter.restore();
   } else if (backdropReady) {
     const focus = mode === "secret" ? .79 : .66;
     const boxHeight = mode === "secret" ? feetY / focus : height;
@@ -676,6 +693,7 @@ function captureFilmStage() {
 
 byId("save").addEventListener("click", async () => {
   if (!active) return;
+  await stageLoading;
   if (!sceneImage.hidden) await sceneImage.decode().catch(() => {});
   if (!active) return;
   if (frame) cancelAnimationFrame(frame);
@@ -708,5 +726,17 @@ byId("save").addEventListener("click", async () => {
 });
 
 looksUI();
+setupPaletteRating({
+  finishes: fabricFinishes,
+  currentLook: () => ({
+    outfit: selected.id,
+    stage: stage.dataset.light,
+    parts: drafts[selected.id].map(paint => {
+      const { color, pattern, thread } = comparing ? defaultPaint : paint;
+      return { color, pattern, thread };
+    }),
+  }),
+  save: () => byId("save").click(),
+});
 retryLook.addEventListener("click", () => selectLook(selected));
 selectLook(selected);

@@ -5,14 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#17202c">
   <title>给宁换装</title>
-  <link rel="stylesheet" href="style.css?v=20261127-palette-r7">
+  <link rel="stylesheet" href="style.css?v=20261127-palette-r14">
   <link rel="stylesheet" href="../creator-credit.css?v=20261127-palette-r5">
   <link rel="stylesheet" href="keepsake.css?v=20261127-palette-r5">
   <script type="module" src="poster.js?v=20261127-palette-r5"></script>
-  <script defer src="alignment.js?v=20261127-palette-r5"></script>
-  <script defer src="tailoring.js?v=20261127-palette-r5"></script>
+  <script defer src="alignment.js?v=20261127-palette-r17"></script>
+  <script defer src="tailoring.js?v=20261127-palette-r16"></script>
   <script defer src="color-picker.js"></script>
-  <script defer src="game.js?v=20261127-palette-r7"></script>
+  <script defer src="rating-model.js?v=20261127-palette-r14"></script>
+  <script defer src="rating-stats.js?v=20261127-palette-r12"></script>
+  <script defer src="rating.js?v=20261127-palette-r14"></script>
+  <script defer src="game.js?v=20261127-palette-r16"></script>
   <script type="module" src="integration.js?v=20261127-palette-r6"></script>
 </head>
 <body>
@@ -35,8 +38,15 @@
         <div class="stage-caption">
           <span id="stage-name">玄素</span>
           <span class="creator-credit" aria-hidden="true">By MD_Leah</span>
+          <button id="compare" class="compare-preview" type="button" aria-pressed="false" aria-label="看原色" title="看原色">↺</button>
         </div>
-        <button id="compare" type="button" aria-pressed="false">看原色</button>
+        <div class="stage-select">
+          <select id="light" aria-label="选择舞台">
+            <option value="carnation">康乃馨 7.0</option>
+            <option value="secret">秘密花园</option>
+            <option value="warm">暖金舞台</option>
+          </select>
+        </div>
       </div>
       <div class="performer" id="performer" aria-busy="true">
         <canvas id="body" width="800" height="1200" aria-label="点衣料选部位，也可用布片按钮"></canvas>
@@ -53,12 +63,10 @@
           <button type="button" value="side" aria-pressed="true">侧脸</button>
           <button type="button" value="front" aria-pressed="false">正脸</button>
         </div>
-        <label class="lighting">舞台
-          <select id="light">
-            <optgroup label="花园布景"><option value="carnation">康乃馨 7.0</option><option value="secret">秘密花园</option></optgroup>
-            <option value="warm">暖金舞台</option>
-          </select>
-        </label>
+        <div class="stage-actions">
+          <button id="rate" class="rate" type="button" aria-haspopup="dialog" disabled>评分</button>
+          <button id="save" class="save" type="button" disabled>保存留影</button>
+        </div>
       </div>
     </section>
 
@@ -67,43 +75,41 @@
         <h2>挑一套</h2>
         <div id="looks" class="looks" role="group" aria-label="服装"></div>
       </div>
-      <div class="editor-section">
-        <h2>选布片</h2>
+      <div class="fabric-editor">
+        <div class="fabric-heading">
+          <h2>选布片</h2>
+          <div class="edit-commands">
+            <button id="undo" class="plain-action" type="button" disabled>撤销</button>
+            <button id="reset" class="plain-action" type="button" disabled>还原整套</button>
+          </div>
+        </div>
         <div id="parts" class="parts" role="group" aria-label="布片"></div>
-      </div>
-      <div class="editor-section">
-        <h2>换颜色</h2>
-        <div class="palette" id="palette" role="group" aria-label="预设底色"></div>
-        <div class="color-row">
-          <button type="button" class="color-choice" id="base-color" aria-controls="custom-color" aria-expanded="false">
-            <span aria-hidden="true"></span>自定义底色
-          </button>
-          <button type="button" class="plain-action" id="restore-part">还原布片</button>
+        <div class="fabric-panel" id="fabric-panel" role="group">
+          <h3>换颜色</h3>
+          <div class="palette" id="palette" role="group" aria-label="底色">
+            <button type="button" class="color-choice" id="base-color" aria-label="自定义底色" aria-controls="custom-color" aria-expanded="false">
+              <span class="color-chip" aria-hidden="true"></span><span>自定义<span class="base-color-detail">底色</span></span>
+            </button>
+            <button type="button" class="plain-action" id="restore-part">还原布片</button>
+          </div>
+          <div id="base-picker-slot"></div>
+          <div class="texture-section" id="pattern-section">
+            <h3>织纹</h3>
+            <div class="segments" id="patterns" role="group" aria-label="纹样">
+              <button type="button" value="original" aria-pressed="true">原布纹</button>
+              <button type="button" value="check" aria-pressed="false">细格</button>
+              <button type="button" value="plaid" aria-pressed="false">宽格</button>
+              <button type="button" value="stripe" aria-pressed="false">细条</button>
+            </div>
+            <div id="pattern-settings" class="pattern-settings" hidden>
+              <button type="button" class="color-choice" id="pattern-color" aria-controls="custom-color" aria-expanded="false">
+                <span class="color-chip" aria-hidden="true"></span>自定义纹样色
+              </button>
+              <label class="scale">纹样大小 <input id="scale" type="range" min="65" max="185" value="100"></label>
+            </div>
+            <div id="thread-picker-slot"></div>
+          </div>
         </div>
-        <div id="base-picker-slot"></div>
-      </div>
-      <div class="editor-section texture-section" id="pattern-section">
-        <h2>织纹</h2>
-        <div class="segments" id="patterns" role="group" aria-label="纹样">
-          <button type="button" value="original" aria-pressed="true">原布纹</button>
-          <button type="button" value="check" aria-pressed="false">细格</button>
-          <button type="button" value="plaid" aria-pressed="false">宽格</button>
-          <button type="button" value="stripe" aria-pressed="false">细条</button>
-        </div>
-        <div id="pattern-settings" class="pattern-settings" hidden>
-          <button type="button" class="color-choice" id="pattern-color" aria-controls="custom-color" aria-expanded="false">
-            <span aria-hidden="true"></span>自定义纹样色
-          </button>
-          <label class="scale">纹样大小 <input id="scale" type="range" min="65" max="185" value="100"></label>
-        </div>
-        <div id="thread-picker-slot"></div>
-      </div>
-      <div class="desk-actions">
-        <div>
-          <button id="undo" class="plain-action" type="button" disabled>撤销</button>
-          <button id="reset" class="plain-action" type="button" disabled>还原整套</button>
-        </div>
-        <button id="save" class="save" type="button" disabled>保存留影 <span aria-hidden="true">↓</span></button>
       </div>
       <p id="status" role="status" class="status"></p>
     </section>
@@ -112,6 +118,27 @@
     <h2 id="palette-locked-title">收齐心心、海报和角色后，即可进入换装彩蛋</h2>
     <a class="keepsake-control keepsake-control-primary" href="../">回到游戏</a>
     <div class="creator-credit creator-credit--dialog" aria-hidden="true">By MD_Leah</div>
+  </dialog>
+  <dialog id="palette-rating" class="rating-dialog" aria-labelledby="rating-title">
+    <form method="dialog" class="rating-close">
+      <button type="submit" autofocus aria-label="关闭评分">×</button>
+    </form>
+    <h2 id="rating-title">搭配评分</h2>
+    <div class="rating-clock" aria-hidden="true">
+      <span class="rating-reel"><span>7</span></span>
+      <span class="rating-reel"><span>0</span></span>
+      <span class="rating-total">/ 100</span>
+    </div>
+    <div class="rating-result" role="status">
+      <span id="rating-announcement" class="rating-sr"></span>
+      <p id="rating-message"></p>
+      <p id="rating-note" hidden></p>
+      <p id="rating-percentile" hidden></p>
+    </div>
+    <div class="rating-actions" hidden>
+      <button type="button" class="rate" id="rating-again">再试试</button>
+      <button type="button" class="save" id="rating-save">保存留影</button>
+    </div>
   </dialog>
   <dialog id="record-finale" aria-labelledby="record-finale-title">
     <div class="keepsake-art">

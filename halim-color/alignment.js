@@ -39,6 +39,11 @@ function smoothstep(start, end, value) {
 const shoulderReduction = { ink: .08, striped: .09 };
 const frontFaceReduction = .04;
 const fittedRowHeight = 2;
+// Side-view chin, collarbone and shortening, on the 800 × 1200 figure.
+const sideNecks = {
+  striped: [194, 259, 11], ivory: [193, 258, 14], scarlet: [181, 223, 7],
+  ink: [174, 237, 11], peach: [170, 237, 10], denim: [190, 238, 8]
+};
 
 function fittedFigureWidth(look, angle, row, height) {
   const shoulders = shoulderReduction[look];
@@ -51,17 +56,24 @@ function fittedFigureWidth(look, angle, row, height) {
 
 function fitFigure(painter, source, look, angle) {
   const { width, height } = source;
-  if (!shoulderReduction[look]) return source;
+  const neck = angle === "side" ? sideNecks[look] : null;
+  const shoulders = shoulderReduction[look];
+  if (!shoulders && !neck) return source;
   painter.clearRect(0, 0, width, height);
-  const waist = Math.ceil(height * .47 / fittedRowHeight) * fittedRowHeight;
-  // Fit the composited portrait and clothing together so the collar stays aligned.
-  for (let row = 0; row < waist; row += fittedRowHeight) {
-    const fittedWidth = width * fittedFigureWidth(look, angle, row, height);
+  const unit = height / 1200;
+  const [chin, collarbone, shortening] = neck || [0, 0, 0];
+  // Move the whole head and hat together, then shorten the exposed neck down to the collarbone.
+  const fittedY = row => neck
+    ? Math.round(row + shortening * unit * (1 - smoothstep(chin, collarbone, row / unit))) : row;
+  const end = Math.ceil((shoulders ? height * .47 : collarbone * unit) / fittedRowHeight) * fittedRowHeight;
+  for (let row = 0; row < end; row += fittedRowHeight) {
+    const fittedWidth = shoulders ? width * fittedFigureWidth(look, angle, row, height) : width;
+    const y = fittedY(row);
     painter.drawImage(source, 0, row, width, fittedRowHeight,
-      (width - fittedWidth) / 2, row, fittedWidth, fittedRowHeight);
+      (width - fittedWidth) / 2, y, fittedWidth, fittedY(row + fittedRowHeight) - y);
   }
-  painter.drawImage(source, 0, waist, width, height - waist,
-    0, waist, width, height - waist);
+  painter.drawImage(source, 0, end, width, height - end,
+    0, end, width, height - end);
   return painter.canvas;
 }
 
@@ -92,9 +104,10 @@ function standingPlacement(look, crown, sole, width) {
 
 // Hat measurements use the same 800 × 1200 grid as the garment sprite.
 const originalBrim = { x: 372, y: 148, halfWidth: 116, halfDepth: 59, angle: .14 };
+const ivoryHatLift = 21;
 const ivoryBrims = {
-  front: { x: 388, y: 151, halfWidth: 116, halfDepth: 57, angle: 0 },
-  side: { x: 387, y: 158, halfWidth: 116, halfDepth: 60, angle: -.27 }
+  front: { x: 388, y: 151 - ivoryHatLift, halfWidth: 116, halfDepth: 57, angle: 0 },
+  side: { x: 387, y: 158 - ivoryHatLift, halfWidth: 116, halfDepth: 60, angle: -.27 }
 };
 const turnedFeathers = { x: 384, y: 126, angle: -19 * Math.PI / 180, width: .99, depth: .91 };
 
@@ -145,27 +158,35 @@ function drawIvoryHat(body, ids, angle) {
   hat.width = width;
   hat.height = hatHeight;
   const painter = hat.getContext("2d", { willReadFrequently: true });
+  // Keep the plume tips inside the frame while moving their attachment with the brim.
+  const featherTop = angle === "side" ? 5 : 18;
+  const featherRoot = angle === "side" ? 102 : 96;
+  painter.translate(0, featherTop * unit);
+  painter.scale(1, 1 - ivoryHatLift / (featherRoot - featherTop));
+  painter.translate(0, -featherTop * unit);
   if (angle === "side") {
     const projection = turnedFeathers;
     painter.translate(projection.x * unit, projection.y * unit);
     painter.rotate(projection.angle);
     painter.scale(projection.width, projection.depth);
     painter.drawImage(feather, -381 * unit, -107 * unit);
-    painter.resetTransform();
   } else {
     painter.drawImage(feather, 13 * unit, 12 * unit);
   }
+  painter.resetTransform();
 
   // Paint a closed oval under the face, using the old fabric where it is intact.
   const brim = ivoryBrims[angle];
   const cosine = Math.cos(brim.angle);
   const sine = Math.sin(brim.angle);
+  const verticalRadius = Math.hypot(sine * brim.halfWidth, cosine * brim.halfDepth) * 1.008;
+  const topOfBrim = Math.max(0, Math.floor((brim.y - verticalRadius) * unit));
   const oval = document.createElement("canvas");
   oval.width = width;
   oval.height = hatHeight;
   const ovalPainter = oval.getContext("2d");
   const fabric = ovalPainter.createImageData(width, hatHeight);
-  for (let y = Math.floor(85 * unit); y < hatHeight; y++) {
+  for (let y = topOfBrim; y < hatHeight; y++) {
     const dy = (y + .5) / unit - brim.y;
     for (let x = Math.floor(256 * unit); x < Math.ceil(518 * unit); x++) {
       const dx = (x + .5) / unit - brim.x;
@@ -373,6 +394,13 @@ function clearHairMatte(image, offsetX, offsetY, scale, front) {
   }
 }
 
+// Follow the lower portrait into the Black Obsidian collar in the 800 × 1200 figure.
+const inkFrontJaw = [
+  [146, 358, 438], [151, 361, 437], [156, 363, 436], [161, 365, 435],
+  [166, 367.5, 434], [171, 369.5, 433], [175, 371.5, 431.5],
+  [180, 373, 429.5], [187, 374, 427.5], [193, 374, 427]
+];
+
 function fitHead(sprite, look, angle, body) {
   const front = angle === "front";
   const [centerX, centerY, zoom] = headFits[look][angle];
@@ -383,10 +411,11 @@ function fitHead(sprite, look, angle, body) {
   const lift = bodyLift(look, body.height);
   const originY = (centerY - anchorY * zoom) * scale - lift;
   const size = zoom * scale;
-  const left = Math.floor(originX + 405 * size);
-  const top = Math.floor(originY + 59 * size);
-  const right = Math.ceil(originX + 586 * size);
-  const bottom = Math.ceil(originY + 264 * size);
+  const margin = front ? 0 : Math.ceil(12 * size);
+  const left = Math.floor(originX + 405 * size) - margin;
+  const top = Math.floor(originY + 59 * size) - margin;
+  const right = Math.ceil(originX + 586 * size) + margin;
+  const bottom = Math.ceil(originY + 264 * size) + margin;
   const layer = document.createElement("canvas");
   layer.width = right - left;
   layer.height = bottom - top;
@@ -398,9 +427,20 @@ function fitHead(sprite, look, angle, body) {
   const head = image.data;
   const pixels = head.slice();
   const cloth = body.data;
+  // Match the head's final pose when sampling neck skin and cutting around the collar.
+  const tilt = front ? 0 : 8 * Math.PI / 180;
+  const cosine = Math.cos(tilt), sine = Math.sin(tilt);
+  const neckX = centerX * scale - left;
+  const neckY = centerY * scale - lift - top;
+  const unit = body.width / 800;
 
   for (let y = 0; y < layer.height; y++) {
     const sourceY = (top + y + .5 - originY) / size;
+    const row = (top + y + .5) / unit;
+    const jawRepair = front && look === "ink"
+      ? smoothstep(145, 150, row) * (1 - smoothstep(182, 193, row)) : 0;
+    const jawLeft = jawRepair ? seamAt(inkFrontJaw, row, 1) : 0;
+    const jawRight = jawRepair ? seamAt(inkFrontJaw, row, 2) : 0;
     for (let x = 0; x < layer.width; x++) {
       const i = (y * layer.width + x) * 4;
       // Keep the chin and its shadow intact while tapering the skin below the jaw.
@@ -424,30 +464,51 @@ function fitHead(sprite, look, angle, body) {
           }
         }
       }
+      const dx = x + .5 - neckX;
+      const dy = y + .5 - neckY;
+      const bodyX = front ? left + x + .5 : left + neckX + dx * cosine - dy * sine;
+      const bodyY = front ? top + y + .5 : top + neckY + dx * sine + dy * cosine;
+      if (jawRepair) {
+        const cheekX = bodyX / unit;
+        const leftCheek = cheekX < (jawLeft + jawRight) / 2;
+        const inset = leftCheek ? cheekX - jawLeft : jawRight - cheekX;
+        const feather = smoothstep(-.7, .8, inset);
+        const repair = jawRepair * feather * (1 - smoothstep(2, 8, inset));
+        const innerX = leftCheek ? jawLeft + 6 : jawRight - 6;
+        const sampleX = Math.min(layer.width - 1, Math.max(0, Math.floor(innerX * unit - left)));
+        const sample = (y * layer.width + sampleX) * 4;
+        // Sample the cheek texture beside the seam and keep a soft silhouette edge.
+        for (let channel = 0; channel < 3; channel++) {
+          head[i + channel] += (pixels[sample + channel] - head[i + channel]) * repair;
+        }
+        head[i + 3] = (head[i + 3] + (pixels[sample + 3] - head[i + 3]) * repair)
+          * (1 - jawRepair * (1 - feather));
+      }
       if (head[i + 3] === 0) continue;
-      const fade = smoothstep(6, 24, underJaw);
-      const pixel = ((top + y) * body.width + left + x) * 4;
+      const pixel = (Math.floor(bodyY) * body.width + Math.floor(bodyX)) * 4;
       const red = cloth[pixel], green = cloth[pixel + 1], blue = cloth[pixel + 2];
       const bodyAlpha = cloth[pixel + 3] / 255;
       const skin = bodyAlpha * smoothstep(6, 24, red - blue)
         * smoothstep(-2, 18, red - green) * smoothstep(-1, 18, green - blue);
-      const tint = smoothstep(6, 23, underJaw) * skin * .66;
+      // Blend sampled skin color across the upper neck while carrying the original throat detail.
+      const tint = skin * (front ? .66 * smoothstep(6, 23, underJaw) : .74 * smoothstep(-2, 34, underJaw));
       head[i] += (red - head[i]) * tint;
       head[i + 1] += (green - head[i + 1]) * tint;
       head[i + 2] += (blue - head[i + 2]) * tint;
+      const fade = front ? smoothstep(6, 24, underJaw) : smoothstep(1, 37, underJaw);
       head[i + 3] *= 1 - fade * (.45 + .55 * Math.max(skin, bodyAlpha * (1 - skin)));
 
       if (look === "ink") {
-        const unit = body.width / 800;
-        const collarY = (top + y + .5 + lift) / unit;
-        const collarX = (left + x + .5) / unit;
+        const collarY = (bodyY + lift) / unit;
+        const collarX = bodyX / unit;
         const inset = Math.min(collarX - seamAt(inkNeckOpening, collarY, 1),
           seamAt(inkNeckOpening, collarY, 2) - collarX);
-        head[i + 3] *= 1 - smoothstep(0, 5, underJaw) * (1 - smoothstep(-.6, .6, inset));
+        const collarFade = front ? (1 - jawRepair) * smoothstep(0, 5, underJaw) : smoothstep(5, 17, underJaw);
+        head[i + 3] *= 1 - collarFade * (1 - smoothstep(-1.2, 1.2, inset));
       }
 
       if (look === "scarlet" && sourceY >= 208) {
-        const collarY = (top + y + .5 + lift) / scale;
+        const collarY = (bodyY + lift) / scale;
         const darkCollar = 1 - smoothstep(55, 111, Math.max(red, green, blue));
         const redLapel = smoothstep(54, 80, red - green);
         const collarEdge = smoothstep(227, 244, collarY) * (1 - smoothstep(309, 329, collarY));
@@ -456,12 +517,33 @@ function fitHead(sprite, look, angle, body) {
           * Math.max(darkCollar, redLapel);
       }
 
-      if (look === "ivory") {
+      if (front && look === "ivory") {
         head[i + 3] *= brimOpening(angle, left + x + .5, top + y + .5, body.width / 800);
       }
     }
   }
 
   painter.putImageData(image, 0, 0);
-  return { layer, left, top, crown: top + opaqueEdge(image) };
+  if (front) return { layer, left, top, crown: top + opaqueEdge(image) };
+
+  const portrait = document.createElement("canvas");
+  portrait.width = layer.width;
+  portrait.height = layer.height;
+  const rotated = portrait.getContext("2d", { willReadFrequently: true });
+  // Anchor at the collar so the head tilts without separating from the neckline.
+  rotated.translate(neckX, neckY);
+  rotated.rotate(tilt);
+  rotated.drawImage(layer, -neckX, -neckY);
+  rotated.resetTransform();
+  const posed = rotated.getImageData(0, 0, portrait.width, portrait.height);
+  if (look === "ivory") {
+    for (let y = 0; y < portrait.height; y++) {
+      for (let x = 0; x < portrait.width; x++) {
+        const alpha = (y * portrait.width + x) * 4 + 3;
+        posed.data[alpha] *= brimOpening(angle, left + x + .5, top + y + .5, body.width / 800);
+      }
+    }
+    rotated.putImageData(posed, 0, 0);
+  }
+  return { layer: portrait, left, top, crown: top + opaqueEdge(posed) };
 }
