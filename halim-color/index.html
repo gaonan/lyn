@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#17202c">
   <title>给宁换装</title>
-  <link rel="stylesheet" href="style.css?v=20261127-palette-r5">
+  <link rel="stylesheet" href="style.css?v=20261127-palette-r7">
   <link rel="stylesheet" href="../creator-credit.css?v=20261127-palette-r5">
   <link rel="stylesheet" href="keepsake.css?v=20261127-palette-r5">
   <script type="module" src="poster.js?v=20261127-palette-r5"></script>
   <script defer src="alignment.js?v=20261127-palette-r5"></script>
   <script defer src="tailoring.js?v=20261127-palette-r5"></script>
   <script defer src="color-picker.js"></script>
-  <script defer src="game.js?v=20261127-palette-r5"></script>
+  <script defer src="game.js?v=20261127-palette-r7"></script>
   <script type="module" src="integration.js?v=20261127-palette-r6"></script>
 </head>
 <body>
@@ -38,10 +38,15 @@
         </div>
         <button id="compare" type="button" aria-pressed="false">看原色</button>
       </div>
-      <div class="performer" id="performer">
+      <div class="performer" id="performer" aria-busy="true">
         <canvas id="body" width="800" height="1200" aria-label="点衣料选部位，也可用布片按钮"></canvas>
         <div class="fabric-glints" id="fabric-glints" aria-hidden="true"></div>
         <div class="angle-fog" id="angle-fog" aria-hidden="true"></div>
+      </div>
+      <div class="stage-loading" id="stage-loading">
+        <p id="stage-loading-label" role="status">正在加载…</p>
+        <progress id="stage-progress" max="4" value="0" aria-labelledby="stage-loading-label"></progress>
+        <button id="stage-retry" type="button" hidden>重试</button>
       </div>
       <div class="stage-bottom">
         <div class="segments" id="angles" aria-label="视角">
@@ -100,7 +105,7 @@
         </div>
         <button id="save" class="save" type="button" disabled>保存留影 <span aria-hidden="true">↓</span></button>
       </div>
-      <p id="status" role="status" class="status">正在铺开布料…</p>
+      <p id="status" role="status" class="status"></p>
     </section>
   </main>
   <dialog id="palette-locked" aria-labelledby="palette-locked-title">

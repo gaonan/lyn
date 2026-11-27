@@ -34,6 +34,11 @@ fittedFigure.width = width;
 fittedFigure.height = height;
 const fittedPainter = fittedFigure.getContext("2d");
 const stage = document.querySelector(".stage");
+const performer = byId("performer");
+const loading = byId("stage-loading");
+const loadingLabel = byId("stage-loading-label");
+const loadingProgress = byId("stage-progress");
+const retryLook = byId("stage-retry");
 const fabricGlints = byId("fabric-glints");
 let goldGlintKey = "";
 const angleFog = byId("angle-fog");
@@ -106,11 +111,13 @@ function loadFaces() {
   return facesPromise;
 }
 
-async function loadLook(look) {
-  if (cache.has(look.id)) return cache.get(look.id);
+async function loadLook(look, advance) {
   const [body, mask, [front, side]] = await Promise.all([
     loadImage(look.id + ".png"), loadImage(look.id + "-mask.png"), loadFaces()
-  ]);
+  ].map(pending => pending.then(result => {
+    advance();
+    return result;
+  })));
   const buffer = document.createElement("canvas");
   buffer.width = width;
   buffer.height = height;
@@ -259,6 +266,7 @@ async function selectLook(look) {
   stopAngleFog();
   shownAngle = angle;
   const version = ++loadVersion;
+  const cached = cache.get(look.id);
   selected = look;
   active = null;
   part = 0;
@@ -271,18 +279,39 @@ async function selectLook(look) {
   fabricGlints.replaceChildren();
   goldGlintKey = "";
   syncControls();
-  status("正在铺开布料…");
+  if (!cached) {
+    performer.setAttribute("aria-busy", "true");
+    loadingLabel.textContent = "正在加载…";
+    loadingProgress.value = 0;
+    loadingProgress.hidden = false;
+    retryLook.hidden = true;
+    loading.hidden = false;
+    status("");
+  }
   try {
-    const model = await loadLook(look);
+    const model = cached || await loadLook(look, () => {
+      if (version === loadVersion) loadingProgress.value += 1;
+    });
     if (version !== loadVersion) return;
     active = model;
     syncControls();
     saveDraft();
     render();
+    loadingProgress.value = loadingProgress.max;
+    loading.hidden = true;
+    performer.setAttribute("aria-busy", "false");
     status("点衣料或用布片按钮，选一处开始。");
   } catch {
     if (version !== loadVersion) return;
-    status("这套服装暂时没加载出来，点服装卡片重试。");
+    active = null;
+    ctx.clearRect(0, 0, width, height);
+    syncControls();
+    performer.setAttribute("aria-busy", "false");
+    loadingLabel.textContent = "这套服装加载失败";
+    loadingProgress.hidden = true;
+    retryLook.hidden = false;
+    loading.hidden = false;
+    status("");
   }
 }
 
@@ -679,4 +708,5 @@ byId("save").addEventListener("click", async () => {
 });
 
 looksUI();
+retryLook.addEventListener("click", () => selectLook(selected));
 selectLook(selected);

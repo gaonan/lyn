@@ -71,6 +71,22 @@ h1 { margin: 0; font: 700 clamp(24px, 4vw, 48px)/1.15 "Songti SC", SimSun, Georg
 }
 .performer { position: absolute; top: 4%; bottom: 8%; left: 50%; transform: translateX(-50%); aspect-ratio: 2 / 3; }
 .performer canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+.stage-loading {
+  position: absolute; z-index: 1; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  display: grid; justify-items: center; gap: 10px; width: min(212px, calc(100% - 40px));
+  padding: 15px 20px 16px; border: 1px solid #eed9ad44; border-radius: 12px;
+  background: #21191af0; color: #fff3e7; box-shadow: 0 6px 22px #140c0959;
+  text-align: center; pointer-events: none;
+}
+.stage-loading p { margin: 0; font-size: 14px; font-weight: 600; }
+.stage-loading progress {
+  appearance: none; display: block; width: 100%; height: 6px; border: 0;
+  border-radius: 999px; overflow: hidden; background: #fff1d72b; color: #efc57f;
+}
+.stage-loading progress::-webkit-progress-bar { background: #fff1d72b; }
+.stage-loading progress::-webkit-progress-value { background: #efc57f; border-radius: 999px; }
+.stage-loading progress::-moz-progress-bar { background: #efc57f; border-radius: 999px; }
+.stage-loading #stage-retry { min-height: 44px; min-width: 66px; pointer-events: auto; }
 .fabric-glints { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .fabric-glints i {
   width: var(--size);
