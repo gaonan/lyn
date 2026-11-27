@@ -11,7 +11,6 @@ function setupPaletteRating({ currentLook, finishes, save }) {
   const revealTime = 2400;
   const comments = {
     balanced: "主色和细节呼应得自然，也能融入舞台。",
-    stage: "试试让主色靠近舞台的色温，配色会更协调。",
     layers: "试试把最亮的颜色留给一处，内外层和鞋会更有层次。",
   };
   let shownScore;
@@ -38,10 +37,8 @@ function setupPaletteRating({ currentLook, finishes, save }) {
   function showEstimate() {
     if (!dialog.open || shownScore === undefined) return;
     const estimate = ratingEstimate(shownScore, stats.snapshot());
-    standing.hidden = false;
-    standing.textContent = estimate === null
-      ? "暂无可比较的历史评分。"
-      : "按历史评分估算，你的搭配超过约 " + estimate + "% 的同担";
+    standing.hidden = estimate === null;
+    standing.textContent = estimate === null ? "" : "你的搭配超过约 " + estimate + "% 的同担";
   }
 
   function stop() {
@@ -56,8 +53,9 @@ function setupPaletteRating({ currentLook, finishes, save }) {
     display(result.score, !motion.matches);
     announce.textContent = result.score + " 分。";
     message.textContent = high ? "恭喜，配色很出彩！" : "再试一试，你会搭出更协调的一套。";
-    note.hidden = false;
-    note.textContent = comments[result.note];
+    const comment = comments[result.note];
+    note.hidden = !comment;
+    note.textContent = comment || "";
     shownScore = result.score;
     showEstimate();
     actions.hidden = false;

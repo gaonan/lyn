@@ -218,6 +218,7 @@ function drawIvoryHat(body, ids, angle) {
 
   const projection = painter.getImageData(0, 0, width, hatHeight).data;
   const materials = ids.map(id => id === 3 ? 0 : id);
+  if (angle === "side") matchIvoryNeckTone(torso, materials, unit);
   for (let p = 0; p < projection.length / 4; p++) {
     const alpha = p * 4 + 3;
     if (projection[alpha] > 15 && torso.data[alpha] < 32) materials[p] = 3;
@@ -227,6 +228,47 @@ function drawIvoryHat(body, ids, angle) {
   oval.getContext("2d").globalCompositeOperation = "destination-over";
   oval.getContext("2d").drawImage(hat, 0, 0);
   return { original: oval.getContext("2d").getImageData(0, 0, width, height), ids: materials };
+}
+
+function matchIvoryNeckTone({ width, data }, materials, unit) {
+  // The starting torso has a head-shaped opening. Extend nearby neck texture underneath
+  // the turned jaw so the white brim cannot show through the portrait fade.
+  const neckEdges = [[180, 371, 413], [187, 366, 417], [194, 361, 420], [203, 358, 421], [211, 358, 421]];
+  const source = data.slice(0, Math.ceil(225 * unit) * width * 4);
+  for (let y = Math.floor(180 * unit); y < Math.ceil(292 * unit); y++) {
+    const height = (y + .5) / unit;
+    const blend = smoothstep(184, 204, height) * (1 - smoothstep(245, 292, height));
+    const left = seamAt(neckEdges, height, 1);
+    const right = seamAt(neckEdges, height, 2);
+    for (let x = Math.ceil(358 * unit); x <= Math.floor(421 * unit); x++) {
+      const pixel = y * width + x;
+      const i = pixel * 4;
+      if (materials[pixel]) continue;
+      const skin = data[i + 3] && isIvoryNeck(data, i, x, y, unit);
+      if (height < 216) {
+        const inset = Math.min((x + .5) / unit - left, right - (x + .5) / unit);
+        const coverage = smoothstep(-.7, .9, inset) * smoothstep(180, 187, height)
+          * (1 - smoothstep(198, 216, height));
+        const sampleX = Math.min(Math.round(414 * unit), Math.max(Math.round(366 * unit), x));
+        const sampleY = Math.floor((208 + (height - 180) * .28) * unit);
+        const sample = (sampleY * width + sampleX) * 4;
+        const added = coverage * source[sample + 3] / 255;
+        if (added && isIvoryNeck(source, sample, sampleX, sampleY, unit)) {
+          const retained = data[i + 3] / 255 * (1 - added);
+          const alpha = retained + added;
+          for (let channel = 0; channel < 3; channel++) {
+            data[i + channel] = (data[i + channel] * retained + source[sample + channel] * added) / alpha;
+          }
+          data[i + 3] = alpha * 255;
+        }
+      }
+      if (!skin && (!data[i + 3] || !isIvoryNeck(data, i, x, y, unit))) continue;
+      const highlight = Math.max(0, luma(data[i], data[i + 1], data[i + 2]) - 151) * .38;
+      data[i] += (2 - highlight) * blend;
+      data[i + 1] -= (3 + highlight) * blend;
+      data[i + 2] -= (6 + highlight) * blend;
+    }
+  }
 }
 
 function brimOpening(angle, x, y, unit) {
@@ -394,15 +436,9 @@ function clearHairMatte(image, offsetX, offsetY, scale, front) {
   }
 }
 
-// Follow the lower portrait into the Black Obsidian collar in the 800 × 1200 figure.
-const inkFrontJaw = [
-  [146, 358, 438], [151, 361, 437], [156, 363, 436], [161, 365, 435],
-  [166, 367.5, 434], [171, 369.5, 433], [175, 371.5, 431.5],
-  [180, 373, 429.5], [187, 374, 427.5], [193, 374, 427]
-];
-
 function fitHead(sprite, look, angle, body) {
   const front = angle === "front";
+  const ivorySide = look === "ivory" && !front;
   const [centerX, centerY, zoom] = headFits[look][angle];
   const anchorX = front ? 512 : 506;
   const anchorY = 225;
@@ -436,11 +472,6 @@ function fitHead(sprite, look, angle, body) {
 
   for (let y = 0; y < layer.height; y++) {
     const sourceY = (top + y + .5 - originY) / size;
-    const row = (top + y + .5) / unit;
-    const jawRepair = front && look === "ink"
-      ? smoothstep(145, 150, row) * (1 - smoothstep(182, 193, row)) : 0;
-    const jawLeft = jawRepair ? seamAt(inkFrontJaw, row, 1) : 0;
-    const jawRight = jawRepair ? seamAt(inkFrontJaw, row, 2) : 0;
     for (let x = 0; x < layer.width; x++) {
       const i = (y * layer.width + x) * 4;
       // Keep the chin and its shadow intact while tapering the skin below the jaw.
@@ -464,38 +495,40 @@ function fitHead(sprite, look, angle, body) {
           }
         }
       }
+      if (head[i + 3] === 0) continue;
       const dx = x + .5 - neckX;
       const dy = y + .5 - neckY;
       const bodyX = front ? left + x + .5 : left + neckX + dx * cosine - dy * sine;
       const bodyY = front ? top + y + .5 : top + neckY + dx * sine + dy * cosine;
-      if (jawRepair) {
-        const cheekX = bodyX / unit;
-        const leftCheek = cheekX < (jawLeft + jawRight) / 2;
-        const inset = leftCheek ? cheekX - jawLeft : jawRight - cheekX;
-        const feather = smoothstep(-.7, .8, inset);
-        const repair = jawRepair * feather * (1 - smoothstep(2, 8, inset));
-        const innerX = leftCheek ? jawLeft + 6 : jawRight - 6;
-        const sampleX = Math.min(layer.width - 1, Math.max(0, Math.floor(innerX * unit - left)));
-        const sample = (y * layer.width + sampleX) * 4;
-        // Sample the cheek texture beside the seam and keep a soft silhouette edge.
-        for (let channel = 0; channel < 3; channel++) {
-          head[i + channel] += (pixels[sample + channel] - head[i + channel]) * repair;
-        }
-        head[i + 3] = (head[i + 3] + (pixels[sample + 3] - head[i + 3]) * repair)
-          * (1 - jawRepair * (1 - feather));
-      }
-      if (head[i + 3] === 0) continue;
       const pixel = (Math.floor(bodyY) * body.width + Math.floor(bodyX)) * 4;
       const red = cloth[pixel], green = cloth[pixel + 1], blue = cloth[pixel + 2];
       const bodyAlpha = cloth[pixel + 3] / 255;
       const skin = bodyAlpha * smoothstep(6, 24, red - blue)
         * smoothstep(-2, 18, red - green) * smoothstep(-1, 18, green - blue);
+      if (ivorySide) {
+        // Match the two skin tones in the overlap while keeping the jaw's contact shadow.
+        const portraitLuma = luma(head[i], head[i + 1], head[i + 2]);
+        const neckLuma = luma(red, green, blue);
+        const shadow = 14 * (1 - smoothstep(4, 24, underJaw));
+        const correction = Math.max(0, neckLuma - portraitLuma - shadow)
+          * smoothstep(-7, 10, underJaw) * skin;
+        head[i] += correction * .86;
+        head[i + 1] += correction;
+        head[i + 2] += correction * 1.07;
+      }
       // Blend sampled skin color across the upper neck while carrying the original throat detail.
       const tint = skin * (front ? .66 * smoothstep(6, 23, underJaw) : .74 * smoothstep(-2, 34, underJaw));
       head[i] += (red - head[i]) * tint;
       head[i + 1] += (green - head[i + 1]) * tint;
       head[i + 2] += (blue - head[i + 2]) * tint;
-      const fade = front ? smoothstep(6, 24, underJaw) : smoothstep(1, 37, underJaw);
+      let fade = smoothstep(front ? 6 : 1, front ? 24 : 37, underJaw);
+      if (ivorySide) {
+        // Overlap with real neck skin can end earlier. Keep the portrait opaque over the hat brim.
+        const overNeck = smoothstep(.30, .78, skin);
+        const softEdge = smoothstep(14, 36, underJaw);
+        fade = softEdge + (smoothstep(-1, 21, underJaw) - softEdge) * overNeck;
+        fade += (1 - fade) * smoothstep(203, 223, bodyY / unit);
+      }
       head[i + 3] *= 1 - fade * (.45 + .55 * Math.max(skin, bodyAlpha * (1 - skin)));
 
       if (look === "ink") {
@@ -503,7 +536,7 @@ function fitHead(sprite, look, angle, body) {
         const collarX = bodyX / unit;
         const inset = Math.min(collarX - seamAt(inkNeckOpening, collarY, 1),
           seamAt(inkNeckOpening, collarY, 2) - collarX);
-        const collarFade = front ? (1 - jawRepair) * smoothstep(0, 5, underJaw) : smoothstep(5, 17, underJaw);
+        const collarFade = front ? smoothstep(0, 5, underJaw) : smoothstep(5, 17, underJaw);
         head[i + 3] *= 1 - collarFade * (1 - smoothstep(-1.2, 1.2, inset));
       }
 
