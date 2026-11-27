@@ -45,12 +45,15 @@ export function createRecordClaim({
   sleep = waitForRetry,
   timeoutMs = 15000,
   attempts = 4,
+  scope,
 } = {}) {
+  const receiptKey = scope ? `${CLAIM_KEY}:${scope}` : CLAIM_KEY;
+  const pendingKey = scope ? `${LEGACY_KEY}:${scope}` : LEGACY_KEY;
   let current, inFlight;
   function read() {
     if (current) return current;
     try {
-      const saved = JSON.parse(storage()?.getItem(CLAIM_KEY));
+      const saved = JSON.parse(storage()?.getItem(receiptKey));
       if (saved?.version === 1 && validId(saved.requestId)) {
         return current = { version: 1, requestId: saved.requestId,
           ...(validNumber(saved.number) ? { number: saved.number, completed: saved.completed === true } : {}) };
@@ -60,9 +63,9 @@ export function createRecordClaim({
   }
   function save(receipt) {
     current = receipt;
-    try { storage()?.setItem(CLAIM_KEY, JSON.stringify(receipt)); } catch {}
+    try { storage()?.setItem(receiptKey, JSON.stringify(receipt)); } catch {}
     // Also preserve a pending request when persistent storage is unavailable.
-    try { session()?.setItem(LEGACY_KEY, receipt.requestId); } catch {}
+    try { session()?.setItem(pendingKey, receipt.requestId); } catch {}
     return receipt;
   }
   async function claim(onProgress, signal) {
@@ -70,7 +73,7 @@ export function createRecordClaim({
     let receipt = read();
     if (!receipt) {
       let legacy;
-      try { legacy = session()?.getItem(LEGACY_KEY); } catch {}
+      try { legacy = session()?.getItem(pendingKey); } catch {}
       receipt = save({ version: 1, requestId: validId(legacy) ? legacy : makeId() });
     }
     if (validNumber(receipt.number)) return receipt;
@@ -132,7 +135,7 @@ export function createRecordClaim({
         const flight = { signal };
         const task = () => claim(onProgress, signal);
         flight.promise = Promise.resolve().then(() => locks?.request
-          ? locks.request(CLAIM_KEY, task) : task()).finally(() => {
+          ? locks.request(receiptKey, task) : task()).finally(() => {
           if (inFlight === flight) inFlight = undefined;
         });
         inFlight = flight;

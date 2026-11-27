@@ -12,7 +12,7 @@ import { setupCollection } from './collection.js?v=20261122-r95';
 import { canRestorePosition, spawnPlayer, stepPlayer } from './navigation.js?v=20261122-r95';
 import { prepareOffline } from './offline.js?v=20261122-r95';
 import { buildMagazines } from './magazines.js?v=20261122-r95';
-import { setupMagazineQuest } from './magazine-quest.js?v=20261122-r95';
+import { setupMagazineQuest } from './magazine-quest.js?v=20261127-palette-r4';
 import { setupDaimiFeeding } from './daimi-feeding.js?v=20261122-r95';
 import { DAIMI_VIEWS } from './daimi-views.js?v=20261122-r95';
 import { buildRolePortraits } from './roles.js?v=20261122-r95';
@@ -21,9 +21,10 @@ import { createRewardSounds } from './reward-sounds.js?v=20261122-r95';
 import { createArtworkQueue } from './artwork.js?v=20261122-r95';
 import { createAtriumLighting } from './atrium-light.js?v=20261122-r95';
 import { createAtriumProbes } from './atrium-probes.js?v=20261122-r95';
-import { setupKeepsake } from './keepsake.js?v=20261123-r98';
-import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261123-r98';
-import { createPlaySave } from './play-save.js?v=20261122-r95';
+import { setupKeepsake } from './keepsake.js?v=20261127-palette-r6';
+import { buildWallProjection, setupMessageWall } from './message-wall.js?v=20261127-palette-r6';
+import { createPlaySave } from './play-save.js?v=20261127-palette-r4';
+import { paletteIsUnlocked, paletteWallQuery, syncPaletteShortcut } from './palette-access.js?v=20261127-palette-r4';
 import { buildConcertPlatform, CONCERT_STAGE } from './concert-platform.js?v=20261122-r95';
 import { createConcertAudience } from './concert-audience.js?v=20261122-r95';
 import { CONCERT_MIRROR_POSITION, createConcertLighting } from './concert-lighting.js?v=20261122-r95';
@@ -33,6 +34,8 @@ const loading = window.bloomLoading;
 // Local lighting inspection opens on the concert floor without touching a player's progress.
 const wallPreview = ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)
   && new URLSearchParams(location.search).get('wallPreview') === 'full';
+const gardenUrl = new URL(location.href);
+const arrivingAtWall = !wallPreview && gardenUrl.searchParams.get(paletteWallQuery) === '1' && paletteIsUnlocked();
 const progressStorage = wallPreview ? () => null : () => localStorage;
 const playSave = createPlaySave(progressStorage);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -305,6 +308,7 @@ function reportChallenge(challenge, complete = false) {
 }
 function saveCollection(group, id, complete) {
   playSave.collect(group, id);
+  if (complete) syncPaletteShortcut();
   if (!playSave.state.testRun) window.dispatchEvent(new Event('bloom-collected'));
   reportChallenge(collectionChallenges[group], complete);
 }
@@ -514,6 +518,8 @@ const concertDestinations = [
 ];
 // The rear aisle opens just left of the stair foot. Aim back at the singer from there.
 const portraitConcertEntrance = { x: -1.78, y: 0, z: 7.95, yaw: -.251, pitch: .216 };
+// Stand to the left of the descending stairs with a clear view of the back wall.
+const messageWallEntrance = { x: -4.15, y: 0, z: 5.8, yaw: Math.PI + .16, pitch: .24 };
 let checkpoint, lastSavedCheckpoint, lastCheckpointSave = 0;
 function captureCheckpoint() {
   if (concertMode || !p.grounded || p.onProp) return;
@@ -662,13 +668,27 @@ async function enter() {
     placePlayer({ x: .6, y: CONCERT_STAGE.y, z: -2.58, yaw: 2.65, pitch: .17 });
     showLightstickHint(false);
     $('#hint').hidden = true;
+  } else if (arrivingAtWall) {
+    reportGardenScene('garden');
+    const position = canRestorePosition(messageWallEntrance, surfaces, colliders)
+      ? messageWallEntrance : { ...gardenDestinations[0], yaw: messageWallEntrance.yaw, pitch: messageWallEntrance.pitch };
+    placePlayer(position);
+    $('#location-label').textContent = '一层 · 留言墙';
+    const paletteUrl = new URL($('#palette-shortcut').href);
+    paletteUrl.searchParams.set('from-wall', '1');
+    messageWall.open({
+      backLabel: '回到涂色',
+      onBack: () => location.replace(paletteUrl),
+    });
+    gardenUrl.searchParams.delete(paletteWallQuery);
+    history.replaceState(history.state, '', gardenUrl);
   } else {
     reportGardenScene('garden');
     startJoystickGuide();
     const saved = playSave.state.position;
     placePlayer(saved && canRestorePosition(saved, surfaces, colliders) ? saved : gardenDestinations[0]);
   }
-  if (record.claimed) messageWall.refresh();
+  if (record.claimed && !arrivingAtWall) messageWall.refresh();
   setTimeout(() => { $('#hint').style.opacity = 0; }, 9000);
 }
 $('#enter').onclick=enter;$('.brand').onclick=e=>{e.preventDefault();if(entered)setSpot(0)};
@@ -1188,6 +1208,7 @@ function finishOpening() {
   window.bloomReady = modelReady = loading.finish();
   if (!modelReady) return;
   updateArtworkProgress(artwork.progress());
+  if (arrivingAtWall) void enter();
   setTimeout(async () => {
     await artwork.start();
     if ((wallPreview || record.claimed) && !concertPerformer) prepareConcertOutfit();

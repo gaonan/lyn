@@ -1,9 +1,10 @@
 import { magazineInReach } from './magazines.js?v=20261122-r95';
 import { roleInReach } from './roles.js?v=20261122-r95';
+import { readGardenAchievement, writeGardenAchievement } from './play-save.js?v=20261127-palette-r4';
+import { paletteIsUnlocked, syncPaletteShortcut } from './palette-access.js?v=20261127-palette-r4';
 
 const HOLD_MS = 2000;
 const HOLD_KEYS = ['Space', 'Enter'];
-const ACHIEVEMENT_KEY = 'carnation7-achievement';
 
 export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, options) {
   const panel = document.querySelector('#magazine-counter');
@@ -105,16 +106,15 @@ export function setupMagazineQuest(magazines, roles, dog, record, getPlayer, opt
 
   const progressStorage = options.progressStorage ?? (() => localStorage);
   function rememberAchievement(value) {
-    try { progressStorage()?.setItem(ACHIEVEMENT_KEY, value); } catch {}
+    writeGardenAchievement(value, progressStorage);
+    syncPaletteShortcut(paletteIsUnlocked(value));
   }
-  try {
-    const saved = progressStorage()?.getItem(ACHIEVEMENT_KEY);
-    if (saved === 'complete' || saved === 'record-pending' || saved === 'record') {
-      record.unlock(saved !== 'complete');
-      showAchievement(saved === 'record');
-      achievementPending = saved === 'record-pending';
-    }
-  } catch {}
+  const achievement = readGardenAchievement(progressStorage);
+  if (achievement === 'complete' || achievement === 'record-pending' || achievement === 'record') {
+    record.unlock(achievement !== 'complete');
+    showAchievement(achievement === 'record');
+    achievementPending = achievement === 'record-pending';
+  }
   function showAchievement(claimed) {
     achievementBadge.hidden = false;
     pureViewToggle.hidden = false;

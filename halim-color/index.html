@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17202c">
+  <title>给宁换装</title>
+  <link rel="stylesheet" href="style.css?v=20261127-palette-r5">
+  <link rel="stylesheet" href="../creator-credit.css?v=20261127-palette-r5">
+  <link rel="stylesheet" href="keepsake.css?v=20261127-palette-r5">
+  <script type="module" src="poster.js?v=20261127-palette-r5"></script>
+  <script defer src="alignment.js?v=20261127-palette-r5"></script>
+  <script defer src="tailoring.js?v=20261127-palette-r5"></script>
+  <script defer src="color-picker.js"></script>
+  <script defer src="game.js?v=20261127-palette-r5"></script>
+  <script type="module" src="integration.js?v=20261127-palette-r6"></script>
+</head>
+<body>
+  <div id="palette-poster" class="palette-poster" hidden>
+    <picture aria-hidden="true">
+      <source media="(orientation: portrait)" srcset="assets/poster-portrait.webp">
+      <img src="assets/poster-landscape.webp" alt="" fetchpriority="high" decoding="async">
+    </picture>
+    <p role="status">致敬与宁合作过多次的顶级设计师 <strong>Harry Halim</strong></p>
+    <div class="creator-credit" aria-hidden="true">By MD_Leah</div>
+  </div>
+  <header class="masthead">
+    <a class="home" href="../">← 回到康乃馨</a>
+    <h1>给宁换装</h1>
+  </header>
+  <main class="studio" hidden>
+    <section class="stage" aria-label="服装预览" data-light="carnation">
+      <div class="set" aria-hidden="true"><img class="scene-image" id="scene-image" alt=""><div class="ground-shadow"></div><div class="gold-dust" id="gold-dust"></div></div>
+      <div class="stage-top">
+        <div class="stage-caption">
+          <span id="stage-name">玄素</span>
+          <span class="creator-credit" aria-hidden="true">By MD_Leah</span>
+        </div>
+        <button id="compare" type="button" aria-pressed="false">看原色</button>
+      </div>
+      <div class="performer" id="performer">
+        <canvas id="body" width="800" height="1200" aria-label="点衣料选部位，也可用布片按钮"></canvas>
+        <div class="fabric-glints" id="fabric-glints" aria-hidden="true"></div>
+        <div class="angle-fog" id="angle-fog" aria-hidden="true"></div>
+      </div>
+      <div class="stage-bottom">
+        <div class="segments" id="angles" aria-label="视角">
+          <button type="button" value="side" aria-pressed="true">侧脸</button>
+          <button type="button" value="front" aria-pressed="false">正脸</button>
+        </div>
+        <label class="lighting">舞台
+          <select id="light">
+            <optgroup label="花园布景"><option value="carnation">康乃馨 7.0</option><option value="secret">秘密花园</option></optgroup>
+            <option value="warm">暖金舞台</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="desk" aria-label="上色工具">
+      <div class="editor-section looks-section">
+        <h2>挑一套</h2>
+        <div id="looks" class="looks" role="group" aria-label="服装"></div>
+      </div>
+      <div class="editor-section">
+        <h2>选布片</h2>
+        <div id="parts" class="parts" role="group" aria-label="布片"></div>
+      </div>
+      <div class="editor-section">
+        <h2>换颜色</h2>
+        <div class="palette" id="palette" role="group" aria-label="预设底色"></div>
+        <div class="color-row">
+          <button type="button" class="color-choice" id="base-color" aria-controls="custom-color" aria-expanded="false">
+            <span aria-hidden="true"></span>自定义底色
+          </button>
+          <button type="button" class="plain-action" id="restore-part">还原布片</button>
+        </div>
+        <div id="base-picker-slot"></div>
+      </div>
+      <div class="editor-section texture-section" id="pattern-section">
+        <h2>织纹</h2>
+        <div class="segments" id="patterns" role="group" aria-label="纹样">
+          <button type="button" value="original" aria-pressed="true">原布纹</button>
+          <button type="button" value="check" aria-pressed="false">细格</button>
+          <button type="button" value="plaid" aria-pressed="false">宽格</button>
+          <button type="button" value="stripe" aria-pressed="false">细条</button>
+        </div>
+        <div id="pattern-settings" class="pattern-settings" hidden>
+          <button type="button" class="color-choice" id="pattern-color" aria-controls="custom-color" aria-expanded="false">
+            <span aria-hidden="true"></span>自定义纹样色
+          </button>
+          <label class="scale">纹样大小 <input id="scale" type="range" min="65" max="185" value="100"></label>
+        </div>
+        <div id="thread-picker-slot"></div>
+      </div>
+      <div class="desk-actions">
+        <div>
+          <button id="undo" class="plain-action" type="button" disabled>撤销</button>
+          <button id="reset" class="plain-action" type="button" disabled>还原整套</button>
+        </div>
+        <button id="save" class="save" type="button" disabled>保存留影 <span aria-hidden="true">↓</span></button>
+      </div>
+      <p id="status" role="status" class="status">正在铺开布料…</p>
+    </section>
+  </main>
+  <dialog id="palette-locked" aria-labelledby="palette-locked-title">
+    <h2 id="palette-locked-title">收齐心心、海报和角色后，即可进入换装彩蛋</h2>
+    <a class="keepsake-control keepsake-control-primary" href="../">回到游戏</a>
+    <div class="creator-credit creator-credit--dialog" aria-hidden="true">By MD_Leah</div>
+  </dialog>
+  <dialog id="record-finale" aria-labelledby="record-finale-title">
+    <div class="keepsake-art">
+      <img class="keepsake-album" alt="刘宇宁首张专辑" width="864" height="533">
+      <img class="keepsake-preview" alt="宁的调色盘唱片留影" width="3200" height="2440" hidden>
+      <div class="keepsake-angles" hidden>
+        <button type="button" id="keepsake-angle-prev" aria-label="上一机位">‹</button>
+        <span id="keepsake-angle-label"></span>
+        <button type="button" id="keepsake-angle-next" aria-label="下一机位">›</button>
+      </div>
+    </div>
+    <div class="keepsake-editor">
+      <p class="photo-step">宁的调色盘 · 唱片收藏</p>
+      <h2 id="record-finale-title">写给宁的留言</h2>
+      <div class="keepsake-compose">
+        <textarea id="keepsake-text" aria-labelledby="record-finale-title" rows="2" placeholder="最多 50 个字"></textarea>
+        <span class="keepsake-count">0 / 50</span>
+        <button type="button" class="keepsake-control keepsake-control-primary" id="make-keepsake">领取编号并生成留影</button>
+      </div>
+      <div class="keepsake-issued" hidden>
+        <div class="record-ticket"><span>唱片收藏编号</span><strong id="record-number"></strong></div>
+        <div class="keepsake-actions">
+          <button type="button" class="keepsake-control" id="save-keepsake">保存到相册</button>
+          <a class="keepsake-control" id="download-keepsake" download>下载原图</a>
+          <button type="button" class="keepsake-control" id="edit-keepsake">修改留言</button>
+          <p id="keepsake-save-status" class="keepsake-status" role="status"></p>
+          <button type="button" class="keepsake-control keepsake-control-primary" id="publish-wall-note" aria-describedby="wall-publish-status" hidden>发布到留言墙</button>
+          <p id="wall-publish-status" class="keepsake-status" role="status" hidden></p>
+        </div>
+      </div>
+      <p id="keepsake-status" class="keepsake-status" role="status"></p>
+      <div class="keepsake-footer">
+        <button type="button" class="keepsake-control" id="open-message-wall">查看大家的留言</button>
+        <form method="dialog"><button type="submit" class="keepsake-control">继续涂色</button></form>
+      </div>
+    </div>
+    <div class="creator-credit creator-credit--dialog" aria-hidden="true">By MD_Leah</div>
+  </dialog>
+  <div class="custom-color" id="custom-color" role="group" aria-label="全色盘" hidden>
+    <div class="color-area" aria-hidden="true"><span></span></div>
+    <label class="color-hue">色相 <input type="range" min="0" max="359" value="0"></label>
+    <div class="color-codes">
+      <label class="color-hex">HEX <input type="text" maxlength="7" autocomplete="off" spellcheck="false" autocapitalize="characters"></label>
+      <label>R <input type="number" min="0" max="255" step="1" inputmode="numeric" aria-label="R 红色"></label>
+      <label>G <input type="number" min="0" max="255" step="1" inputmode="numeric" aria-label="G 绿色"></label>
+      <label>B <input type="number" min="0" max="255" step="1" inputmode="numeric" aria-label="B 蓝色"></label>
+    </div>
+  </div>
+</body>
+</html>

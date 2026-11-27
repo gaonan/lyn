@@ -1,4 +1,4 @@
-import { keepsakeText, paintCreatorCredit, paintGardenLink, shareImage, textLines } from './keepsake.js?v=20261123-r98';
+import { keepsakeText, paintCreatorCredit, paintGardenLink, shareImage, textLines } from './keepsake.js?v=20261127-palette-r6';
 
 const WIDTH = 2048;
 const BASE_HEIGHT = 640;
@@ -188,6 +188,10 @@ async function wallRequest(body) {
   }
 }
 
+export function publishWallMessage(note) {
+  return wallRequest(note);
+}
+
 function visibleNotes(messages) {
   return messages.filter(note => Number.isSafeInteger(note.id) && note.id > 0 && typeof note.text === 'string')
     .map(({ id, text }) => ({ id, text: keepsakeText(text).trim() }))
@@ -254,8 +258,22 @@ export function setupMessageWall(dialog, projection, drawView, recordReady) {
       if (dialog.open && attempt === revision) shuffle.disabled = false;
     }
   }
-  dialog.querySelector('#back-from-message-wall').onclick = () => dialog.close();
+  const back = dialog.querySelector('#back-from-message-wall');
+  const continueGarden = dialog.querySelector('#continue-from-message-wall');
+  const paletteCredit = dialog.querySelector('#palette-wall-credit');
+  let returnToPalette;
+  back.onclick = () => {
+    if (returnToPalette) returnToPalette();
+    else dialog.close();
+  };
+  continueGarden.onclick = () => dialog.close();
+  dialog.addEventListener('cancel', event => {
+    if (!returnToPalette) return;
+    event.preventDefault();
+    returnToPalette();
+  });
   dialog.addEventListener('close', () => {
+    returnToPalette = undefined;
     revision++;
     discardImage();
   });
@@ -301,19 +319,24 @@ export function setupMessageWall(dialog, projection, drawView, recordReady) {
     } catch {}
   }
   return {
-    open() {
+    open({ backLabel = '返回留影', onBack } = {}) {
       if (dialog.open) return;
+      returnToPalette = onBack;
+      back.textContent = backLabel;
+      back.toggleAttribute('data-return-to-palette', Boolean(onBack));
+      continueGarden.hidden = paletteCredit.hidden = !onBack;
       shuffle.hidden = true;
       count.textContent = '';
       selection.textContent = '';
       list.replaceChildren();
       dialog.showModal();
+      if (onBack) back.focus();
       drawView(canvas);
       loadSelection();
     },
     refresh,
     async publish(note) {
-      await wallRequest(note);
+      await publishWallMessage(note);
       refresh();
     },
   };

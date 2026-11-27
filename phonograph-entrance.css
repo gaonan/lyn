@@ -1,11 +1,11 @@
 @font-face {
-  font-family: "Archive Serif";
-  src: url("assets/fonts/noto-serif-sc-archive.woff2?v=20261123-r96") format("woff2");
+  font-family: "Home Card Serif";
+  src: url("assets/fonts/noto-serif-sc-home-cards.woff2?v=20261127-palette-r4") format("woff2");
   font-weight: 600 900;
   font-display: swap;
 }
 
-header .tools .tool-phonograph {
+header .tools :is(.tool-phonograph, .tool-palette) {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -22,11 +22,12 @@ header .tools .tool-phonograph {
   white-space: nowrap;
   text-decoration: none;
 }
-header .tools .tool-phonograph:hover, header .tools .tool-phonograph:focus-visible {
+header .tools .tool-palette[hidden] { display: none; }
+header .tools :is(.tool-phonograph, .tool-palette):is(:hover, :focus-visible) {
   background: #d0963a61;
   color: #fff0c0;
 }
-header .tool-phonograph-new {
+header .tool-palette-new {
   display: inline-grid;
   place-items: center;
   width: 1.45em;
@@ -37,9 +38,33 @@ header .tool-phonograph-new {
   font-size: 9px;
   line-height: 1;
 }
-header .tools .tool-phonograph:focus-visible {
+header .tools :is(.tool-phonograph, .tool-palette):focus-visible {
   outline: 2px solid var(--glass-gold);
   outline-offset: -2px;
+}
+
+@media (max-width: 620px) and (orientation: portrait) {
+  body:not(.concert-active) header:has(.tool-palette:not([hidden])) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 32px var(--tools-height);
+    gap: 4px;
+  }
+  header:has(.tool-palette:not([hidden])) .brand { justify-self: start; }
+  body.entered:not(.concert-active):has(.tool-palette:not([hidden])) {
+    --hud-progress-top: calc(var(--hud-top) + 36px + var(--tools-height) + 7px);
+  }
+}
+@media (max-width: 425px) and (orientation: portrait) {
+  header .tools:has(.tool-palette:not([hidden])) { --tool-width: clamp(28px, 9vw, 38px); }
+  header .tools:has(.tool-palette:not([hidden])) :is(.tool-phonograph, .tool-palette) {
+    gap: 4px;
+    padding-inline: 5px;
+    margin-inline: 2px;
+  }
+  header .tools:has(.tool-palette:not([hidden])) :is(.tool-phonograph, .tool-palette) .tool-icon {
+    display: none;
+  }
 }
 
 #intro {
@@ -98,19 +123,15 @@ header .tools .tool-phonograph:focus-visible {
 #intro .intro-card-heading :is(h1, h2) {
   margin: 0;
   color: #ffe497;
-  font: 750 clamp(24px, 2.6vw, 39px)/1.22 "Archive Serif", "Songti SC", "STSong", serif;
+  font: 750 clamp(24px, 2.6vw, 39px)/1.22 "Home Card Serif", "Songti SC", "STSong", serif;
   letter-spacing: .025em;
-}
-#intro h1 span {
-  font: 450 .51em/1 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
-  letter-spacing: -.025em;
+  white-space: nowrap;
 }
 #intro .intro-new {
   font: 600 .43em/1 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
   letter-spacing: 0;
   white-space: nowrap;
 }
-#intro .intro-card-heading h2 { white-space: nowrap; }
 #intro .intro-card-heading > p {
   margin: .62em 0 1.15em;
   color: #f2ede4;
@@ -222,3 +243,26 @@ header .tools .tool-phonograph:focus-visible {
   #intro .intro-note { margin-top: 8px; }
 }
 
+
+#intro .intro-choices-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(890px, 78vw);
+}
+#palette-entry-dialog .primary { justify-content: center; letter-spacing: 0; }
+@media (orientation: portrait) {
+  #intro .intro-choices-three { width: min(670px, 100%); row-gap: 8px; }
+}
+@media (max-width: 560px) and (orientation: portrait) {
+  #intro .intro-choices-three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #intro .intro-choices-three .intro-color-card {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    grid-template: auto / minmax(0, 1fr) auto;
+    column-gap: 8px;
+    align-items: center;
+  }
+  #intro .intro-color-card .intro-card-heading > p { margin-bottom: 0; }
+  #intro .intro-color-card .primary { margin: 0; min-height: 38px; }
+  #intro .intro-color-card .intro-card-action { max-width: 49vw; }
+  #intro .intro-choices-three .intro-note { grid-row: 4; margin-top: 0; }
+}

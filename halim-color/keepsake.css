@@ -1,0 +1,129 @@
+@font-face {
+  font-family: "Noto Serif SC Film";
+  src: url("../assets/fonts/noto-serif-sc-film.woff2?v=20261127-palette-r3") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+.palette-poster {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: #30231f;
+}
+.palette-poster picture, .palette-poster img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.palette-poster img {
+  object-fit: cover;
+  object-position: center;
+}
+.palette-poster::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: auto 0 0;
+  height: 27%;
+  background: linear-gradient(transparent, #241717b8);
+}
+.palette-poster p {
+  position: absolute;
+  z-index: 1;
+  inset: auto 8px max(6%, calc(env(safe-area-inset-bottom) + 19px));
+  margin: 0;
+  color: #fff2df;
+  text-align: center;
+  text-shadow: 0 2px 8px #291813e6;
+  font-size: clamp(13px, 4.35vw, 28px);
+  letter-spacing: .025em;
+}
+.palette-poster strong { white-space: nowrap; }
+
+#palette-locked, #record-finale {
+  color: #faf8f3;
+  background: linear-gradient(155deg, #302f34, #1b1a1f);
+  border: 1px solid #fbf9ff38;
+  border-radius: 18px;
+  box-shadow: inset 0 1px #ffffff10, 0 18px 65px #0005;
+  font-family: system-ui, "Microsoft YaHei", sans-serif;
+}
+#palette-locked {
+  width: min(440px, calc(100% - 30px));
+  padding: 28px;
+}
+#palette-locked h2 { font-size: 21px; }
+#palette-locked::backdrop, #record-finale::backdrop { background: #08080d80; backdrop-filter: blur(5px); }
+#record-finale {
+  width: min(1040px, calc(100% - 30px));
+  max-width: none;
+  max-height: calc(100dvh - 30px);
+  padding: clamp(15px, 3vw, 30px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+#record-finale[open] {
+  display: grid;
+  grid-template-columns: minmax(0, 1.03fr) minmax(0, 1fr);
+  gap: clamp(14px, 3vw, 30px);
+  align-items: center;
+}
+.keepsake-art {
+  background: #0e1310;
+  padding: 7px;
+  border: 1px solid #d8b17673;
+  box-shadow: 0 12px 32px #070a0599;
+}
+.keepsake-art img { display: block; width: 100%; height: auto; max-height: 62dvh; object-fit: contain; }
+.keepsake-editor { min-width: 0; }
+#record-finale h2 { margin: 0 0 14px; font-size: clamp(19px, 3.2vw, 34px); font-weight: 640; }
+.photo-step { margin: 0 0 9px; color: #cfb783; font-size: 12px; letter-spacing: .09em; }
+#keepsake-text {
+  display: block; width: 100%; min-height: 76px; padding: 9px; resize: vertical;
+  border: 1px solid #fbf9ff38; border-radius: 6px; background: #1c1b20; color: inherit;
+  font: 16px/1.45 system-ui, sans-serif;
+}
+.keepsake-count { display: block; margin: 4px 0 7px; color: #c7b694; font-size: 11px; text-align: right; }
+.keepsake-actions, .keepsake-footer {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; align-items: center;
+}
+.keepsake-actions { margin-top: 8px; }
+.keepsake-footer { margin-top: 12px; padding-top: 12px; border-top: 1px solid #c4a66a44; }
+.keepsake-control {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 100%; min-height: 42px; padding: 4px 6px;
+  border: 1px solid #fbf9ff38; border-radius: 8px;
+  background: #ffffff0c; color: #faf8f3; text-decoration: none;
+  text-align: center; font-size: clamp(12px, 2vw, 16px);
+}
+.keepsake-control:not(.keepsake-control-primary):hover { background: #ffffff18; }
+.keepsake-control-primary { background: #f6d77e; color: #272116; border-color: transparent; font-weight: 650; }
+.record-ticket {
+  display: grid; gap: 6px; justify-items: center; padding: 12px 14px;
+  border: 1px solid transparent; border-radius: 2px;
+  background: linear-gradient(140deg, #3a2b19, #201a12 57%, #33271a) padding-box,
+    linear-gradient(110deg, #9b7540, #f0d499 46%, #906a37) border-box;
+  box-shadow: inset 0 0 0 4px #e2b7710e, 0 5px 24px #12100655;
+  color: #d0ab73;
+}
+.record-ticket span { font-size: 12px; letter-spacing: .22em; }
+.record-ticket strong {
+  color: #f0cf8e; font: 600 clamp(26px, 4vw, 41px)/1.05 "IBM Plex Mono", "Courier New", monospace;
+  font-variant-numeric: tabular-nums; text-shadow: 0 1px #130e08, 0 0 16px #d59e403c;
+}
+.keepsake-status { margin: 6px 0 0; color: #e0d0ac; font-size: 12px; line-height: 1.4; }
+.keepsake-actions .keepsake-status { margin: 0; }
+.keepsake-status:empty { display: none; }
+#keepsake-save-status { grid-area: 2 / 2; }
+#publish-wall-note { grid-area: 3 / 1; }
+#wall-publish-status { grid-area: 3 / 2; }
+@media (max-width: 620px) and (orientation: portrait) {
+  #record-finale[open] { grid-template-columns: 1fr; }
+  .keepsake-art img { max-height: min(32dvh, 230px); }
+}
+@media (orientation: landscape) and (max-height: 445px) {
+  #record-finale { padding: 10px 14px; }
+  .keepsake-control { min-height: 34px; }
+}

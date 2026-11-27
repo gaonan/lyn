@@ -1,4 +1,4 @@
-import { createRecordClaim, formatRecordNumber } from './record-claim.js?v=20261122-r95';
+import { createRecordClaim, formatRecordNumber } from './record-claim.js?v=20261127-palette';
 
 const LIMIT = 50;
 const segmenter = typeof Intl.Segmenter === 'function'
@@ -30,7 +30,9 @@ export function textLines(ctx, text, maxWidth) {
 
 const GARDEN_FILM_TITLE = '康乃馨 7.0';
 const CONCERT_FILM_TITLE = '康乃馨缘计划';
+const PALETTE_TITLE = '宁的调色盘';
 const FILM_LINES = ['如果我拥有一座花园', '邀请你常来停歇'];
+const PALETTE_LINES = ['祝福你千帆过尽', '还是少年模样'];
 const FILM_FONT = '"Noto Serif SC Film", "Noto Serif SC", "Songti SC", "Noto Serif CJK SC", serif';
 const FILM_SCALE = 2;
 
@@ -43,7 +45,8 @@ function createFilmCanvas() {
 
 async function loadFilmFont() {
   await document.fonts?.load(
-    `600 64px ${FILM_FONT}`, GARDEN_FILM_TITLE + CONCERT_FILM_TITLE + FILM_LINES.join('') + '唱片留影写给这一晚',
+    `600 64px ${FILM_FONT}`, GARDEN_FILM_TITLE + CONCERT_FILM_TITLE + PALETTE_TITLE
+      + FILM_LINES.join('') + PALETTE_LINES.join('') + '唱片留影写给这一晚写给宁的留言',
   ).catch(() => {});
 }
 
@@ -117,18 +120,63 @@ export function paintCreatorCredit(ctx, x, baseline, size = 16) {
   ctx.restore();
 }
 
-export function paintGardenLink(ctx, x, baseline, size) {
+export function paintGardenLink(ctx, x, baseline, size, withCredit = false) {
   ctx.save();
   ctx.textAlign = 'right';
   ctx.font = `500 ${size}px system-ui, sans-serif`;
   ctx.fillStyle = '#f5e5bf';
   ctx.shadowColor = '#15120f';
   ctx.shadowBlur = 5;
-  ctx.fillText('https://lyn.lipopo.org/', x, baseline);
+  const link = 'https://lyn.lipopo.org/';
+  ctx.fillText(withCredit ? `${link}  ·  By MD_Leah` : link, x, baseline);
   ctx.restore();
 }
 
-function paintFilmPhoto(out, render, { album, text, recordNumber, angle, filmTitle }) {
+function paintPaletteTitle(ctx, x, y, width, height, lettering) {
+  const center = x + width * .894;
+  if (lettering) {
+    const h = height * .84;
+    const w = h * lettering.naturalWidth / lettering.naturalHeight;
+    ctx.save();
+    ctx.shadowColor = '#24150da6';
+    ctx.shadowBlur = 9;
+    ctx.shadowOffsetY = 2;
+    ctx.globalAlpha = .91;
+    ctx.drawImage(lettering, center - w / 2, y + height * .055, w, h);
+    ctx.restore();
+    return;
+  }
+  const top = y + height * .103;
+  const step = height * .179;
+  const size = height * .125;
+  const light = ctx.createLinearGradient(center - size * .41, top, center + size * .44, top + step * 2);
+  light.addColorStop(0, '#fff0c9');
+  light.addColorStop(.32, '#e6c491');
+  light.addColorStop(.57, '#f5dbaf');
+  light.addColorStop(.79, '#ddb17d');
+  light.addColorStop(1, '#eed1a1');
+  ctx.save();
+  ctx.translate(center, top);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `600 ${size}px ${FILM_FONT}`;
+  ctx.strokeStyle = '#332516a8';
+  ctx.lineWidth = 2.6;
+  ctx.lineJoin = 'round';
+  ctx.shadowColor = '#171015af';
+  ctx.shadowBlur = 11;
+  ctx.shadowOffsetY = 3;
+  const shifts = [-6, -1, -7, 1, 4];
+  for (const [index, letter] of Array.from(PALETTE_TITLE).entries()) {
+    const shift = shifts[index];
+    ctx.strokeText(letter, shift, index * step);
+    ctx.fillStyle = light;
+    ctx.fillText(letter, shift, index * step);
+  }
+  ctx.restore();
+}
+
+function paintFilmPhoto(out, render, { album, text, recordNumber, angle, filmTitle, palette, lettering }) {
   const ctx = out.getContext('2d');
   const width = out.width / FILM_SCALE, height = out.height / FILM_SCALE;
   const x = 48, y = 54, right = width - x;
@@ -148,6 +196,7 @@ function paintFilmPhoto(out, render, { album, text, recordNumber, angle, filmTit
   vignette.addColorStop(1, 'rgba(12, 11, 15, .32)');
   ctx.fillStyle = vignette;
   ctx.fillRect(x, y, frameWidth, frameHeight);
+  if (palette) paintPaletteTitle(ctx, x, y, frameWidth, frameHeight, lettering);
   paintCreatorCredit(ctx, right - 29, y + frameHeight - 19);
   ctx.strokeStyle = '#d6b275';
   ctx.lineWidth = 1;
@@ -177,10 +226,11 @@ function paintFilmPhoto(out, render, { album, text, recordNumber, angle, filmTit
   const quoteX = ax + aw + 57;
   const quoteY = footerY + 116;
   ctx.fillStyle = '#f5e5bf';
+  const [firstLine, secondLine] = palette ? PALETTE_LINES : FILM_LINES;
   ctx.font = `600 67px ${FILM_FONT}`;
-  ctx.fillText(FILM_LINES[0], quoteX, quoteY);
+  ctx.fillText(firstLine, quoteX, quoteY);
   ctx.fillStyle = '#f0d9a4';
-  ctx.fillText(FILM_LINES[1], quoteX, quoteY + 89);
+  ctx.fillText(secondLine, quoteX, quoteY + 89);
 
   if (text) {
     ctx.strokeStyle = '#b28c557a';
@@ -190,7 +240,7 @@ function paintFilmPhoto(out, render, { album, text, recordNumber, angle, filmTit
     ctx.stroke();
     ctx.font = `600 20px ${FILM_FONT}`;
     ctx.fillStyle = '#cbb282';
-    ctx.fillText('写给这一晚', quoteX, footerY + 269);
+    ctx.fillText(palette ? '写给宁的留言' : '写给这一晚', quoteX, footerY + 269);
     ctx.fillStyle = '#f5ebd6';
     const noteWidth = right - 59 - quoteX;
     let fontSize = 31, lines;
@@ -214,7 +264,7 @@ function paintFilmPhoto(out, render, { album, text, recordNumber, angle, filmTit
   ctx.font = '500 25px "IBM Plex Mono", "Courier New", monospace';
   ctx.fillStyle = '#ecc68f';
   ctx.fillText(photoDate(new Date()), quoteX, footerBottom - 32);
-  paintGardenLink(ctx, right - 29, footerBottom - 32, 27);
+  paintGardenLink(ctx, right - 29, footerBottom - 32, 27, palette);
 
   paintFilmStrip(ctx, 0, width);
   paintFilmStrip(ctx, footerBottom, width);
@@ -231,9 +281,14 @@ export async function shareImage(file, title) {
   }
 }
 
-export function setupKeepsake(dialog, record, render, messageWall, dogReady, isConcert = () => false) {
+export function setupKeepsake(dialog, record, render, messageWall, dogReady, isConcert = () => false, {
+  palette = false,
+  onPublish,
+  paletteLettering,
+} = {}) {
   const key = 'carnation7-wall-note';
-  const claim = createRecordClaim();
+  const claim = createRecordClaim({ scope: palette ? 'palette' : undefined });
+  const draftTitle = palette ? '写给宁的留言' : '恭喜发现彩蛋，你好厉害！';
   let retryWhenOnline = false;
   const input = dialog.querySelector('textarea');
   const counter = dialog.querySelector('.keepsake-count');
@@ -259,10 +314,12 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady, isC
   const saveStatus = dialog.querySelector('#keepsake-save-status');
   const status = dialog.querySelector('#keepsake-status');
   let savedText = '';
-  try { savedText = keepsakeText(localStorage.getItem(key) || ''); } catch {}
-  record.setMessage(savedText);
+  if (!palette) {
+    try { savedText = keepsakeText(localStorage.getItem(key) || ''); } catch {}
+  }
+  record.setMessage?.(savedText);
   let file, url, wallReady, currentAngle = 0, activeRequest, generation = 0;
-  let publishable;
+  let publishable, submitted = false;
 
   function discardImage() {
     generation++;
@@ -281,7 +338,7 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady, isC
     publishButton.hidden = publishStatus.hidden = true;
     publishable = undefined;
     compose.hidden = false;
-    title.textContent = '恭喜发现彩蛋，你好厉害！';
+    title.textContent = draftTitle;
     download.removeAttribute('href');
   }
 
@@ -315,7 +372,7 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady, isC
     status.textContent = '正在准备留影…';
     let stage = 'image';
     try {
-      const [dogLoaded] = await Promise.all([dogReady, loadFilmFont(), album.complete && album.naturalWidth ? undefined : album.decode(),
+      const [dogLoaded, lettering] = await Promise.all([dogReady, paletteLettering?.(), loadFilmFont(), album.complete && album.naturalWidth ? undefined : album.decode(),
         angle === 1 ? wallReady : undefined]);
       if (attempt !== generation || !dialog.open) return;
       if (!dogLoaded) {
@@ -334,14 +391,14 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady, isC
       stage = 'image';
       status.textContent = '正在生成留影…';
       const out = createFilmCanvas();
-      const filmTitle = isConcert() ? CONCERT_FILM_TITLE : GARDEN_FILM_TITLE;
-      paintFilmPhoto(out, render, { album, text, recordNumber, angle, filmTitle });
+      const filmTitle = palette ? PALETTE_TITLE : isConcert() ? CONCERT_FILM_TITLE : GARDEN_FILM_TITLE;
+      paintFilmPhoto(out, render, { album, text, recordNumber, angle, filmTitle, palette, lettering });
       const blob = await new Promise(resolve => out.toBlob(resolve, 'image/jpeg', .96));
       if (!blob) throw new Error('No image was encoded');
       if (attempt !== generation || !dialog.open) return;
       const previousUrl = url;
       const suffix = angle === 1 ? '-留言墙' : '';
-      file = new File([blob], `康乃馨7.0-唱片留影-${recordNumber}${suffix}.jpg`, { type: 'image/jpeg' });
+      file = new File([blob], `${palette ? PALETTE_TITLE : '康乃馨7.0'}-唱片留影-${recordNumber}${suffix}.jpg`, { type: 'image/jpeg' });
       url = URL.createObjectURL(blob);
       currentAngle = angle;
       if (text) {
@@ -353,7 +410,8 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady, isC
       title.textContent = '收藏你的唱片留影';
       preview.src = url;
       if (previousUrl) URL.revokeObjectURL(previousUrl);
-      preview.hidden = issued.hidden = angles.hidden = false;
+      preview.hidden = issued.hidden = false;
+      angles.hidden = palette;
       album.hidden = compose.hidden = true;
       download.download = file.name;
       claim.complete(ticketRequest);
@@ -390,11 +448,20 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady, isC
 
   generate.addEventListener('click', () => {
     if (activeRequest) return;
-    claim.start();
     updateLimit();
-    savedText = input.value.trim().replace(/\n+/g, ' ');
-    record.setMessage(savedText);
-    try { localStorage.setItem(key, savedText); } catch {}
+    const note = input.value.trim().replace(/\n+/g, ' ');
+    if (palette && !note) {
+      status.textContent = '请先写给宁一句留言。';
+      input.focus();
+      return;
+    }
+    if (!palette || !submitted) claim.start();
+    submitted = true;
+    savedText = note;
+    record.setMessage?.(savedText);
+    if (!palette) {
+      try { localStorage.setItem(key, savedText); } catch {}
+    }
     discardImage();
     void generateView(0, savedText);
   });
@@ -415,6 +482,7 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady, isC
       if (note !== publishable) return;
       publishable = undefined;
       publishStatus.textContent = '已发布，留言会参与墙面抽选。';
+      onPublish?.();
     } catch {
       if (note !== publishable) return;
       publishButton.disabled = false;
@@ -428,19 +496,21 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady, isC
   save.addEventListener('click', async () => {
     if (!file) return;
     const attempt = generation;
-    const result = await shareImage(file, '康乃馨 7.0 · 花房留影');
+    const result = await shareImage(file, palette ? PALETTE_TITLE : '康乃馨 7.0 · 花房留影');
     if (attempt !== generation || !dialog.open) return;
     if (result === 'unavailable') {
       saveStatus.textContent = '可用「下载原图」保存。';
     }
   });
   return () => {
+    submitted = false;
+    if (palette) savedText = '';
     album.src = record.url;
     input.value = savedText;
     updateLimit();
     const receipt = claim.peek();
     status.textContent = receipt?.number && !receipt.completed
       ? `上次留影尚未完成，编号 ${formatRecordNumber(receipt.number)} 已保留，可继续生成。` : '';
-    wallReady = messageWall.refresh();
+    wallReady = messageWall.refresh?.();
   };
 }

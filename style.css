@@ -8,7 +8,7 @@
 }
 @font-face {
   font-family: "Noto Serif SC Film";
-  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261122-r95") format("woff2");
+  src: url("assets/fonts/noto-serif-sc-film.woff2?v=20261127-palette-r3") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -650,6 +650,13 @@ dialog .artwork-status { margin: 8px auto; max-width: 238px; }
 .wall-toolbar, .wall-actions { flex-wrap: wrap; }
 .wall-toolbar { margin-top: 9px; }
 .wall-actions { display: flex; align-items: center; gap: 8px; }
+.wall-exits { justify-content: flex-end; }
+#message-wall-dialog #back-from-message-wall[data-return-to-palette] {
+  background: #f6d77e;
+  border-color: #f6d77e;
+  color: #272116;
+  font-weight: 650;
+}
 #download-wall-image { color: #ffe7b5; padding-inline: 6px; font-size: 13px; }
 .wall-projection { margin: 12px 0 10px; border: 1px solid #c8aa7358; background: #131b16; }
 .wall-projection canvas { display: block; width: 100%; height: auto; }
@@ -700,19 +707,6 @@ dialog[open] {
 }
 #record-finale[open] {
   max-height: calc(var(--visible-height, 100vh) - var(--record-dialog-inset, 30px));
-}
-
-.creator-credit {
-  position: fixed;
-  right: max(12px, calc(env(safe-area-inset-right) + 5px));
-  bottom: max(9px, calc(env(safe-area-inset-bottom) + 5px));
-  z-index: 26;
-  color: #f7e7c488;
-  font: 500 clamp(9px, 1.4vw, 12px)/1.1 ui-monospace, "SFMono-Regular", "Courier New", monospace;
-  letter-spacing: .035em;
-  text-shadow: 0 1px 3px #101b15b3;
-  pointer-events: none;
-  user-select: none;
 }
 
 #joystick-guide {
@@ -815,16 +809,6 @@ dialog[open] {
 }
 @media (orientation: portrait) {
   #joystick-guide { top: 48%; }
-}
-
-@media (orientation: portrait), (max-width: 540px) {
-  .entered .creator-credit {
-    right: max(5px, env(safe-area-inset-right));
-    top: 50%;
-    bottom: auto;
-    transform: translateY(-50%);
-    writing-mode: vertical-rl;
-  }
 }
 
 #landscape-reminder { position: fixed; visibility: hidden; pointer-events: none; }

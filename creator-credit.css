@@ -1,0 +1,29 @@
+.creator-credit {
+  position: fixed;
+  right: max(12px, calc(env(safe-area-inset-right) + 5px));
+  bottom: max(9px, calc(env(safe-area-inset-bottom) + 5px));
+  z-index: 26;
+  color: #f7e7c488;
+  font: 500 clamp(9px, 1.4vw, 12px)/1.1 ui-monospace, "SFMono-Regular", "Courier New", monospace;
+  letter-spacing: .035em;
+  text-shadow: 0 1px 3px #101b15b3;
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (orientation: portrait), (max-width: 540px) {
+  .entered .creator-credit:not(.creator-credit--dialog) {
+    right: max(5px, env(safe-area-inset-right));
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+    writing-mode: vertical-rl;
+  }
+}
+
+.creator-credit--dialog {
+  position: static;
+  grid-column: 1 / -1;
+  margin-top: 8px;
+  text-align: right;
+}

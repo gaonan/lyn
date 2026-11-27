@@ -1,5 +1,14 @@
 const SAVE_KEY = 'carnation7-play-save';
+const ACHIEVEMENT_KEY = 'carnation7-achievement';
 const GROUPS = ['hearts', 'magazines', 'roles'];
+
+export function readGardenAchievement(storage = () => globalThis.localStorage) {
+  try { return storage()?.getItem(ACHIEVEMENT_KEY); } catch { return null; }
+}
+
+export function writeGardenAchievement(value, storage = () => globalThis.localStorage) {
+  try { storage()?.setItem(ACHIEVEMENT_KEY, value); } catch {}
+}
 
 function readSave(storage) {
   try {
@@ -20,6 +29,11 @@ function readSave(storage) {
       testRun: saved.testRun === true,
     };
   } catch { return null; }
+}
+
+export function gardenCollectionsComplete(storage = () => globalThis.localStorage) {
+  const saved = readSave(storage);
+  return Boolean(saved && saved.hearts.length >= 5 && saved.magazines.length >= 11 && saved.roles.length >= 12);
 }
 
 export function createPlaySave(storage = () => globalThis.localStorage) {
