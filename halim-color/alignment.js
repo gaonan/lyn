@@ -1,7 +1,7 @@
 // The original head sprites share a 1024 × 1536 grid. Fit each angle to its collar.
 const headFits = {
   ivory:   { front: [497, 257, 1.11], side: [498, 255, 1.11] },
-  ink:     { front: [514, 254, 1.17], side: [512, 259, 1.15] },
+  ink:     { front: [512, 256, 1.17], side: [512, 259, 1.15] },
   peach:   { front: [510, 250, 1.17], side: [510, 258, 1.15] },
   denim:   { front: [512, 261, 1.125], side: [509, 259, 1.115] },
   scarlet: { front: [511, 251, 1.15], side: [510, 250, 1.14] },
@@ -536,7 +536,7 @@ function fitHead(sprite, look, angle, body) {
         const collarX = bodyX / unit;
         const inset = Math.min(collarX - seamAt(inkNeckOpening, collarY, 1),
           seamAt(inkNeckOpening, collarY, 2) - collarX);
-        const collarFade = front ? smoothstep(0, 5, underJaw) : smoothstep(5, 17, underJaw);
+        const collarFade = front ? smoothstep(-1, 13, underJaw) : smoothstep(5, 17, underJaw);
         head[i + 3] *= 1 - collarFade * (1 - smoothstep(-1.2, 1.2, inset));
       }
 

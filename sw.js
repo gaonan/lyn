@@ -1,4 +1,4 @@
-const CACHE='carnation7-20261128-r2';
+const CACHE='carnation7-20261128-r3';
 const VERSION='20261122-r95';
 const BARKS='assets/daimi/two-barks.m4a';
 const FILES=[
