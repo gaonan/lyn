@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><meta property="og:title" content="康乃馨 7.0"><meta property="og:description" content="如果我拥有一座花园，邀请你常来停歇。"><meta name="demo-build" content="20261128-r1"><meta name="theme-color" content="#191816"><meta name="description" content="走进鲜花与书页之间。一个可以上下楼、自由探索的花园咖啡厅。"><title>康乃馨 7.0</title><link rel="manifest" href="manifest.webmanifest?v=20261122-r95"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/png" sizes="32x32" href="assets/carnation-gold-32.png"><link rel="apple-touch-icon" href="assets/carnation-gold-192.png"><link rel="stylesheet" href="style.css?v=20261127-palette-r3"><link rel="stylesheet" href="daimi-feeding.css?v=20261122-r95"><link rel="stylesheet" href="phonograph-entrance.css?v=20261127-palette-r4"><link rel="stylesheet" href="creator-credit.css?v=20261127-palette-r5"><link rel="modulepreload" href="app.js?v=20261127-palette-r6"></head><body>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><meta property="og:title" content="康乃馨 7.0"><meta property="og:description" content="如果我拥有一座花园，邀请你常来停歇。"><meta name="demo-build" content="20261128-r2"><meta name="theme-color" content="#191816"><meta name="description" content="走进鲜花与书页之间。一个可以上下楼、自由探索的花园咖啡厅。"><title>康乃馨 7.0</title><link rel="manifest" href="manifest.webmanifest?v=20261122-r95"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/png" sizes="32x32" href="assets/carnation-gold-32.png"><link rel="apple-touch-icon" href="assets/carnation-gold-192.png"><link rel="stylesheet" href="style.css?v=20261127-palette-r3"><link rel="stylesheet" href="daimi-feeding.css?v=20261122-r95"><link rel="stylesheet" href="phonograph-entrance.css?v=20261127-palette-r4"><link rel="stylesheet" href="creator-credit.css?v=20261127-palette-r5"><link rel="modulepreload" href="app.js?v=20261128-r2"></head><body>
 <canvas id="world" aria-label="可以自由走动的多层花园咖啡厅"></canvas><div class="vignette"></div>
 <div class="creator-credit" aria-hidden="true">By MD_Leah</div>
 <header><a class="brand" href="#" aria-label="康乃馨 7.0 首页"><img class="brand-mark" src="assets/carnation-gold.svg" width="32" height="32" alt=""><span class="brand-name">康乃馨 <b>7.0</b></span></a><div class="tools" role="group" aria-label="场景工具">
@@ -348,7 +348,7 @@
   else watch();
 })();
 </script>
-<script defer src="visit.js?v=20261123-r97"></script>
+<script defer src="visit.js?v=20261128-r2"></script>
 <script type="module">
   import { setupPaletteEntry } from './palette-access.js?v=20261127-palette-r4';
   setupPaletteEntry();
@@ -358,7 +358,7 @@
     async function loadApp() {
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          await import('./app.js?v=20261127-palette-r6' + (attempt ? '&asset-retry=' + Date.now() : ''));
+          await import('./app.js?v=20261128-r2' + (attempt ? '&asset-retry=' + Date.now() : ''));
           return;
         } catch (error) {
           if (attempt === 2 || !(error instanceof TypeError)

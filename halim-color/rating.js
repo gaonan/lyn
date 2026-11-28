@@ -59,6 +59,7 @@ function setupPaletteRating({ currentLook, finishes, save }) {
     shownScore = result.score;
     showEstimate();
     actions.hidden = false;
+    window.dispatchEvent(new CustomEvent('bloom-palette', { detail: 'rate' }));
   }
 
   function rate() {

@@ -1,10 +1,11 @@
 import { paletteIsUnlocked, paletteWallQuery } from '../palette-access.js?v=20261127-palette-r4';
-import { setupKeepsake } from '../keepsake.js?v=20261127-palette-r6';
+import { setupKeepsake } from '../keepsake.js?v=20261128-r2';
 import { publishWallMessage } from '../message-wall.js?v=20261127-palette-r6';
 
 const studio = document.querySelector('.studio');
 const locked = document.querySelector('#palette-locked');
 const dialog = document.querySelector('#record-finale');
+const report = detail => window.dispatchEvent(new CustomEvent('bloom-palette', { detail }));
 
 function visitWall() {
   try {
@@ -28,6 +29,7 @@ if (paletteIsUnlocked()) {
     wall, true, undefined, {
       palette: true,
       onPublish: visitWall,
+      onGenerate: () => report('keepsake'),
       paletteLettering() {
         if (!lettering) {
           const image = new Image();
@@ -51,6 +53,7 @@ if (paletteIsUnlocked()) {
   });
   dialog.addEventListener('close', () => { shot = undefined; });
   studio.hidden = false;
+  report('enter');
 } else {
   locked.showModal();
 }

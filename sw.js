@@ -1,8 +1,8 @@
-const CACHE='carnation7-20261128-r1';
+const CACHE='carnation7-20261128-r2';
 const VERSION='20261122-r95';
 const BARKS='assets/daimi/two-barks.m4a';
 const FILES=[
-  './','index.html','app.js?v=20261127-palette-r6','style.css?v=20261127-palette-r3','creator-credit.css?v=20261127-palette-r5','assets/fonts/noto-serif-sc-film.woff2?v=20261127-palette-r3','visit.js?v=20261123-r97','phonograph-entrance.css?v=20261127-palette-r4','palette-access.js?v=20261127-palette-r4','play-save.js?v=20261127-palette-r4','assets/fonts/noto-serif-sc-home-cards.woff2?v=20261127-palette-r4','assets/carnation-gold.svg','assets/carnation-gold-32.png','assets/carnation-gold-192.png',
+  './','index.html','app.js?v=20261128-r2','style.css?v=20261127-palette-r3','creator-credit.css?v=20261127-palette-r5','assets/fonts/noto-serif-sc-film.woff2?v=20261127-palette-r3','visit.js?v=20261128-r2','phonograph-entrance.css?v=20261127-palette-r4','palette-access.js?v=20261127-palette-r4','play-save.js?v=20261127-palette-r4','assets/fonts/noto-serif-sc-home-cards.woff2?v=20261127-palette-r4','assets/carnation-gold.svg','assets/carnation-gold-32.png','assets/carnation-gold-192.png',
   ...[
     'manifest.webmanifest','daimi-feeding.css','assets/lighting/atrium-probes.bin',
     'assets/loading/secret-garden-landscape.webp','assets/loading/secret-garden-portrait.webp',

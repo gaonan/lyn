@@ -284,6 +284,7 @@ export async function shareImage(file, title) {
 export function setupKeepsake(dialog, record, render, messageWall, dogReady, isConcert = () => false, {
   palette = false,
   onPublish,
+  onGenerate,
   paletteLettering,
 } = {}) {
   const key = 'carnation7-wall-note';
@@ -417,6 +418,7 @@ export function setupKeepsake(dialog, record, render, messageWall, dogReady, isC
       claim.complete(ticketRequest);
       status.textContent = '';
       saveStatus.textContent = '';
+      onGenerate?.();
     } catch (error) {
       if (attempt === generation && dialog.open) {
         retryWhenOnline = stage === 'number' && error.retryable !== false;

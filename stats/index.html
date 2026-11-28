@@ -58,7 +58,7 @@
   .chart-track { height: 8px; overflow: hidden; border-radius: 6px; background: #f1e2b318; }
   .chart-fill { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
   .start-bar { opacity: .50; }
-  .view-tabs { display: flex; gap: 6px; margin-top: 14px; }
+  .view-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
   .view-tabs button { background: transparent; color: #ebd9b5; }
   .view-tabs button[aria-pressed="true"] { background: #edd6a2; color: #29271c; }
   .messages-count { color: #d8d0b8; font-size: 12px; }
@@ -77,6 +77,7 @@
   <div class="view-tabs" id="data-views" role="group" aria-label="查看统计或留言" hidden>
     <button type="button" data-view="statistics" aria-controls="statistics" aria-pressed="true">访问统计</button>
     <button type="button" data-view="phonograph" aria-controls="phonograph" aria-pressed="false">留声机</button>
+    <button type="button" data-view="palette" aria-controls="palette" aria-pressed="false">调色盘</button>
     <button type="button" data-view="messages" aria-controls="messages" aria-pressed="false">全部留言</button>
   </div>
   <div id="statistics" hidden>
@@ -123,6 +124,12 @@
     <p class="definition" id="phonograph-definition"></p>
     <p class="definition">访客和录过唱段的访客按浏览器去重，已发布人数按账号去重。试听从音频开始播放时计入，同一访客反复播放同一段只计一次，平均段数以全部访客为分母。排队时长从服务器接收完成到首次开始处理，包含等待失败的任务。</p>
   </section>
+  <section id="palette" aria-labelledby="palette-title" hidden>
+    <h2 id="palette-title">宁的调色盘</h2>
+    <table id="palette-metrics"><thead><tr><th scope="col">指标</th><th scope="col">今天</th><th scope="col">累计</th></tr></thead><tbody></tbody></table>
+    <p class="definition" id="palette-definition"></p>
+    <p class="definition">进入次数按页面去重，访客按浏览器和站点去重。显示评分结果后计入评分访客，生成留影预览成功后计入留影访客。</p>
+  </section>
   <section id="messages" aria-labelledby="messages-title" hidden>
     <div class="section-heading">
       <h2 id="messages-title">全部留言</h2>
@@ -144,6 +151,7 @@
   const $ = selector => document.querySelector(selector);
   const form = $('#access'), status = $('#status'), refresh = $('#refresh'), stats = $('#statistics');
   const viewTabs = $('#data-views'), messagePanel = $('#messages'), phonographPanel = $('#phonograph');
+  const palettePanel = $('#palette');
   const messageRows = $('#messages-table tbody'), messageCount = $('#messages-count');
   const viewButtons = [...viewTabs.querySelectorAll('button')];
   const format = new Intl.NumberFormat('zh-CN');
@@ -159,7 +167,7 @@
   }
   function unlock(message) {
     form.hidden = false;
-    refresh.hidden = stats.hidden = viewTabs.hidden = messagePanel.hidden = phonographPanel.hidden = true;
+    refresh.hidden = stats.hidden = viewTabs.hidden = messagePanel.hidden = phonographPanel.hidden = palettePanel.hidden = true;
     messageRows.replaceChildren();
     messageCount.textContent = '';
     status.textContent = message;
@@ -261,6 +269,15 @@
     $('#phonograph-definition').textContent =
       `访问、录制、试听和排队自 ${start} 起统计。发布数据包含已有历史，重录和随后删除的唱段仍计入成功发布数。今日公开数指今天发布且仍公开的唱段。`;
   }
+  function renderPalette({ start, today, total }) {
+    const metrics = [
+      ['进入次数', 'opens'], ['去重访客', 'visitors'], ['评过分的访客', 'rated'], ['生成过留影的访客', 'keepsakes'],
+    ];
+    $('#palette-metrics tbody').replaceChildren(...metrics.map(([label, key]) =>
+      metricRow([label, format.format(today[key]), format.format(total[key])])));
+    $('#palette-definition').textContent = start
+      ? `从 ${start} 的首条记录起统计，日期以北京时间为准。` : '等待首条访问或使用记录。';
+  }
   function renderMessages({ messages }) {
     messageRows.replaceChildren(...messages.map(({ number, text }) => {
       const row = document.createElement('tr');
@@ -274,6 +291,7 @@
     stats.hidden = view !== 'statistics';
     messagePanel.hidden = view !== 'messages';
     phonographPanel.hidden = view !== 'phonograph';
+    palettePanel.hidden = view !== 'palette';
     for (const button of viewButtons) button.setAttribute('aria-pressed', String(view === button.dataset.view));
   }
   for (const button of viewButtons) button.onclick = () => {
@@ -306,6 +324,7 @@
       if (pending !== controller) return;
       if (messages) renderMessages(data);
       else if (view === 'phonograph') renderPhonograph(data);
+      else if (view === 'palette') renderPalette(data);
       else renderStatistics(data);
       try { sessionStorage.setItem('carnation7-stats-key', key); } catch {}
       form.hidden = true;
