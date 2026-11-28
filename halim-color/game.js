@@ -16,7 +16,7 @@ const fabricFinishes = new Map([
 ]);
 const swatches = [
   ["黄河琉璃", "#d9ae84"], ["荔色", "#8f292c"], ["麦绿", "#acb8a4"], ["青冥", "#3d5779"],
-  ["正青", "#8da19b"], ["姜红", "#d6aaa4"], ["官绿", "#274d22"], ["紫罗兰", "#6c5fa0"],
+  ["白色", "#ffffff"], ["姜红", "#d6aaa4"], ["官绿", "#274d22"], ["黑色", "#000000"],
   ...Array.from(fabricFinishes, ([key, finish]) => [finish.label, key]),
 ];
 const asset = name => (window.halimAssets || {})[name] || "assets/" + name;

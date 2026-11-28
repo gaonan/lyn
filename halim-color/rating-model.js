@@ -14,18 +14,18 @@ const ratedStages = {
 };
 const ratedPatternCoverage = { original: 0, check: .19, plaid: .34, stripe: .21 };
 
-// Raw harmony thresholds for the step from 40 to 41 through the step from 98 to 99.
-// The reference mix includes original pieces, partial edits, custom colors and coordinated presets.
+// Score thresholds calibrated to a normal-shaped reference mix centered at 70.
+// The mix covers original outfits, partial edits, coordinated palettes and random colors.
 const harmonyCutoffs = [
-  .309087215, .352589370, .361458217, .378996090, .393185809, .407857198, .422809520,
-  .435184177, .447938056, .462257456, .478665064, .492099908, .508435811, .524384456,
-  .538337583, .552646084, .569188576, .581180373, .597249617, .611320132, .624734098,
-  .636372203, .648341466, .659964007, .671807833, .681938931, .692957851, .704044174,
-  .713677683, .723933272, .734789575, .744393301, .754720943, .765571393, .777367063,
-  .786306289, .796811990, .806487883, .815081930, .822065473, .828616610, .835833462,
-  .844261021, .848187679, .855960888, .861649602, .871493104, .873255169, .875522069,
-  .885364302, .895583737, .895583737, .895583737, .900289944, .903819076, .910531995,
-  .918059048, .918059048, .923122162,
+  .47911, .48418, .48958, .50032, .50829, .52017, .53317,
+  .54507, .56082, .57243, .58748, .60362, .62091, .63841,
+  .65859, .68100, .70447, .72607, .74977, .77356, .79440,
+  .81091, .82644, .83976, .85135, .85802, .86861, .87723,
+  .88379, .89175, .89904, .90671, .91258, .91573, .92050,
+  .92460, .92773, .93341, .93600, .94075, .94481, .95097,
+  .95601, .96093, .96480, .96818, .97152, .97451, .97717,
+  .97968, .98126, .98298, .98561, .98733, .98956, .99122,
+  .99210, .99415, .99549,
 ];
 
 function rateLinearRgb(hex) {
@@ -57,25 +57,41 @@ function ratingMaterial(color, finishes) {
 function ratingColorFeatures([light, a, b]) {
   const chroma = Math.hypot(a, b);
   return {
-    light, vivid: Math.min(1, chroma / .17),
+    light, chroma, vivid: ratingEase(.025, .14, chroma),
     hue: (Math.atan2(b, a) * 180 / Math.PI + 360) % 360,
     warmth: Math.max(-1, Math.min(1, (.30*a + .95*b) / .13)),
   };
 }
 
-function ratingPair(first, second, emphasis) {
-  const delta = Math.abs(first.hue - second.hue);
-  const angle = Math.min(delta, 360 - delta);
-  const adjacent = Math.max(0, 1 - angle / 64);
-  const opposite = Math.max(0, (angle - 124) / 56);
-  const hueMatch = Math.max(adjacent, opposite * (.56 + .28*(1-emphasis)));
-  const intensity = Math.sqrt(first.vivid*second.vivid);
-  const brightness = Math.abs(first.light - second.light);
-  const valueBalance = .85 - Math.max(0, brightness - .40) * .66;
-  return valueBalance * (1-intensity) + hueMatch * intensity;
+function ratingEase(low, high, value) {
+  const t = Math.max(0, Math.min(1, (value - low) / (high - low)));
+  return t * t * (3 - 2 * t);
 }
 
-function scorePalette({ outfit, stage, parts }, finishes) {
+function ratingHueDistance(first, second) {
+  const delta = Math.abs(first.hue - second.hue);
+  return Math.min(delta, 360 - delta);
+}
+
+function ratingPair(first, second, emphasis) {
+  const angle = ratingHueDistance(first, second);
+  const analogous = 1 - ratingEase(18, 88, angle);
+  // A complementary accent has less visual weight than two equally strong colors.
+  const complementary = ratingEase(113, 159, angle) * (1 - .29 * emphasis);
+  const hue = .36 + Math.max(.61 * analogous, .67 * complementary);
+  const lightnessDifference = Math.abs(first.light - second.light);
+  const contrast = ratingEase(.07, .51, lightnessDifference);
+  const chromatic = Math.sqrt(first.vivid * second.vivid);
+  const neutral = 1 - Math.max(first.vivid, second.vivid);
+  const tonal = 1 - ratingEase(.045, .36, lightnessDifference);
+  const neutralPair = .75 + .17 * contrast + neutral * (.19 * tonal + .10 * contrast);
+  const chromaticPair = .79 * hue + .21 * (.70 + .30 * contrast);
+  const sharedColor = ratingEase(.018, .065, Math.min(first.chroma, second.chroma));
+  const colorRelationship = sharedColor * (.13 * analogous + .095 * complementary * contrast);
+  return neutralPair * (1 - chromatic) + chromaticPair * chromatic + colorRelationship;
+}
+
+function paletteQuality({ outfit, stage, parts }, finishes) {
   const colors = [];
   ratedOutfits[outfit].forEach(([original, area], index, fabrics) => {
     const part = parts[index];
@@ -98,21 +114,39 @@ function scorePalette({ outfit, stage, parts }, finishes) {
 
   const [stageColor, temperature] = ratedStages[stage];
   const stageTone = ratingColorFeatures(rateOklab(stageColor));
-  let backdrop = 0;
-  let opposite = 0;
-  let vividness = 0;
-  let dominantTones = 0;
+  const outfitLight = colors.reduce((sum, [color, area]) => sum + color.light * area, 0);
+  let lightnessSpread = 0;
+  let colorWeight = 0;
+  let separation = 0;
+  let temperatureFit = 0;
+  let temperatureClash = 0;
   for (const [color, area] of colors) {
-    backdrop += area * ratingPair(color, stageTone, .35);
-    opposite += area * Math.max(0, -color.warmth*temperature);
-    vividness += color.vivid*area;
-    if (color.vivid >= .71) dominantTones += area;
+    const temperatureAlignment = color.warmth * temperature;
+    lightnessSpread += area * (color.light - outfitLight) ** 2;
+    colorWeight += area * color.vivid;
+    separation += area * ratingEase(.04, .42, Math.abs(color.light - stageTone.light));
+    temperatureFit += area * color.vivid * Math.max(0, temperatureAlignment);
+    temperatureClash += area * color.vivid * ratingEase(.11, .62, -temperatureAlignment);
   }
-  const scene = .69*backdrop + .31*(1-opposite);
-  const restraint = 1 - Math.max(0, vividness-.49)*1.05 - .19*dominantTones;
-  const quality = .67*layers + .28*scene + .05*restraint;
+  const dominantFamily = Math.max(...colors.map(([anchor]) => colors.reduce((sum, [color, area]) => {
+    const angle = ratingHueDistance(color, anchor);
+    const similar = 1 - ratingEase(24, 71, angle);
+    const contrast = ratingEase(.10, .32, Math.abs(color.light - anchor.light));
+    const deliberateAccent = .67 * contrast * ratingEase(119, 155, angle);
+    return sum + area * color.vivid * Math.max(similar, deliberateAccent);
+  }, 0)));
+  const focus = 1 - ratingEase(.10, .38, colorWeight - dominantFamily);
+  const depth = ratingEase(.065, .32, Math.sqrt(lightnessSpread));
+  // A restrained monochrome can rely on texture and cut for depth.
+  const restrainedTone = .68 * (1 - ratingEase(.04, .23, colorWeight));
+  const scene = .74 + .14 * separation + .62 * temperatureFit - .37 * temperatureClash;
+  const quality = .77 * layers + .11 * scene + .07 * focus + .05 * Math.max(depth, restrainedTone);
+  const note = temperatureClash > .16 ? "stage" : layers < .66 ? "layers" : "balanced";
+  return { quality, note };
+}
+
+function scorePalette(look, finishes) {
+  const { quality, note } = paletteQuality(look, finishes);
   const firstHigher = harmonyCutoffs.findIndex(cutoff => quality < cutoff);
-  const note = opposite > .16 || scene + .13 < layers ? "stage"
-    : layers < .60 || dominantTones > .63 ? "layers" : "balanced";
   return { score: firstHigher === -1 ? 99 : 40 + firstHigher, note };
 }

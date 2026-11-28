@@ -1,4 +1,5 @@
 const ratingSyncInterval = 5 * 60 * 1000;
+const ratingModelVersion = 2;
 
 function ratingEstimate(score, snapshot) {
   if (!snapshot) return null;
@@ -19,7 +20,7 @@ function validRatingSnapshot(value) {
 }
 
 function createRatingStats(onSnapshot) {
-  const namespace = "carnation.halim-rating.v1.";
+  const namespace = `carnation.halim-rating.v${ratingModelVersion}.`;
   const snapshotKey = namespace + "snapshot";
   const pendingKey = namespace + "pending";
   const attemptKey = namespace + "last-attempt";
@@ -57,7 +58,7 @@ function createRatingStats(onSnapshot) {
 
   function snapshot() {
     const saved = read(snapshotKey);
-    return validRatingSnapshot(saved) ? saved : null;
+    return saved?.model === ratingModelVersion && validRatingSnapshot(saved) ? saved : null;
   }
 
   async function sync() {
@@ -80,12 +81,12 @@ function createRatingStats(onSnapshot) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         keepalive: true,
-        body: JSON.stringify({ participantId: participantId(), score: entry.score }),
+        body: JSON.stringify({ participantId: participantId(), score: entry.score, model: ratingModelVersion }),
         signal: controller.signal,
       });
       if (!response.ok) return;
       const next = await response.json();
-      if (!validRatingSnapshot(next)) return;
+      if (next?.model !== ratingModelVersion || !validRatingSnapshot(next)) return;
       if (next.asOf >= (snapshot()?.asOf ?? 0)) {
         write(snapshotKey, next);
         onSnapshot();
